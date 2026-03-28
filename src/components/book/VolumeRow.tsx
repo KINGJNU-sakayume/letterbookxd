@@ -8,12 +8,11 @@ interface VolumeRowProps {
   label?: string;
   workId: string;
   editionSetId: string;
-  userId: string;
   isSingleVolume?: boolean;
 }
 
 export function VolumeRow({
-  volume, label, workId, editionSetId, userId, isSingleVolume = false
+  volume, label, workId, editionSetId, isSingleVolume = false
 }: VolumeRowProps) {
   const { getVolumeLog, upsertVolumeLog } = useLogStore();
   const log = getVolumeLog(volume.id);
@@ -21,10 +20,8 @@ export function VolumeRow({
   // [C-2] 단권용 중복 upsertVolumeLog(logType:'set') 호출 제거
   // upsertVolumeLog 내부 로직이 watched 상태 기반으로 set_completion을 자동 관리합니다.
   function updateLog(newData: { watched: boolean; liked: boolean; rating: number | null }) {
-    if (!userId) return;
     upsertVolumeLog(
       { volumeId: volume.id, editionSetId, workId, logType: 'volume', ...newData },
-      userId
     );
   }
 

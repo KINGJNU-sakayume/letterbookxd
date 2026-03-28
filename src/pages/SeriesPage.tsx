@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, BookText, Loader2, CheckCircle2, LogIn, Heart } from 'lucide-react';
+import { ArrowLeft, BookText, Loader2, CheckCircle2, Heart } from 'lucide-react';
 import { BookCover } from '../components/ui/BookCover';
 import { VolumeRow } from '../components/book/VolumeRow';
 import { StarRating } from '../components/ui/StarRating';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { useBookStore } from '../store/bookStore';
 import { fetchSeriesById, fetchWorksBySeriesId, groupEditionsByPublisher } from '../services/db';
 import type { DbSeries, DbWork, DbEdition, EditionGroup } from '../services/db';
@@ -30,7 +29,6 @@ export function SeriesPage() {
 
   const { setGroupedData } = useBookStore();
   const { getSetCompletionLog, upsertSetCompletionLog, getSeriesCompletionLog, upsertSeriesCompletionLog } = useLogStore();
-  const { user } = useAuthStore();
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return; }
@@ -105,27 +103,25 @@ export function SeriesPage() {
   const seriesLog = getSeriesCompletionLog(series.id);
 
   function handleSeriesRating(rating: number | null) {
-    if (!user || !series) return;
-    upsertSeriesCompletionLog({ seriesId: series.id, liked: seriesLog?.liked ?? false, rating }, user.id);
+    if (!series) return;
+    upsertSeriesCompletionLog({ seriesId: series.id, liked: seriesLog?.liked ?? false, rating });
   }
 
   function toggleSeriesLiked() {
-    if (!user || !series) return;
+    if (!series) return;
     upsertSeriesCompletionLog({
       seriesId: series.id,
       liked: !(seriesLog?.liked ?? false),
       rating: seriesLog?.rating ?? null,
-    }, user.id);
+    });
   }
 
   function handleWorkRating(rating: number | null, editionSetId: string, workId: string, currentLiked: boolean) {
-    if (!user) return;
-    upsertSetCompletionLog({ editionSetId, workId, liked: currentLiked, rating }, user.id);
+    upsertSetCompletionLog({ editionSetId, workId, liked: currentLiked, rating });
   }
 
   function toggleWorkLiked(editionSetId: string, workId: string, currentLiked: boolean, currentRating: number | null) {
-    if (!user) return;
-    upsertSetCompletionLog({ editionSetId, workId, liked: !currentLiked, rating: currentRating }, user.id);
+    upsertSetCompletionLog({ editionSetId, workId, liked: !currentLiked, rating: currentRating });
   }
 
   const seriesCover = series.cover_url || works[0]?.editions[0]?.cover_url || '';
@@ -168,7 +164,7 @@ export function SeriesPage() {
                 <h1 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 leading-tight mb-2">{series.title}</h1>
                 <p className="text-lg text-stone-600">{series.author}</p>
               </div>
-              {isSeriesComplete && user && (
+              {isSeriesComplete && (
                 <div className="shrink-0 flex flex-col items-start sm:items-end gap-2 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-200 shadow-sm animate-in fade-in zoom-in-95">
                   <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
                     <CheckCircle2 size={15} /> 시리즈 전권 완독
@@ -244,7 +240,7 @@ export function SeriesPage() {
                       {setComplete && (
                         <div className="flex items-center gap-3 border-l border-stone-600 pl-3 ml-2 animate-in fade-in">
                           <CheckCircle2 size={16} className="text-emerald-400" />
-                          {log && user && (
+                          {log && (
                             <>
                               <StarRating
                                 rating={log.rating}
@@ -265,11 +261,6 @@ export function SeriesPage() {
                     <div className="px-4 py-2 bg-stone-100 border-b border-stone-200 flex items-center justify-between text-xs text-stone-500">
                       <span>{isSingle ? '단권 구성' : `${volCount}권 구성`}</span>
                     </div>
-                    {!user && (
-                      <div className="mx-3 mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
-                        <LogIn size={13} />로그인 후 독서 기록을 저장할 수 있습니다.
-                      </div>
-                    )}
                     <div className="p-1">
                       {selectedGroup.editions.map(edition => (
                         <VolumeRow
@@ -278,7 +269,6 @@ export function SeriesPage() {
                           label={isSingle ? selectedWork.title : `${selectedWork.title} ${edition.volume_number}권`}
                           workId={selectedWork.id}
                           editionSetId={setId}
-                          userId={user?.id ?? ''}
                           isSingleVolume={isSingle}
                         />
                       ))}

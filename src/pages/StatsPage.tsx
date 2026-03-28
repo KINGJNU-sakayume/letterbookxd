@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Loader2, BookOpen, Star, Map as MapIcon, X, CheckCircle2, Award, Library, LogIn } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Loader2, BookOpen, Star, Map as MapIcon, X, CheckCircle2, Award, Library } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Label } from 'recharts';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/authStore';
+
+const OWNER_ID = import.meta.env.VITE_OWNER_ID;
 
 const geoUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -36,27 +37,19 @@ interface WorkWithCover {
 }
 
 export function StatsPage() {
-  const { user } = useAuthStore();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StatsData | 'no_data' | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [showNobelDetail, setShowNobelDetail] = useState(false);
 
-  // [H-4] 비로그인 상태 처리: useEffect보다 먼저 렌더링 분기
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
     async function fetchStatsData() {
       setLoading(true);
       try {
         const [logsRes, worksRes, editionsRes] = await Promise.all([
-          supabase.from('logs').select('work_id, rating, volume_id').eq('user_id', user!.id),
+          supabase.from('logs').select('work_id, rating, volume_id').eq('user_id', OWNER_ID),
           supabase.from('works').select('*'),
           supabase.from('editions').select('id, work_id, cover_url, page_count, publisher'),
         ]);
@@ -164,23 +157,7 @@ export function StatsPage() {
     }
 
     fetchStatsData();
-  }, [user, location.pathname]);
-
-  // [H-4] 비로그인 처리
-  if (!user && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] text-stone-400 gap-4">
-        <LogIn size={40} className="opacity-30" />
-        <p className="text-stone-500 font-medium">로그인 후 통계를 확인할 수 있습니다.</p>
-        <button
-          onClick={() => navigate('/')}
-          className="px-5 py-2 bg-stone-900 text-white rounded-lg text-sm"
-        >
-          홈으로 돌아가기
-        </button>
-      </div>
-    );
-  }
+  }, [location.pathname]);
 
   if (loading) {
     return (

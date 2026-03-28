@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, ShieldAlert } from 'lucide-react';
+import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
 import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/authStore';
 import type { DbWork } from '../services/db';
 
 type Tab = 'work' | 'edition' | 'author' | 'series';
@@ -20,20 +19,6 @@ interface SeriesItem {
 
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>('work');
-  const { user } = useAuthStore();
-
-  // [C-3] 인증 체크 — 미로그인 사용자 접근 차단
-  if (!user) {
-    return (
-      <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-        <div className="text-center">
-          <ShieldAlert size={40} className="text-stone-300 mx-auto mb-4" />
-          <p className="text-stone-600 font-medium">로그인이 필요한 페이지입니다.</p>
-          <p className="text-stone-400 text-sm mt-1">관리자 계정으로 로그인해 주세요.</p>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-[calc(100vh-56px)] bg-stone-50">
