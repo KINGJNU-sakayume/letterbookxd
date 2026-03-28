@@ -8,16 +8,14 @@ interface SetReviewPanelProps {
   publisher: string;
   title?: string;
   isSinglePublisher?: boolean;
-  userId: string;
 }
 
-export function SetReviewPanel({ 
-  editionSetId, 
-  workId, 
-  publisher, 
-  title, 
-  isSinglePublisher, 
-  userId 
+export function SetReviewPanel({
+  editionSetId,
+  workId,
+  publisher,
+  title,
+  isSinglePublisher,
 }: SetReviewPanelProps) {
   const { getSetCompletionLog, upsertSetCompletionLog } = useLogStore();
   const log = getSetCompletionLog(editionSetId);
@@ -25,11 +23,11 @@ export function SetReviewPanel({
   if (!log) return null;
 
   function handleRating(rating: number | null) {
-    upsertSetCompletionLog({ editionSetId, workId, liked: log!.liked, rating }, userId);
+    upsertSetCompletionLog({ editionSetId, workId, liked: log!.liked, rating });
   }
 
   function toggleLiked() {
-    upsertSetCompletionLog({ editionSetId, workId, liked: !log!.liked, rating: log!.rating }, userId);
+    upsertSetCompletionLog({ editionSetId, workId, liked: !log!.liked, rating: log!.rating });
   }
 
   return (
@@ -43,8 +41,8 @@ export function SetReviewPanel({
       </div>
       <p className="text-xs text-emerald-700 mb-4">
         {/* [수정] 안내 문구도 상황에 맞게 자연스럽게 변경 */}
-        {isSinglePublisher 
-          ? '이 작품의 모든 권을 읽었습니다. 전체적인 경험을 평가해 주세요.' 
+        {isSinglePublisher
+          ? '이 작품의 모든 권을 읽었습니다. 전체적인 경험을 평가해 주세요.'
           : '이 세트의 모든 권을 읽었습니다. 전체적인 판본 경험을 평가해 주세요.'}
       </p>
       <div className="flex items-center gap-4">

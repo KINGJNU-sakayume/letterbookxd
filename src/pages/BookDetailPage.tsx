@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, BookText, LogIn, Loader2, Languages, Star } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, BookText, Loader2, Languages, Star } from 'lucide-react';
 import { BookCover } from '../components/ui/BookCover';
 import { VolumeRow } from '../components/book/VolumeRow';
 import { SetReviewPanel } from '../components/book/SetReviewPanel';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { useBookStore } from '../store/bookStore';
 import { supabase } from '../lib/supabase';
 import { fetchWorkById, fetchEditionsByWorkId, groupEditionsByPublisher } from '../services/db';
@@ -36,7 +35,6 @@ export function BookDetailPage() {
 
   const { setGroupedData } = useBookStore();
   const { getSetCompletionLog } = useLogStore();
-  const { user } = useAuthStore();
 
   useEffect(() => {
     if (!workId) { setNotFound(true); setLoading(false); return; }
@@ -253,11 +251,6 @@ export function BookDetailPage() {
                         </button>
                       )}
                     </div>
-                    {!user && (
-                      <div className="mx-3 mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
-                        <LogIn size={13} />로그인 후 독서 기록을 저장할 수 있습니다.
-                      </div>
-                    )}
                     <div className="p-1">
                       {selectedGroup.editions.map((edition) => (
                         <VolumeRow
@@ -266,12 +259,11 @@ export function BookDetailPage() {
                           label={isSingle ? dbWork.title : `${dbWork.title} ${edition.volume_number}권`}
                           workId={dbWork.id}
                           editionSetId={setId}
-                          userId={user?.id ?? ''}
                           isSingleVolume={isSingle}
                         />
                       ))}
                     </div>
-                    {!isSingle && setComplete && user && (
+                    {!isSingle && setComplete && (
                       <div className="px-3 pb-3 border-t border-stone-50 pt-3">
                         <SetReviewPanel
                           editionSetId={setId}
@@ -279,7 +271,6 @@ export function BookDetailPage() {
                           publisher={selectedGroup.publisher}
                           title={dbWork.title}
                           isSinglePublisher={!hasMultiplePublishers}
-                          userId={user.id}
                         />
                       </div>
                     )}

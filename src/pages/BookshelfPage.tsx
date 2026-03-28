@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Loader2, LogIn } from 'lucide-react';
+import { Heart, Loader2 } from 'lucide-react';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { StarRating } from '../components/ui/StarRating';
 import { BookCover } from '../components/ui/BookCover';
 import { supabase } from '../lib/supabase';
@@ -35,7 +34,6 @@ function parseVolumeId(volumeId: string): string {
 
 export function BookshelfPage() {
   const { volumeLogs, setCompletionLogs, isLoading } = useLogStore();
-  const { user, loading: authLoading } = useAuthStore();
   const navigate = useNavigate();
 
   const [works, setWorks] = useState<Map<string, WorkMeta>>(new Map());
@@ -73,24 +71,10 @@ export function BookshelfPage() {
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
         <Loader2 size={28} className="animate-spin text-stone-400" />
-      </main>
-    );
-  }
-
-  if (!user) {
-    return (
-      <main className="min-h-[calc(100vh-56px)] flex items-center justify-center text-center px-4">
-        <div>
-          <LogIn size={36} className="text-stone-300 mx-auto mb-4" />
-          <p className="text-stone-600 font-medium mb-1">로그인이 필요합니다</p>
-          <button onClick={() => navigate('/')} className="mt-4 px-5 py-2 bg-stone-900 text-white rounded-lg text-sm">
-            홈으로 돌아가기
-          </button>
-        </div>
       </main>
     );
   }

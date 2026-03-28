@@ -3,6 +3,8 @@ import type { VolumeLog, SetCompletionLog } from '../types';
 import { useBookStore } from './bookStore';
 import { supabase } from '../lib/supabase';
 
+const OWNER_ID = import.meta.env.VITE_OWNER_ID;
+
 export interface SeriesCompletionLog {
   id: string;
   seriesId: string;
@@ -19,11 +21,11 @@ interface LogState {
   setCompletionLogs: SetCompletionLog[];
   seriesCompletionLogs: SeriesCompletionLog[];
   isLoading: boolean;
-  loadLogs: (userId: string) => Promise<void>;
+  loadLogs: () => Promise<void>;
   clearLogs: () => void;
-  upsertVolumeLog: (patch: Omit<VolumeLog, 'id' | 'createdAt' | 'updatedAt'>, userId: string) => Promise<void>;
-  upsertSetCompletionLog: (patch: Pick<SetCompletionLog, 'editionSetId' | 'workId' | 'liked' | 'rating'>, userId: string) => Promise<void>;
-  upsertSeriesCompletionLog: (patch: { seriesId: string; liked: boolean; rating: number | null }, userId: string) => Promise<void>;
+  upsertVolumeLog: (patch: Omit<VolumeLog, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  upsertSetCompletionLog: (patch: Pick<SetCompletionLog, 'editionSetId' | 'workId' | 'liked' | 'rating'>) => Promise<void>;
+  upsertSeriesCompletionLog: (patch: { seriesId: string; liked: boolean; rating: number | null }) => Promise<void>;
   getVolumeLog: (volumeId: string) => VolumeLog | undefined;
   getSetCompletionLog: (editionSetId: string) => SetCompletionLog | undefined;
   getSeriesCompletionLog: (seriesId: string) => SeriesCompletionLog | undefined;
@@ -77,9 +79,9 @@ export const useLogStore = create<LogState>((set, get) => ({
   seriesCompletionLogs: [],
   isLoading: false,
 
-  loadLogs: async (userId) => {
+  loadLogs: async () => {
     set({ isLoading: true });
-    const { data, error } = await supabase.from('logs').select('*').eq('user_id', userId);
+    const { data, error } = await supabase.from('logs').select('*').eq('user_id', OWNER_ID);
 
     if (error) {
       console.error('Error loading logs:', error);
@@ -98,12 +100,12 @@ export const useLogStore = create<LogState>((set, get) => ({
     set({ volumeLogs: [], setCompletionLogs: [], seriesCompletionLogs: [] });
   },
 
-  upsertVolumeLog: async (patch, userId) => {
+  upsertVolumeLog: async (patch) => {
     const state = get();
     const existing = state.volumeLogs.find((cl) => cl.volumeId === patch.volumeId);
 
     const payload: Record<string, unknown> = {
-      user_id: userId,
+      user_id: OWNER_ID,
       volume_id: patch.volumeId,
       edition_set_id: patch.editionSetId,
       work_id: patch.workId,
@@ -147,7 +149,7 @@ export const useLogStore = create<LogState>((set, get) => ({
 
       if (allWatched && !existingCompletion) {
         const { data: setData, error: setError } = await supabase.from('logs').upsert({
-          user_id: userId,
+          user_id: OWNER_ID,
           work_id: patch.workId,
           edition_set_id: patch.editionSetId,
           volume_id: null,
@@ -187,7 +189,7 @@ export const useLogStore = create<LogState>((set, get) => ({
           const { data: userSetLogs } = await supabase
             .from('logs')
             .select('work_id')
-            .eq('user_id', userId)
+            .eq('user_id', OWNER_ID)
             .eq('log_type', 'set_completion')
             .in('work_id', seriesWorks.map(w => w.id));
 
@@ -199,7 +201,7 @@ export const useLogStore = create<LogState>((set, get) => ({
             const { data: newSeriesLog, error: seriesErr } = await supabase
               .from('logs')
               .upsert({
-                user_id: userId,
+                user_id: OWNER_ID,
                 series_id: seriesId,
                 log_type: 'series_completion',
                 watched: false,
@@ -228,7 +230,7 @@ export const useLogStore = create<LogState>((set, get) => ({
     }
   },
 
-  upsertSetCompletionLog: async (patch, userId) => {
+  upsertSetCompletionLog: async (patch) => {
     const state = get();
     const existing = state.setCompletionLogs.find(cl => cl.editionSetId === patch.editionSetId);
     if (!existing) return;
@@ -242,7 +244,7 @@ export const useLogStore = create<LogState>((set, get) => ({
 
     const { error } = await supabase.from('logs').upsert({
       id: existing.id,
-      user_id: userId,
+      user_id: OWNER_ID,
       work_id: patch.workId,
       edition_set_id: patch.editionSetId,
       volume_id: null,
@@ -256,12 +258,12 @@ export const useLogStore = create<LogState>((set, get) => ({
     if (error) console.error('Error upserting set_completion log:', error);
   },
 
-  upsertSeriesCompletionLog: async (patch, userId) => {
+  upsertSeriesCompletionLog: async (patch) => {
     const state = get();
     const existing = state.seriesCompletionLogs.find(cl => cl.seriesId === patch.seriesId);
 
     const payload: Record<string, unknown> = {
-      user_id: userId,
+      user_id: OWNER_ID,
       series_id: patch.seriesId,
       log_type: 'series_completion',
       watched: false,

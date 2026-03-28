@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, Heart, Loader2, Trash2, Edit2, AlertCircle, X, Calendar, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/authStore';
+
+const OWNER_ID = import.meta.env.VITE_OWNER_ID;
 
 interface LogEntry {
   id: string;
@@ -36,7 +37,6 @@ function parseVolumeId(volumeId: string | null): string {
 }
 
 export function ReadingLogPage() {
-  const { user } = useAuthStore();
   const navigate = useNavigate();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,11 +50,10 @@ export function ReadingLogPage() {
 
   useEffect(() => {
     async function fetchAndMapLogs() {
-      if (!user) return;
       try {
         setLoading(true);
         const { data: rawLogs, error: logError } = await supabase
-          .from('logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+          .from('logs').select('*').eq('user_id', OWNER_ID).order('created_at', { ascending: false });
 
         if (logError) throw logError;
 
@@ -115,11 +114,11 @@ export function ReadingLogPage() {
       }
     }
     fetchAndMapLogs();
-  }, [user]);
+  }, []);
 
   // [H-1] 볼륨 로그 삭제 시 연관된 set_completion도 함께 제거
   const confirmDelete = async () => {
-    if (!deletingLogId || !user) return;
+    if (!deletingLogId) return;
     const targetLog = logs.find(l => l.id === deletingLogId);
     try {
       await supabase.from('logs').delete().eq('id', deletingLogId);
@@ -128,7 +127,7 @@ export function ReadingLogPage() {
         await supabase
           .from('logs')
           .delete()
-          .eq('user_id', user.id)
+          .eq('user_id', OWNER_ID)
           .eq('edition_set_id', targetLog.edition_set_id)
           .eq('log_type', 'set_completion');
       }
