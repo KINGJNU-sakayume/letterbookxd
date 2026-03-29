@@ -10,9 +10,24 @@ interface WorkData {
   title: string;
   author: string;
   genre: string | null;
+  series_id: string | null;
   representative_edition_id: string | null;
   display_cover: string | null;
   editions: { id: string; cover_url: string; page_count: number; volume_number: string }[];
+}
+
+interface SeriesData {
+  id: string;
+  title: string;
+  author: string;
+  genre: string | null;
+  cover_url: string | null;
+}
+
+interface AuthorData {
+  id: string;
+  name: string;
+  photo_url: string | null;
 }
 
 // Extract distinct filter badges from genres
@@ -31,10 +46,13 @@ function extractBadges(works: WorkData[]): string[] {
 export function SearchPage() {
   const [query, setQuery] = useState('');
   const [works, setWorks] = useState<WorkData[]>([]);
+  const [series, setSeries] = useState<SeriesData[]>([]);
+  const [authors, setAuthors] = useState<AuthorData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [selectedBadge, setSelectedBadge] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'standalone' | 'series' | 'author'>('standalone');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -45,26 +63,37 @@ export function SearchPage() {
   useEffect(() => {
     async function getInitialData() {
       try {
-        const { data: worksData, error: worksError } = await supabase
-          .from('works')
-          .select(`
-            id,
-            title,
-            author,
-            genre,
-            representative_edition_id,
-            editions!work_id (
+        const [worksResult, seriesResult, authorsResult] = await Promise.all([
+          supabase
+            .from('works')
+            .select(`
               id,
-              cover_url,
-              page_count,
-              volume_number
-            )
-          `)
-          .order('title', { ascending: true });
+              title,
+              author,
+              genre,
+              series_id,
+              representative_edition_id,
+              editions!work_id (
+                id,
+                cover_url,
+                page_count,
+                volume_number
+              )
+            `)
+            .order('title', { ascending: true }),
+          supabase
+            .from('series')
+            .select('id, title, author, genre, cover_url')
+            .order('title', { ascending: true }),
+          supabase
+            .from('authors')
+            .select('id, name, photo_url')
+            .order('name', { ascending: true }),
+        ]);
 
-        if (worksError) throw worksError;
+        if (worksResult.error) throw worksResult.error;
 
-        const processedWorks = worksData?.map(work => {
+        const processedWorks = worksResult.data?.map(work => {
           const editions = (work.editions as any[]) || [];
           const repEdition = editions.find(e => e.id === work.representative_edition_id);
           return {
@@ -73,6 +102,8 @@ export function SearchPage() {
           };
         }) || [];
         setWorks(processedWorks as WorkData[]);
+        setSeries((seriesResult.data ?? []) as SeriesData[]);
+        setAuthors((authorsResult.data ?? []) as AuthorData[]);
       } catch (error) {
         console.error('데이터 로딩 에러:', error);
       } finally {
@@ -142,9 +173,93 @@ export function SearchPage() {
 
   const badges = extractBadges(works);
 
-  const discoveryWorks = selectedBadge
-    ? works.filter(w => w.genre?.includes(selectedBadge))
-    : works;
+  const standaloneWorks = selectedBadge
+    ? works.filter(w => w.series_id === null && w.genre?.includes(selectedBadge))
+    : works.filter(w => w.series_id === null);
+
+  const filteredSeries = selectedBadge
+    ? series.filter(s => s.genre?.includes(selectedBadge))
+    : series;
+
+  const filteredAuthors = authors.filter(a =>
+    works.some(w => w.author === a.name) &&
+    (!selectedBadge || works.some(w => w.author === a.name && w.genre?.includes(selectedBadge)))
+  );
+
+  const TABS = [
+    { id: 'standalone' as const, label: '단행본 작품' },
+    { id: 'series' as const,     label: '시리즈 작품' },
+    { id: 'author' as const,     label: '작가' },
+  ];
+
+  function renderGrid() {
+    if (activeTab === 'standalone') {
+      if (standaloneWorks.length === 0) {
+        return <p className="text-sm text-stone-400 text-center py-10">해당 조건의 단행본이 없습니다.</p>;
+      }
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+          {standaloneWorks.map((w) => (
+            <button key={w.id} onClick={() => navigate(`/book/${w.id}`)} className="group text-left">
+              <BookCover src={w.display_cover ?? ''} alt={w.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1" />
+              <div className="mt-2">
+                <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{w.title}</p>
+                <p className="text-[11px] text-stone-500 mt-1">{w.author}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (activeTab === 'series') {
+      if (filteredSeries.length === 0) {
+        return <p className="text-sm text-stone-400 text-center py-10">해당 조건의 시리즈가 없습니다.</p>;
+      }
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+          {filteredSeries.map((s) => (
+            <button key={s.id} onClick={() => navigate(`/series/${s.id}`)} className="group text-left">
+              <BookCover src={s.cover_url ?? ''} alt={s.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1" />
+              <div className="mt-2">
+                <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{s.title}</p>
+                <p className="text-[11px] text-stone-500 mt-1">{s.author}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // author tab
+    if (filteredAuthors.length === 0) {
+      return <p className="text-sm text-stone-400 text-center py-10">해당 조건의 작가가 없습니다.</p>;
+    }
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+        {filteredAuthors.map((a) => {
+          const workCount = works.filter(w => w.author === a.name).length;
+          return (
+            <button key={a.id} onClick={() => navigate(`/author/${encodeURIComponent(a.name)}`)} className="group text-left">
+              <div className="w-full aspect-square bg-stone-200 rounded-lg overflow-hidden shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
+                {a.photo_url ? (
+                  <img src={a.photo_url} alt={a.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-stone-400 text-3xl font-serif">
+                    {a.name[0]}
+                  </div>
+                )}
+              </div>
+              <div className="mt-2">
+                <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{a.name}</p>
+                <p className="text-[11px] text-stone-500 mt-1">작품 {workCount}편</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-[calc(100vh-56px)] bg-stone-50/50">
@@ -252,6 +367,23 @@ export function SearchPage() {
         <div>
           <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">발견하기</h2>
 
+          {/* Tab selector */}
+          <div className="flex gap-0.5 mb-5 bg-stone-100 p-1 rounded-xl w-fit">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-white text-stone-900 shadow-sm'
+                    : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {badges.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-6">
               {badges.map(badge => (
@@ -278,20 +410,8 @@ export function SearchPage() {
               <Loader2 size={24} className="animate-spin" />
               <span className="text-sm font-medium">데이터를 불러오는 중입니다...</span>
             </div>
-          ) : discoveryWorks.length === 0 ? (
-            <p className="text-sm text-stone-400 text-center py-10">해당 조건의 작품이 없습니다.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-              {discoveryWorks.map((w) => (
-                <button key={w.id} onClick={() => navigate(`/book/${w.id}`)} className="group text-left">
-                  <BookCover src={w.display_cover ?? ''} alt={w.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1" />
-                  <div className="mt-2">
-                    <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{w.title}</p>
-                    <p className="text-[11px] text-stone-500 mt-1">{w.author}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+            renderGrid()
           )}
         </div>
       </section>
