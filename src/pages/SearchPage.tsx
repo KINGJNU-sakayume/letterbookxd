@@ -1,21 +1,46 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Loader2, BookOpen, Layers } from 'lucide-react';
+import { Search, X, Loader2 } from 'lucide-react';
 import { BookCover } from '../components/ui/BookCover';
+import { useLogStore } from '../store/logStore';
 import { supabase } from '../lib/supabase';
+
+interface WorkData {
+  id: string;
+  title: string;
+  author: string;
+  genre: string | null;
+  representative_edition_id: string | null;
+  display_cover: string | null;
+  editions: { id: string; cover_url: string; page_count: number; volume_number: string }[];
+}
+
+// Extract distinct filter badges from genres
+function extractBadges(works: WorkData[]): string[] {
+  const badgeSet = new Set<string>();
+  const COMMON_TAGS = ['러시아', '프랑스', '영국', '미국', '일본', '한국', '독일', '노벨문학상', '판타지', '고전'];
+  works.forEach(w => {
+    if (!w.genre) return;
+    COMMON_TAGS.forEach(tag => {
+      if (w.genre?.includes(tag)) badgeSet.add(tag);
+    });
+  });
+  return COMMON_TAGS.filter(t => badgeSet.has(t));
+}
 
 export function SearchPage() {
   const [query, setQuery] = useState('');
-  const [works, setWorks] = useState<any[]>([]);
-  const [seriesList, setSeriesList] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'works' | 'series'>('works');
-  
+  const [works, setWorks] = useState<WorkData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [selectedBadge, setSelectedBadge] = useState<string | null>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  const { volumeLogs, isLoading: logsLoading } = useLogStore();
 
   useEffect(() => {
     async function getInitialData() {
@@ -26,10 +51,13 @@ export function SearchPage() {
             id,
             title,
             author,
+            genre,
             representative_edition_id,
             editions!work_id (
               id,
-              cover_url
+              cover_url,
+              page_count,
+              volume_number
             )
           `)
           .order('title', { ascending: true });
@@ -39,36 +67,25 @@ export function SearchPage() {
         const processedWorks = worksData?.map(work => {
           const editions = (work.editions as any[]) || [];
           const repEdition = editions.find(e => e.id === work.representative_edition_id);
-          
           return {
             ...work,
-            display_cover: repEdition?.cover_url || editions[0]?.cover_url || null
+            display_cover: repEdition?.cover_url || editions[0]?.cover_url || null,
           };
         }) || [];
-        setWorks(processedWorks);
-
-        const { data: seriesData, error: seriesError } = await supabase
-          .from('series')
-          .select('*')
-          .order('title', { ascending: true });
-
-        if (seriesError) throw seriesError;
-        setSeriesList(seriesData || []);
-
+        setWorks(processedWorks as WorkData[]);
       } catch (error) {
         console.error('데이터 로딩 에러:', error);
       } finally {
         setLoading(false);
       }
     }
-
     getInitialData();
   }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
-        dropdownRef.current && 
+        dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
         !inputRef.current?.contains(event.target as Node)
       ) {
@@ -79,17 +96,15 @@ export function SearchPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredWorks = query.trim() === '' 
-    ? [] 
-    : works.filter(w => 
+  const filteredWorks = query.trim() === ''
+    ? []
+    : works.filter(w =>
         w.title.toLowerCase().includes(query.toLowerCase()) ||
         w.author.toLowerCase().includes(query.toLowerCase())
       );
 
-  // [L-3] 키보드 네비게이션 — 검색 드롭다운에서 동작
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen || filteredWorks.length === 0) return;
-
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex(prev => (prev < filteredWorks.length - 1 ? prev + 1 : prev));
@@ -109,13 +124,33 @@ export function SearchPage() {
     }
   };
 
+  // Build "Continue Reading" data from volumeLogs
+  const readingVolumeData = volumeLogs
+    .filter(l => l.readingState === 'reading')
+    .map(vl => {
+      const work = works.find(w => w.id === vl.workId);
+      if (!work) return null;
+      const editionId = vl.volumeId.replace('vol-', '');
+      const edition = work.editions.find(e => e.id === editionId);
+      const totalPages = edition?.page_count ?? null;
+      const pct = totalPages && vl.currentPage
+        ? Math.min(100, Math.round((vl.currentPage / totalPages) * 100))
+        : null;
+      return { vl, work, totalPages, pct };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
+  const badges = extractBadges(works);
+
+  const discoveryWorks = selectedBadge
+    ? works.filter(w => w.genre?.includes(selectedBadge))
+    : works;
+
   return (
     <main className="min-h-[calc(100vh-56px)] bg-stone-50/50">
-      <section className="bg-stone-900 pt-12 pb-16 px-4 sm:px-6 relative z-20">
+      {/* Search bar */}
+      <section className="bg-stone-900 pt-10 pb-14 px-4 sm:px-6 relative z-20">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold text-white mb-6 text-center">
-            어떤 책을 찾고 계신가요?
-          </h1>
           <div className="relative">
             <div className={`flex items-center bg-white rounded-2xl px-4 py-3.5 shadow-lg transition-all ${isOpen && filteredWorks.length > 0 ? 'rounded-b-none border-b border-stone-100' : ''}`}>
               <Search size={20} className="text-stone-400 shrink-0" />
@@ -134,7 +169,7 @@ export function SearchPage() {
                 className="flex-1 bg-transparent border-none outline-none px-3 text-stone-900 placeholder-stone-400 font-medium"
               />
               {query && (
-                <button 
+                <button
                   onClick={() => { setQuery(''); inputRef.current?.focus(); }}
                   className="p-1 hover:bg-stone-100 rounded-full text-stone-400 transition-colors"
                 >
@@ -150,13 +185,13 @@ export function SearchPage() {
                     {filteredWorks.map((work, index) => (
                       <li key={work.id}>
                         <button
-                          onClick={() => navigate(`/book/${work.id}`)}
+                          onClick={() => { navigate(`/book/${work.id}`); setIsOpen(false); setQuery(''); }}
                           onMouseEnter={() => setActiveIndex(index)}
                           className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-colors ${activeIndex === index ? 'bg-stone-50' : 'hover:bg-stone-50'}`}
                         >
-                          <BookCover src={work.display_cover} alt={work.title} className="w-10 h-14 shadow-sm shrink-0" />
+                          <BookCover src={work.display_cover ?? ''} alt={work.title} className="w-10 h-14 shadow-sm shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-stone-900 truncate">{work.title}</p>
+                            <p className="text-sm font-medium text-stone-900 truncate">{work.title}</p>
                             <p className="text-[12px] text-stone-500 truncate mt-0.5">{work.author}</p>
                           </div>
                         </button>
@@ -174,72 +209,91 @@ export function SearchPage() {
         </div>
       </section>
 
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 pt-8">
-        
-        <div className="flex gap-6 mb-8 border-b border-stone-200">
-          <button
-            onClick={() => setActiveTab('works')}
-            className={`flex items-center gap-2 pb-3 text-sm font-bold transition-colors border-b-2 -mb-px ${
-              activeTab === 'works' ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-600'
-            }`}
-          >
-            <BookOpen size={16} /> 단행본 작품
-          </button>
-          <button
-            onClick={() => setActiveTab('series')}
-            className={`flex items-center gap-2 pb-3 text-sm font-bold transition-colors border-b-2 -mb-px ${
-              activeTab === 'series' ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-600'
-            }`}
-          >
-            <Layers size={16} /> 시리즈 세계관
-          </button>
-        </div>
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 pt-8 space-y-10">
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-stone-400 justify-center py-20">
-            <Loader2 size={24} className="animate-spin" />
-            <span className="text-sm font-medium">데이터를 불러오는 중입니다...</span>
+        {/* Continue Reading section */}
+        {!logsLoading && readingVolumeData.length > 0 && (
+          <div>
+            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">읽는 중</h2>
+            <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">
+              {readingVolumeData.map(({ vl, work, totalPages, pct }) => (
+                <div
+                  key={vl.id}
+                  className="flex-none w-64 bg-white rounded-xl border border-stone-200 p-3 flex gap-3"
+                >
+                  <button onClick={() => navigate(`/book/${work.id}`)} className="shrink-0">
+                    <BookCover src={work.display_cover ?? ''} alt={work.title} className="w-12 shadow-sm" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <button onClick={() => navigate(`/book/${work.id}`)} className="text-left">
+                      <p className="text-sm font-medium text-stone-900 line-clamp-1">{work.title}</p>
+                      <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{work.author}</p>
+                    </button>
+                    {pct !== null && vl.currentPage ? (
+                      <div className="mt-2">
+                        <p className="text-[11px] mb-1" style={{ color: '#378ADD' }}>
+                          p.{vl.currentPage} / {totalPages} · {pct}%
+                        </p>
+                        <div className="h-1 bg-stone-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: '#378ADD' }} />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-stone-400 mt-2">읽는 중</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        ) : (
-          <>
-            {activeTab === 'works' && (
-              works.length === 0 ? (
-                <p className="text-sm text-stone-400 text-center py-20">아직 등록된 작품이 없습니다.</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 animate-in fade-in duration-300">
-                  {works.map((w) => (
-                    <button key={w.id} onClick={() => navigate(`/book/${w.id}`)} className="group text-left">
-                      <BookCover src={w.display_cover} alt={w.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1" />
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{w.title}</p>
-                        <p className="text-[11px] text-stone-500 mt-1">{w.author}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )
-            )}
-
-            {activeTab === 'series' && (
-              seriesList.length === 0 ? (
-                <p className="text-sm text-stone-400 text-center py-20">아직 등록된 시리즈가 없습니다.</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 animate-in fade-in duration-300">
-                  {seriesList.map((s) => (
-                    <button key={s.id} onClick={() => navigate(`/series/${s.id}`)} className="group text-left">
-                      <BookCover src={s.cover_url || ''} alt={s.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1 border-2 border-transparent group-hover:border-stone-200" />
-                      <div className="mt-2">
-                        <p className="text-sm font-bold text-stone-900 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{s.title}</p>
-                        <p className="text-[11px] text-stone-500 mt-1">{s.author}</p>
-                        {s.genre && <p className="text-[10px] text-stone-400 mt-0.5">{s.genre}</p>}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )
-            )}
-          </>
         )}
+
+        {/* Discovery section */}
+        <div>
+          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">발견하기</h2>
+
+          {badges.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {badges.map(badge => (
+                <button
+                  key={badge}
+                  onClick={() => setSelectedBadge(selectedBadge === badge ? null : badge)}
+                  className="px-3 py-1.5 rounded-full text-sm font-medium border transition-colors"
+                  style={selectedBadge === badge
+                    ? { backgroundColor: '#E6F1FB', color: '#185FA5', borderColor: '#B5D4F4' }
+                    : { backgroundColor: 'white', color: '#57534e', borderColor: '#e7e5e4' }
+                  }
+                >
+                  {badge}
+                  {selectedBadge === badge && (
+                    <span className="ml-1.5 text-xs">✕</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center gap-2 text-stone-400 justify-center py-20">
+              <Loader2 size={24} className="animate-spin" />
+              <span className="text-sm font-medium">데이터를 불러오는 중입니다...</span>
+            </div>
+          ) : discoveryWorks.length === 0 ? (
+            <p className="text-sm text-stone-400 text-center py-10">해당 조건의 작품이 없습니다.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+              {discoveryWorks.map((w) => (
+                <button key={w.id} onClick={() => navigate(`/book/${w.id}`)} className="group text-left">
+                  <BookCover src={w.display_cover ?? ''} alt={w.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1" />
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{w.title}</p>
+                    <p className="text-[11px] text-stone-500 mt-1">{w.author}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

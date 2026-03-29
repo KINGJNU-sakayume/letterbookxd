@@ -260,6 +260,7 @@ export function BookDetailPage() {
                           workId={dbWork.id}
                           editionSetId={setId}
                           isSingleVolume={isSingle}
+                          totalPages={edition.page_count || undefined}
                         />
                       ))}
                     </div>
