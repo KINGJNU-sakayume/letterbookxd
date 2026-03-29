@@ -232,7 +232,10 @@ function EditionForm() {
         ttbkey: apiKey, Query: query, QueryType: 'Keyword',
         MaxResults: '10', start: '1', SearchTarget: 'Book', output: 'js', Version: '20131101',
       });
-      const response = await fetch(`/aladin-api/ItemSearch.aspx?${params}`);
+      const fetchUrl = import.meta.env.DEV
+        ? `/aladin-api/ItemSearch.aspx?${params}`
+        : `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?${params}`)}`;
+      const response = await fetch(fetchUrl);
       const data = await response.json();
       if (data.item && data.item.length > 0) {
         setSearchResults(data.item);
