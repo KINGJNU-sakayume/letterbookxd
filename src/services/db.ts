@@ -148,7 +148,9 @@ export async function getAladinDetail(isbn: string, apiKey: string) {
     OptResult: 'itemPage',
   });
 
-  const url = `/aladin-api/ItemLookUp.aspx?${params}`;
+  const url = import.meta.env.DEV
+    ? `/aladin-api/ItemLookUp.aspx?${params}`
+    : `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?${params}`)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Aladin API error: ${res.status}`);
   const json = await res.json();

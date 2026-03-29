@@ -39,7 +39,10 @@ export async function searchBooks(query: string): Promise<GroupedBookData> {
     Version: '20131101',
   });
 
-  const response = await fetch(`/aladin-api/ItemSearch.aspx?${params.toString()}`);
+  const fetchUrl = import.meta.env.DEV
+    ? `/aladin-api/ItemSearch.aspx?${params}`
+    : `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?${params}`)}`;
+  const response = await fetch(fetchUrl);
   if (!response.ok) {
     throw new Error(`Aladin API error: ${response.status}`);
   }
