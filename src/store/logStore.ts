@@ -24,6 +24,7 @@ interface LogState {
   loadLogs: () => Promise<void>;
   clearLogs: () => void;
   upsertVolumeLog: (patch: Omit<VolumeLog, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateReadingProgress: (volumeId: string, currentPage: number) => Promise<void>;
   upsertSetCompletionLog: (patch: Pick<SetCompletionLog, 'editionSetId' | 'workId' | 'liked' | 'rating'>) => Promise<void>;
   upsertSeriesCompletionLog: (patch: { seriesId: string; liked: boolean; rating: number | null }) => Promise<void>;
   getVolumeLog: (volumeId: string) => VolumeLog | undefined;
@@ -32,13 +33,16 @@ interface LogState {
 }
 
 function rowToVolumeLog(row: Record<string, unknown>): VolumeLog {
+  const readingState = (row.reading_state as string | undefined) ?? (row.watched ? 'completed' : 'unread');
   return {
     id: row.id as string,
     volumeId: row.volume_id as string,
     editionSetId: row.edition_set_id as string,
     workId: row.work_id as string,
     logType: 'volume',
-    watched: row.watched as boolean,
+    watched: readingState === 'completed',
+    readingState: readingState as 'unread' | 'reading' | 'completed',
+    currentPage: row.current_page as number | null,
     liked: row.liked as boolean,
     rating: row.rating as number | null,
     createdAt: row.created_at as string,
@@ -104,13 +108,18 @@ export const useLogStore = create<LogState>((set, get) => ({
     const state = get();
     const existing = state.volumeLogs.find((cl) => cl.volumeId === patch.volumeId);
 
+    const readingState = patch.readingState ?? (patch.watched ? 'completed' : 'unread');
+    const watched = readingState === 'completed';
+
     const payload: Record<string, unknown> = {
       user_id: OWNER_ID,
       volume_id: patch.volumeId,
       edition_set_id: patch.editionSetId,
       work_id: patch.workId,
       log_type: 'volume',
-      watched: patch.watched,
+      watched,
+      reading_state: readingState,
+      current_page: patch.currentPage ?? null,
       liked: patch.liked,
       rating: patch.rating,
       auto_generated: false,
@@ -134,20 +143,20 @@ export const useLogStore = create<LogState>((set, get) => ({
     }
     set({ volumeLogs: updatedVolumeLogs });
 
-    // --- set_completion 자동 생성/삭제 ---
+    // --- set_completion 자동 생성/삭제 (readingState === 'completed' 기준) ---
     const bookState = useBookStore.getState();
     const setVols = bookState.volumes.filter(v => v.editionSetId === patch.editionSetId);
     let setCompletionChanged = false;
 
     if (setVols.length > 0) {
-      const allWatched = setVols.every(vol => {
+      const allCompleted = setVols.every(vol => {
         const log = updatedVolumeLogs.find(l => l.volumeId === vol.id);
-        return log?.watched;
+        return log?.readingState === 'completed';
       });
 
       const existingCompletion = get().setCompletionLogs.find(l => l.editionSetId === patch.editionSetId);
 
-      if (allWatched && !existingCompletion) {
+      if (allCompleted && !existingCompletion) {
         const { data: setData, error: setError } = await supabase.from('logs').upsert({
           user_id: OWNER_ID,
           work_id: patch.workId,
@@ -166,7 +175,7 @@ export const useLogStore = create<LogState>((set, get) => ({
           set(prev => ({ setCompletionLogs: [...prev.setCompletionLogs, rowToSetLog(setData)] }));
           setCompletionChanged = true;
         }
-      } else if (!allWatched && existingCompletion) {
+      } else if (!allCompleted && existingCompletion) {
         await supabase.from('logs').delete().eq('id', existingCompletion.id);
         set(prev => ({
           setCompletionLogs: prev.setCompletionLogs.filter(cl => cl.editionSetId !== patch.editionSetId),
@@ -175,7 +184,7 @@ export const useLogStore = create<LogState>((set, get) => ({
       }
     }
 
-    // --- series_completion 자동 생성/삭제 (C-1: DB schema 수정 후 동작) ---
+    // --- series_completion 자동 생성/삭제 ---
     if (setCompletionChanged) {
       const { data: workData } = await supabase
         .from('works').select('series_id').eq('id', patch.workId).single();
@@ -228,6 +237,28 @@ export const useLogStore = create<LogState>((set, get) => ({
         }
       }
     }
+  },
+
+  updateReadingProgress: async (volumeId, currentPage) => {
+    const state = get();
+    const existing = state.volumeLogs.find(l => l.volumeId === volumeId);
+    if (!existing) return;
+
+    const { data, error } = await supabase
+      .from('logs')
+      .update({ current_page: currentPage })
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating reading progress:', error);
+      return;
+    }
+
+    set(prev => ({
+      volumeLogs: prev.volumeLogs.map(l => l.volumeId === volumeId ? rowToVolumeLog(data) : l),
+    }));
   },
 
   upsertSetCompletionLog: async (patch) => {

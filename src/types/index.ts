@@ -38,6 +38,8 @@ export interface VolumeLog {
   workId: string;
   logType: 'volume';
   watched: boolean;
+  readingState: 'unread' | 'reading' | 'completed';
+  currentPage: number | null;
   liked: boolean;
   rating: number | null;
   createdAt: string;

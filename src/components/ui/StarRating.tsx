@@ -19,6 +19,10 @@ export function StarRating({ rating, onChange, size = 'md', readonly = false }: 
     }
   }
 
+  if (readonly && rating === null) {
+    return <span className="text-stone-400 text-sm leading-none">—</span>;
+  }
+
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
