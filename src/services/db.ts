@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { FlowchartNode, FlowchartEdge, DbFlowchart } from '../types';
 
 // --- 인터페이스 정의 ---
 
@@ -135,6 +136,32 @@ export async function insertEdition(payload: Omit<DbEdition, 'id' | 'created_at'
     .single();
   if (error) throw error;
   return data as DbEdition;
+}
+
+// --- 플로우차트 함수 ---
+
+export async function fetchFlowchartByAuthor(authorName: string): Promise<DbFlowchart | null> {
+  const { data, error } = await supabase
+    .from('author_flowcharts')
+    .select('*')
+    .eq('author_name', authorName)
+    .maybeSingle();
+  if (error) throw error;
+  return data as DbFlowchart | null;
+}
+
+export async function upsertFlowchart(
+  authorName: string,
+  nodes: FlowchartNode[],
+  edges: FlowchartEdge[]
+): Promise<void> {
+  const { error } = await supabase
+    .from('author_flowcharts')
+    .upsert(
+      { author_name: authorName, nodes, edges, updated_at: new Date().toISOString() },
+      { onConflict: 'author_name' }
+    );
+  if (error) throw error;
 }
 
 // [H-2] cors-anywhere 제거 → vite proxy(/aladin-api) 경유

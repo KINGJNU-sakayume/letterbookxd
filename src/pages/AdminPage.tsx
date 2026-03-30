@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
+import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, GitBranch } from 'lucide-react';
 import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
 import { supabase } from '../lib/supabase';
+import { ReactFlowProvider } from '@xyflow/react';
+import { FlowchartEditor } from '../components/flowchart';
 import type { DbWork } from '../services/db';
 
-type Tab = 'work' | 'edition' | 'author' | 'series';
+type Tab = 'work' | 'edition' | 'author' | 'series' | 'flowchart';
 
 interface StatusMsg {
   type: 'success' | 'error';
@@ -32,12 +34,25 @@ export function AdminPage() {
           <TabBtn active={tab === 'edition'} onClick={() => setTab('edition')} icon={<Library size={15} />} label="판본 추가" />
           <TabBtn active={tab === 'author'} onClick={() => setTab('author')} icon={<PenTool size={15} />} label="작가 추가" />
           <TabBtn active={tab === 'series'} onClick={() => setTab('series')} icon={<Layers size={15} />} label="시리즈 추가" />
+          <TabBtn active={tab === 'flowchart'} onClick={() => setTab('flowchart')} icon={<GitBranch size={15} />} label="플로우차트 편집" />
         </div>
-        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-6">
-          {tab === 'work' ? <WorkForm /> : tab === 'edition' ? <EditionForm /> : tab === 'author' ? <AuthorForm /> : <SeriesForm />}
+        <div className={`bg-white rounded-xl border border-stone-200 shadow-sm ${tab === 'flowchart' ? 'p-0 overflow-hidden' : 'p-6'}`}>
+          {tab === 'work' ? <WorkForm />
+           : tab === 'edition' ? <EditionForm />
+           : tab === 'author' ? <AuthorForm />
+           : tab === 'series' ? <SeriesForm />
+           : <FlowchartEditorWrapper />}
         </div>
       </div>
     </main>
+  );
+}
+
+function FlowchartEditorWrapper() {
+  return (
+    <ReactFlowProvider>
+      <FlowchartEditor />
+    </ReactFlowProvider>
   );
 }
 

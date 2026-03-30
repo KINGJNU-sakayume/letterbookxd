@@ -4,6 +4,9 @@ import { Eye, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLogStore } from '../store/logStore';
 import { StarRating } from '../components/ui/StarRating';
+import { fetchFlowchartByAuthor } from '../services/db';
+import type { DbFlowchart } from '../types';
+import { FlowchartSidebar, FlowchartModal } from '../components/flowchart';
 
 interface WorkItem {
   id: string;
@@ -27,6 +30,8 @@ export function AuthorPage() {
   const [author, setAuthor] = useState<any>(null);
   const [works, setWorks] = useState<WorkItem[]>([]);
   const [lifeBookOpen, setLifeBookOpen] = useState(false);
+  const [flowchart, setFlowchart] = useState<DbFlowchart | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const { volumeLogs, setCompletionLogs } = useLogStore();
 
@@ -70,6 +75,10 @@ export function AuthorPage() {
         });
 
         setWorks(processedWorks || []);
+
+        // Fetch flowchart data for this author
+        const fc = await fetchFlowchartByAuthor(name);
+        setFlowchart(fc);
       } catch (err) {
         console.error('처리 중 에러:', err);
       }
@@ -104,6 +113,8 @@ export function AuthorPage() {
     if (hasReading) return 'reading';
     return 'unread';
   }
+
+  const hasFlowchart = flowchart !== null && flowchart.nodes.length > 0;
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-12">
@@ -194,52 +205,78 @@ export function AuthorPage() {
 
       <hr className="border-stone-100 mb-10" />
 
-      {/* Works grid */}
+      {/* Works section — two-column when flowchart exists */}
       <section>
         <h2 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-8">등록된 작품</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {works.map((work) => {
-            const state = getWorkState(work.id);
-            const stateStyle = EYE_STATE_STYLES[state];
-            const completionLog = completedForAuthor.find(l => l.workId === work.id);
+        <div className={`grid gap-8 items-start ${hasFlowchart ? 'grid-cols-1 md:grid-cols-[1fr_300px]' : ''}`}>
+          {/* Left: works grid */}
+          <div className={`grid gap-4 ${hasFlowchart ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6'}`}>
+            {works.map((work) => {
+              const state = getWorkState(work.id);
+              const stateStyle = EYE_STATE_STYLES[state];
+              const completionLog = completedForAuthor.find(l => l.workId === work.id);
 
-            return (
-              <button
-                key={work.id}
-                onClick={() => navigate(`/book/${work.id}`)}
-                className="group text-left"
-              >
-                <div className="relative aspect-[2/3] bg-stone-100 rounded-md overflow-hidden mb-2 shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
-                  <img
-                    src={work.display_cover}
-                    alt={work.title}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  />
-                  {/* Eye state overlay */}
-                  <div
-                    className="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: stateStyle.bg }}
-                  >
-                    <Eye size={stateStyle.size} style={{ color: stateStyle.icon }} />
+              return (
+                <button
+                  key={work.id}
+                  onClick={() => navigate(`/book/${work.id}`)}
+                  className="group text-left"
+                >
+                  <div className="relative aspect-[2/3] bg-stone-100 rounded-md overflow-hidden mb-2 shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
+                    <img
+                      src={work.display_cover}
+                      alt={work.title}
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                    {/* Eye state overlay */}
+                    <div
+                      className="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: stateStyle.bg }}
+                    >
+                      <Eye size={stateStyle.size} style={{ color: stateStyle.icon }} />
+                    </div>
                   </div>
-                </div>
-                <h3 className="text-[13px] font-medium text-stone-800 line-clamp-1 group-hover:text-stone-600">
-                  {work.title}
-                </h3>
-                <div className="mt-0.5">
-                  {state === 'completed' && completionLog?.rating ? (
-                    <StarRating rating={completionLog.rating} size="sm" readonly />
-                  ) : state === 'reading' ? (
-                    <p className="text-[11px] text-stone-400">읽는 중</p>
-                  ) : (
-                    <p className="text-[11px] text-stone-400 font-serif">{work.published_year}년</p>
-                  )}
-                </div>
-              </button>
-            );
-          })}
+                  <h3 className="text-[13px] font-medium text-stone-800 line-clamp-1 group-hover:text-stone-600">
+                    {work.title}
+                  </h3>
+                  <div className="mt-0.5">
+                    {state === 'completed' && completionLog?.rating ? (
+                      <StarRating rating={completionLog.rating} size="sm" readonly />
+                    ) : state === 'reading' ? (
+                      <p className="text-[11px] text-stone-400">읽는 중</p>
+                    ) : (
+                      <p className="text-[11px] text-stone-400 font-serif">{work.published_year}년</p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right: flowchart sidebar (sticky) */}
+          {hasFlowchart && (
+            <div className="sticky top-20">
+              <FlowchartSidebar
+                nodes={flowchart!.nodes}
+                edges={flowchart!.edges}
+                setCompletionLogs={setCompletionLogs}
+                onExpand={() => setModalOpen(true)}
+              />
+            </div>
+          )}
         </div>
       </section>
+
+      {/* Flowchart modal */}
+      {modalOpen && hasFlowchart && (
+        <FlowchartModal
+          nodes={flowchart!.nodes}
+          edges={flowchart!.edges}
+          setCompletionLogs={setCompletionLogs}
+          works={works}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </main>
   );
 }
