@@ -79,13 +79,6 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, onClose
         style={{ maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Gradient axis bar */}
-        <div className="relative h-9 shrink-0 flex items-center justify-between px-4 bg-gradient-to-r from-blue-100 via-stone-50 to-red-100 border-b border-stone-100">
-          <span className="text-[11px] font-bold text-blue-600 tracking-wide">← 자전적</span>
-          <span className="text-[10px] text-stone-400 italic">주제 스펙트럼</span>
-          <span className="text-[11px] font-bold text-red-600 tracking-wide">이념적 →</span>
-        </div>
-
         {/* Close button */}
         <button
           onClick={onClose}
@@ -101,6 +94,7 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, onClose
             nodes={enrichedNodes}
             edges={enrichedNodes.length > 0 ? edges : []}
             nodeTypes={nodeTypes}
+            defaultEdgeOptions={{ type: 'step' }}
             onNodeClick={handleNodeClick}
             fitView
             fitViewOptions={{ padding: 0.2 }}

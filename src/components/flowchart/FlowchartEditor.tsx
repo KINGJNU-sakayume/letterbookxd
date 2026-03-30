@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -9,6 +9,7 @@ import {
   addEdge,
   type Connection,
   type NodeTypes,
+  type EdgeTypes,
   type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -16,19 +17,25 @@ import { Loader2, Save, RotateCcw, CheckCircle2, AlertCircle } from 'lucide-reac
 import { supabase } from '../../lib/supabase';
 import { fetchFlowchartByAuthor, upsertFlowchart } from '../../services/db';
 import type { FlowchartNode, FlowchartEdge, FlowchartNodeType } from '../../types';
-import { FlowchartEditorNode } from './FlowchartEditorNode';
+import { FlowchartEditorBookNode } from './FlowchartEditorBookNode';
+import { FlowchartEditorEdge } from './FlowchartEditorEdge';
 
-// Module-scope nodeTypes — never inside component
+// Module-scope nodeTypes and edgeTypes — never inside component
 const nodeTypes: NodeTypes = {
-  entry: FlowchartEditorNode as unknown as NodeTypes[string],
-  main:  FlowchartEditorNode as unknown as NodeTypes[string],
-  side:  FlowchartEditorNode as unknown as NodeTypes[string],
+  entry: FlowchartEditorBookNode as unknown as NodeTypes[string],
+  main:  FlowchartEditorBookNode as unknown as NodeTypes[string],
+  side:  FlowchartEditorBookNode as unknown as NodeTypes[string],
+};
+
+const edgeTypes: EdgeTypes = {
+  step: FlowchartEditorEdge as unknown as EdgeTypes[string],
 };
 
 interface AuthorWork {
   id: string;
   title: string;
   published_year: number | null;
+  display_cover?: string;
 }
 
 interface StatusMsg {
@@ -90,7 +97,7 @@ export function FlowchartEditor() {
           fetchFlowchartByAuthor(selectedAuthor),
           supabase
             .from('works')
-            .select('id, title, published_year')
+            .select('id, title, published_year, display_cover')
             .eq('author', selectedAuthor)
             .order('published_year', { ascending: true }),
         ]);
@@ -107,8 +114,20 @@ export function FlowchartEditor() {
     loadForAuthor();
   }, [selectedAuthor, setNodes, setEdges]);
 
+  const enrichedNodes = useMemo(() =>
+    nodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        coverImageUrl: authorWorks.find(w => w.id === n.data.workId)?.display_cover ?? '',
+        publishedYear: authorWorks.find(w => w.id === n.data.workId)?.published_year ?? undefined,
+      },
+    })),
+    [nodes, authorWorks]
+  );
+
   const onConnect = useCallback(
-    (conn: Connection) => setEdges(eds => addEdge({ ...conn, animated: false }, eds)),
+    (conn: Connection) => setEdges(eds => addEdge({ ...conn, animated: false, type: 'step' }, eds)),
     [setEdges]
   );
 
@@ -292,7 +311,7 @@ export function FlowchartEditor() {
             </div>
           )}
           <ReactFlow
-            nodes={nodes}
+            nodes={enrichedNodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
@@ -302,7 +321,10 @@ export function FlowchartEditor() {
             onNodeContextMenu={onNodeContextMenu}
             onClick={() => setContextMenu(null)}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            defaultEdgeOptions={{ type: 'step' }}
             fitView={nodes.length > 0}
+            fitViewOptions={{ padding: 0.3 }}
             deleteKeyCode="Delete"
           >
             <Controls />
@@ -338,6 +360,7 @@ export function FlowchartEditor() {
         <span>🖱 노드 우클릭 → 타입 변경</span>
         <span>🔗 노드 하단 핸들 드래그 → 연결</span>
         <span>🗑 노드 선택 후 Delete → 삭제</span>
+        <span>✏ 엣지 더블클릭 → 레이블 추가</span>
       </div>
     </div>
   );
