@@ -67,3 +67,26 @@ export interface SearchCandidate {
   coverImageUrl: string;
   genre: string;
 }
+
+// --- Flowchart Types ---
+
+import type { Node, Edge } from '@xyflow/react';
+
+export interface FlowchartNodeData {
+  workId: string;
+  label: string;
+  [key: string]: unknown; // required by @xyflow/react NodeData constraint
+}
+
+export type FlowchartNodeType = 'entry' | 'main' | 'side';
+export type FlowchartNode = Node<FlowchartNodeData, FlowchartNodeType>;
+export type FlowchartEdge = Edge;
+
+export interface DbFlowchart {
+  id: string;
+  author_name: string;
+  nodes: FlowchartNode[];
+  edges: FlowchartEdge[];
+  created_at: string;
+  updated_at: string;
+}
