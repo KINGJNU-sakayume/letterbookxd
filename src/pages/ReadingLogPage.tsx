@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, Heart, Loader2, Trash2, Edit2, AlertCircle, X, Calendar, Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { parseEditionSetId, parseVolumeId } from '../utils/editionUtils';
 
 const OWNER_ID = import.meta.env.VITE_OWNER_ID;
 
@@ -23,18 +24,6 @@ interface LogEntry {
   };
 }
 
-function parseEditionSetId(editionSetId: string | null): { workId: string; publisher: string } {
-  if (!editionSetId) return { workId: '', publisher: '' };
-  const sep = '::';
-  const idx = editionSetId.indexOf(sep);
-  if (idx === -1) return { workId: editionSetId, publisher: '' };
-  return { workId: editionSetId.slice(0, idx), publisher: editionSetId.slice(idx + sep.length) };
-}
-
-function parseVolumeId(volumeId: string | null): string {
-  if (!volumeId) return '';
-  return volumeId.replace('vol-', '');
-}
 
 type SortOption = 'date' | 'rating' | 'author';
 
@@ -78,7 +67,7 @@ export function ReadingLogPage() {
 
         const mappedLogs: LogEntry[] = (rawLogs || []).reduce((acc: LogEntry[], log) => {
           const work = workMap.get(log.work_id);
-          const { publisher: extractedPublisher } = parseEditionSetId(log.edition_set_id);
+          const { publisher: extractedPublisher } = parseEditionSetId(log.edition_set_id ?? '');
           const publisherEditions = allEditions.filter(e => e.work_id === log.work_id && e.publisher === extractedPublisher);
           const isSingleVolume = publisherEditions.length === 1;
 
@@ -93,7 +82,7 @@ export function ReadingLogPage() {
             if (firstEdition?.cover_url) coverSrc = firstEdition.cover_url;
             volumeNumStr = '전권 완독';
           } else {
-            const edition = editionMap.get(parseVolumeId(log.volume_id));
+            const edition = editionMap.get(parseVolumeId(log.volume_id ?? ''));
             if (edition) {
               coverSrc = edition.cover_url || coverSrc;
               finalPublisher = edition.publisher || extractedPublisher;

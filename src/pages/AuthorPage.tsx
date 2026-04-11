@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Eye, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, MapPin, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLogStore } from '../store/logStore';
 import { StarRating } from '../components/ui/StarRating';
@@ -27,17 +27,21 @@ const EYE_STATE_STYLES = {
 export function AuthorPage() {
   const { name } = useParams();
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [author, setAuthor] = useState<any>(null);
   const [works, setWorks] = useState<WorkItem[]>([]);
   const [lifeBookOpen, setLifeBookOpen] = useState(false);
   const [flowchart, setFlowchart] = useState<DbFlowchart | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   const { volumeLogs, setCompletionLogs } = useLogStore();
 
   useEffect(() => {
     async function fetchAuthorData() {
       if (!name) return;
+      setIsLoading(true);
       try {
         const { data: authorData } = await supabase
           .from('authors')
@@ -45,6 +49,7 @@ export function AuthorPage() {
           .eq('name', name)
           .maybeSingle();
         setAuthor(authorData);
+        if (!authorData) setNotFound(true);
 
         const { data: worksData, error } = await supabase
           .from('works')
@@ -66,7 +71,9 @@ export function AuthorPage() {
         if (error) { console.error('데이터 로드 에러:', error); return; }
 
         const processedWorks = worksData?.map(work => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const editions = (work.editions as any[]) || [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const repEdition = editions.find((e: any) => e.id === work.representative_edition_id);
           return {
             ...work,
@@ -81,12 +88,29 @@ export function AuthorPage() {
         setFlowchart(fc);
       } catch (err) {
         console.error('처리 중 에러:', err);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchAuthorData();
   }, [name]);
 
-  if (!author) return <div className="p-10 text-center text-stone-500 font-serif">작가 정보를 불러오는 중...</div>;
+  if (isLoading) return (
+    <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
+      <Loader2 size={28} className="animate-spin text-stone-400" />
+    </main>
+  );
+
+  if (notFound || !author) return (
+    <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-stone-500 mb-4">작가 정보를 찾을 수 없습니다.</p>
+        <button onClick={() => navigate('/')} className="text-sm text-stone-700 underline">
+          홈으로 돌아가기
+        </button>
+      </div>
+    </main>
+  );
 
   // Personalization band data
   const authorWorkIds = new Set(works.map(w => w.id));

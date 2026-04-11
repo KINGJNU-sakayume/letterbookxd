@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, BookText, Loader2, Heart, Eye } from 'lucide-react';
 import { BookCover } from '../components/ui/BookCover';
@@ -7,16 +7,16 @@ import { StarRating } from '../components/ui/StarRating';
 import { useLogStore } from '../store/logStore';
 import { useBookStore } from '../store/bookStore';
 import { fetchSeriesById, fetchWorksBySeriesId, groupEditionsByPublisher } from '../services/db';
-import type { DbSeries, DbWork, DbEdition, EditionGroup } from '../services/db';
-import type { Work, EditionSet, Volume } from '../types';
+import type { DbSeries, DbWork, DbEdition } from '../services/db';
+import type { Work, EditionSet, Volume, VolumeLog, SetCompletionLog } from '../types';
 import { groupKey, dbWorkToWork, groupToEditionSet, editionToVolume } from '../utils/bookMappers';
 
 type WorkWithEditions = DbWork & { editions: DbEdition[] };
 
 function getWorkReadingState(
   workId: string,
-  volumeLogs: ReturnType<typeof useLogStore>['volumeLogs'],
-  setCompletionLogs: ReturnType<typeof useLogStore>['setCompletionLogs'],
+  volumeLogs: VolumeLog[],
+  setCompletionLogs: SetCompletionLog[],
   editions: DbEdition[]
 ): 'unread' | 'reading' | 'completed' {
   const publishers = Array.from(new Set(editions.map(e => e.publisher)));
@@ -98,7 +98,10 @@ export function SeriesPage() {
   }, [id, setGroupedData]);
 
   const selectedWork = works.find(w => w.id === selectedWorkId) ?? null;
-  const editionGroups = selectedWork ? groupEditionsByPublisher(selectedWork.editions) : [];
+  const editionGroups = useMemo(
+    () => selectedWork ? groupEditionsByPublisher(selectedWork.editions) : [],
+    [selectedWork]
+  );
 
   useEffect(() => {
     if (editionGroups.length > 0) {
@@ -171,9 +174,6 @@ export function SeriesPage() {
     const repEdition = selectedWork.editions.find(e => e.id === repIdForWork);
     return repEdition?.cover_url || selectedWork.editions[0]?.cover_url || '';
   })();
-
-  // Series-wide eye icon state
-  const seriesEyeState = isSeriesComplete ? 'completed' : 'unread';
 
   return (
     <main className="min-h-[calc(100vh-56px)] bg-stone-50">

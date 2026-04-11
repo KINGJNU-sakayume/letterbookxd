@@ -5,6 +5,14 @@
 import { groupBooks } from '../utils/bookGrouping';
 import type { GroupedBookData } from '../utils/bookGrouping';
 
+export function buildAladinFetchUrl(path: string, params: URLSearchParams): string {
+  return import.meta.env.DEV
+    ? `/aladin-api/${path}?${params}`
+    : `https://api.allorigins.win/raw?url=${encodeURIComponent(
+        `https://www.aladin.co.kr/ttb/api/${path}?${params}`
+      )}`;
+}
+
 export interface AladinBook {
   isbn: string;
   isbn13: string;
@@ -39,10 +47,7 @@ export async function searchBooks(query: string): Promise<GroupedBookData> {
     Version: '20131101',
   });
 
-  const fetchUrl = import.meta.env.DEV
-    ? `/aladin-api/ItemSearch.aspx?${params}`
-    : `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?${params}`)}`;
-  const response = await fetch(fetchUrl);
+  const response = await fetch(buildAladinFetchUrl('ItemSearch.aspx', params));
   if (!response.ok) {
     throw new Error(`Aladin API error: ${response.status}`);
   }

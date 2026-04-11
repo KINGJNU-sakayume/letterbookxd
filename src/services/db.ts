@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { buildAladinFetchUrl } from './api';
 import type { FlowchartNode, FlowchartEdge, DbFlowchart } from '../types';
 
 // --- 인터페이스 정의 ---
@@ -66,8 +67,8 @@ export function groupEditionsByPublisher(editions: DbEdition[]): EditionGroup[] 
 export function extractVolumeFromTitle(title: string): string {
   const numMatch = title.match(/(\d+)\s*권/);
   if (numMatch) return numMatch[1];
-  if (/상권|상\s*$|[(\[]\s*상/.test(title)) return '상';
-  if (/하권|하\s*$|[(\[]\s*하/.test(title)) return '하';
+  if (/상권|상\s*$|[([]\s*상/.test(title)) return '상';
+  if (/하권|하\s*$|[([]\s*하/.test(title)) return '하';
   if (/중권|중\s*$/.test(title)) return '중';
   const numOnly = title.match(/\s(\d+)\s*$/);
   if (numOnly) return numOnly[1];
@@ -175,10 +176,7 @@ export async function getAladinDetail(isbn: string, apiKey: string) {
     OptResult: 'itemPage',
   });
 
-  const url = import.meta.env.DEV
-    ? `/aladin-api/ItemLookUp.aspx?${params}`
-    : `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?${params}`)}`;
-  const res = await fetch(url);
+  const res = await fetch(buildAladinFetchUrl('ItemLookUp.aspx', params));
   if (!res.ok) throw new Error(`Aladin API error: ${res.status}`);
   const json = await res.json();
   const item = json.item?.[0];

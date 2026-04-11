@@ -94,6 +94,7 @@ export function SearchPage() {
         if (worksResult.error) throw worksResult.error;
 
         const processedWorks = worksResult.data?.map(work => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const editions = (work.editions as any[]) || [];
           const repEdition = editions.find(e => e.id === work.representative_edition_id);
           return {

@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, BookOpen, X, CheckCircle2, Award, Library, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, BookOpen, X, CheckCircle2, Award, Library } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Label,
@@ -60,12 +60,12 @@ type YearFilter = 'all' | number;
 export function StatsPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rawData, setRawData] = useState<any>(null);
   const [selectedYear, setSelectedYear] = useState<YearFilter>('all');
   const [yearDropOpen, setYearDropOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [showNobelDetail, setShowNobelDetail] = useState(false);
-  const [openMilestoneIdx, setOpenMilestoneIdx] = useState<number | null>(null);
   const yearRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -105,6 +105,12 @@ export function StatsPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Compute stats with year filter — must be before any early returns (Rules of Hooks)
+  const stats = useMemo<ReturnType<typeof computeStats> | null>(
+    () => rawData && rawData.logs.length > 0 ? computeStats(rawData, selectedYear) : null,
+    [rawData, selectedYear]
+  );
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] text-stone-400">
@@ -114,7 +120,7 @@ export function StatsPage() {
     );
   }
 
-  if (!rawData || rawData.logs.length === 0) {
+  if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] text-stone-400">
         <Library size={48} className="mb-4 opacity-20" />
@@ -123,8 +129,6 @@ export function StatsPage() {
     );
   }
 
-  // Compute stats with year filter
-  const stats = computeStats(rawData, selectedYear);
   const completionYears = stats.completionYears;
 
   const yearLabel = selectedYear === 'all' ? '전체' : `${selectedYear}`;
@@ -199,7 +203,10 @@ export function StatsPage() {
                   <Tooltip
                     cursor={{ fill: '#f5f5f4' }}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.07)', fontSize: 12 }}
-                    formatter={(v: number) => [`${v}권`, '']}
+                    formatter={(v) => {
+                    if (typeof v !== 'number') return ['', ''];
+                    return [`${v}권`, ''];
+                  }}
                   />
                   <Bar
                     dataKey="count"
@@ -291,7 +298,7 @@ export function StatsPage() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
               <h3 className="text-sm font-semibold text-stone-800 mb-4">장르 분포</h3>
               <div className="space-y-2.5">
-                {stats.genreDist.slice(0, 6).map(({ genre, count, percent }, idx) => (
+                {stats.genreDist.slice(0, 6).map(({ genre, percent }, idx) => (
                   <div key={genre} className="flex items-center gap-3">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: GENRE_COLORS[idx % GENRE_COLORS.length] }} />
                     <span className="text-sm text-stone-700 flex-1 truncate">{genre}</span>
@@ -416,8 +423,10 @@ export function StatsPage() {
             <ComposableMap projectionConfig={{ scale: 140 }} width={800} height={400} style={{ width: '100%', height: '100%' }}>
               <ZoomableGroup center={[0, 20]} zoom={1}>
                 <Geographies geography={geoUrl}>
-                  {({ geographies }) =>
-                    geographies.map(geo => {
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {({ geographies }: { geographies: any[] }) =>
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    geographies.map((geo: any) => {
                       const countryName = geo.properties.name;
                       const hasData = Object.entries(countryMapping).some(([k, v]) => v === countryName && stats.countryDataMap[k]);
                       return (
@@ -485,6 +494,7 @@ function MetricCard({ main, label, sub }: { main: string; label: string; sub: st
   );
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 function computeStats(rawData: any, yearFilter: YearFilter): StatsData {
   const { logs, works, editions, seriesTotal } = rawData;
 
@@ -688,3 +698,4 @@ function computeStats(rawData: any, yearFilter: YearFilter): StatsData {
     completionYears,
   };
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */

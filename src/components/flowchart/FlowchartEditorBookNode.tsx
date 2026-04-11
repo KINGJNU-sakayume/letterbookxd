@@ -37,7 +37,7 @@ export function FlowchartEditorBookNode({ data, type, selected }: NodeProps<Edit
 
         {/* Entry banner */}
         {isEntry && (
-          <div className="absolute bottom-0 left-0 right-0 bg-[#8B1A1A]/90 text-white text-[9px] font-bold text-center py-1 tracking-wide">
+          <div className="absolute bottom-0 left-0 right-0 bg-entry/90 text-white text-[9px] font-bold text-center py-1 tracking-wide">
             ★ 입문 추천
           </div>
         )}
