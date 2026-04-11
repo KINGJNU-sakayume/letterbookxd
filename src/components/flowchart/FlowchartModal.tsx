@@ -115,11 +115,11 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, onClose
           <LegendItem color="#639922" label="읽음" filled />
           <LegendItem color="#a8a29e" label="미읽음" filled={false} />
           <div className="flex items-center gap-1.5">
-            <span className="inline-block px-1.5 py-0.5 bg-[#8B1A1A] text-white text-[9px] font-bold rounded">★ 입문</span>
+            <span className="inline-block px-1.5 py-0.5 bg-entry text-white text-[9px] font-bold rounded">★ 입문</span>
             <span className="text-[11px] text-stone-500">입문 추천</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-4 h-5 rounded border-2 border-[#639922]" />
+            <div className="w-4 h-5 rounded border-2 border-completed" />
             <span className="text-[11px] text-stone-500">읽은 책 표시</span>
           </div>
         </div>

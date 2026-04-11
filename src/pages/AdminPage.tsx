@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, GitBranch } from 'lucide-react';
 import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
+import { buildAladinFetchUrl } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
@@ -247,10 +248,7 @@ function EditionForm() {
         ttbkey: apiKey, Query: query, QueryType: 'Keyword',
         MaxResults: '10', start: '1', SearchTarget: 'Book', output: 'js', Version: '20131101',
       });
-      const fetchUrl = import.meta.env.DEV
-        ? `/aladin-api/ItemSearch.aspx?${params}`
-        : `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?${params}`)}`;
-      const response = await fetch(fetchUrl);
+      const response = await fetch(buildAladinFetchUrl('ItemSearch.aspx', params));
       const data = await response.json();
       if (data.item && data.item.length > 0) {
         setSearchResults(data.item);

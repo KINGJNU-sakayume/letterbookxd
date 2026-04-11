@@ -5,6 +5,7 @@ import { useLogStore } from '../store/logStore';
 import { StarRating } from '../components/ui/StarRating';
 import { BookCover } from '../components/ui/BookCover';
 import { supabase } from '../lib/supabase';
+import { parseEditionSetId, parseVolumeId } from '../utils/editionUtils';
 
 interface WorkMeta {
   id: string;
@@ -30,16 +31,6 @@ interface SeriesMeta {
   cover_url: string | null;
 }
 
-function parseEditionSetId(editionSetId: string): { workId: string; publisher: string } {
-  const sep = '::';
-  const idx = editionSetId.indexOf(sep);
-  if (idx === -1) return { workId: editionSetId, publisher: '' };
-  return { workId: editionSetId.slice(0, idx), publisher: editionSetId.slice(idx + sep.length) };
-}
-
-function parseVolumeId(volumeId: string): string {
-  return volumeId.replace('vol-', '');
-}
 
 type FilterTab = 'all' | 'reading' | 'completed' | 'incomplete_series';
 type SortOption = 'recent' | 'rating' | 'author';
