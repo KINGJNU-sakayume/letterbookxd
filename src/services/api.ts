@@ -8,9 +8,7 @@ import type { GroupedBookData } from '../utils/bookGrouping';
 export function buildAladinFetchUrl(path: string, params: URLSearchParams): string {
   return import.meta.env.DEV
     ? `/aladin-api/${path}?${params}`
-    : `https://api.allorigins.win/raw?url=${encodeURIComponent(
-        `https://www.aladin.co.kr/ttb/api/${path}?${params}`
-      )}`;
+    : `https://walvasjnydandxpzivzd.supabase.co/functions/v1/aladin-proxy/${path}?${params}`;
 }
 
 export interface AladinBook {
