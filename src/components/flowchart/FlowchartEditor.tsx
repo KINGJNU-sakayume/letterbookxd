@@ -35,7 +35,7 @@ interface AuthorWork {
   id: string;
   title: string;
   published_year: number | null;
-  display_cover?: string;
+  representative_cover_url?: string;
 }
 
 interface StatusMsg {
@@ -97,13 +97,14 @@ export function FlowchartEditor() {
           fetchFlowchartByAuthor(selectedAuthor),
           supabase
             .from('works')
-            .select('id, title, published_year, display_cover')
+            .select('id, title, published_year, representative_cover_url')
             .eq('author', selectedAuthor)
             .order('published_year', { ascending: true }),
         ]);
 
         setNodes(fc?.nodes ?? []);
         setEdges(fc?.edges ?? []);
+        if (worksRes.error) throw worksRes.error;
         setAuthorWorks((worksRes.data ?? []) as AuthorWork[]);
       } catch (err) {
         setStatus({ type: 'error', text: err instanceof Error ? err.message : '데이터 로드 실패' });
@@ -119,7 +120,7 @@ export function FlowchartEditor() {
       ...n,
       data: {
         ...n.data,
-        coverImageUrl: authorWorks.find(w => w.id === n.data.workId)?.display_cover ?? '',
+        coverImageUrl: authorWorks.find(w => w.id === n.data.workId)?.representative_cover_url ?? '',
         publishedYear: authorWorks.find(w => w.id === n.data.workId)?.published_year ?? undefined,
       },
     })),
