@@ -1,8 +1,9 @@
 # Dependencies
 node_modules/
 
-# Build output (old)
+# Build output
 dist/
+.test-dist/
 
 # Environment variables
 .env
