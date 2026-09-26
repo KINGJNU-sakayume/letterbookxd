@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { StarRating } from '../ui/StarRating';
 import { useLogStore } from '../../store/logStore';
 import type { Volume } from '../../types';
@@ -34,12 +34,6 @@ const STATE_STYLES = {
 
 type ReadingState = 'unread' | 'reading' | 'completed';
 
-function nextState(current: ReadingState): ReadingState {
-  if (current === 'unread') return 'reading';
-  if (current === 'reading') return 'completed';
-  return 'unread';
-}
-
 export function VolumeRow({
   volume, label, workId, editionSetId, isSingleVolume = false, totalPages
 }: VolumeRowProps) {
@@ -57,8 +51,12 @@ export function VolumeRow({
   const isReading = readingState === 'reading';
   const isCompleted = readingState === 'completed';
 
-  function cycleEyeState() {
-    const next = nextState(readingState);
+  function setReadingState(next: ReadingState) {
+    if (next === readingState) return;
+    if (readingState === 'completed' && next === 'unread') {
+      const ok = window.confirm('완독 상태를 취소하면 별점과 인생책 표시도 초기화됩니다. 계속할까요?');
+      if (!ok) return;
+    }
     upsertVolumeLog({
       volumeId: volume.id,
       editionSetId,
@@ -69,9 +67,7 @@ export function VolumeRow({
       liked: next === 'unread' ? false : liked,
       rating: next === 'unread' ? null : rating,
     });
-    if (next === 'reading') {
-      setPageInput(currentPage?.toString() ?? '');
-    }
+    if (next === 'reading') setPageInput(currentPage?.toString() ?? '');
   }
 
   function handleRating(newRating: number | null) {
@@ -122,8 +118,6 @@ export function VolumeRow({
     }
     setIsSavingPage(false);
   }
-
-  const stateStyle = STATE_STYLES[readingState];
 
   const progressPercent = totalPages && currentPage
     ? Math.min(100, Math.round((currentPage / totalPages) * 100))
@@ -182,19 +176,30 @@ export function VolumeRow({
             </>
           )}
 
-          {/* Three-state eye icon */}
-          <button
-            onClick={cycleEyeState}
-            title={readingState === 'unread' ? '읽기 시작' : readingState === 'reading' ? '완독 표시' : '읽기 취소'}
-            className="p-1.5 rounded-md border transition-colors"
-            style={{
-              color: stateStyle.icon,
-              backgroundColor: stateStyle.bg,
-              borderColor: stateStyle.border,
-            }}
-          >
-            <Eye size={16} />
-          </button>
+          <div className="flex items-center rounded-lg border border-stone-200 bg-stone-50 p-0.5" aria-label="독서 상태">
+            {([
+              ['unread', '안 읽음'],
+              ['reading', '읽는 중'],
+              ['completed', '완독'],
+            ] as [ReadingState, string][]).map(([state, label]) => {
+              const active = readingState === state;
+              return (
+                <button
+                  key={state}
+                  type="button"
+                  onClick={() => setReadingState(state)}
+                  aria-pressed={active}
+                  className="px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
+                  style={active ? {
+                    color: STATE_STYLES[state].icon,
+                    backgroundColor: STATE_STYLES[state].bg === 'transparent' ? '#ffffff' : STATE_STYLES[state].bg,
+                  } : { color: '#78716c' }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
