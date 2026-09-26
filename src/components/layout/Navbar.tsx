@@ -1,55 +1,115 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, BookMarked, Library, CalendarDays, Settings } from 'lucide-react';
+import { BarChart3, CalendarDays, Compass, Library, Settings, type LucideIcon } from 'lucide-react';
+import { isAdminSession, useAuthStore } from '../../store/authStore';
+import { GlobalSearch } from './GlobalSearch';
+import { AccountMenu } from './AccountMenu';
+
+type Section = 'browse' | 'shelf' | 'log' | 'stats' | 'admin';
+
+interface NavItem {
+  section: Section;
+  to: string;
+  label: string;
+  short: string;
+  icon: LucideIcon;
+}
+
+const NAV: NavItem[] = [
+  { section: 'browse', to: '/', label: '둘러보기', short: '둘러보기', icon: Compass },
+  { section: 'shelf', to: '/bookshelf', label: '내 책장', short: '내 책장', icon: Library },
+  { section: 'log', to: '/reading-log', label: '독서 기록', short: '기록', icon: CalendarDays },
+  { section: 'stats', to: '/stats', label: '통계', short: '통계', icon: BarChart3 },
+];
+
+/** 작품·시리즈·작가 상세는 '둘러보기' 아래에 있는 것으로 본다 */
+function sectionOf(pathname: string): Section | null {
+  if (pathname === '/' || /^\/(book|series|author)\//.test(pathname)) return 'browse';
+  if (pathname.startsWith('/bookshelf')) return 'shelf';
+  if (pathname.startsWith('/reading-log')) return 'log';
+  if (pathname.startsWith('/stats')) return 'stats';
+  if (pathname.startsWith('/admin')) return 'admin';
+  return null;
+}
 
 export function Navbar() {
-  const location = useLocation();
-
-  // [M-4] 공통 링크 스타일 헬퍼
-  const linkClass = (path: string) =>
-    `px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-      location.pathname === path
-        ? 'text-stone-900 bg-stone-100'
-        : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
-    }`;
+  const { pathname } = useLocation();
+  const section = sectionOf(pathname);
+  const admin = useAuthStore((s) => isAdminSession(s.session));
+  const items = admin ? [...NAV, { section: 'admin' as const, to: '/admin', label: '관리', short: '관리', icon: Settings }] : NAV;
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-stone-200">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 group">
-          <BookMarked size={22} className="text-stone-800 group-hover:text-stone-600 transition-colors" />
-          <span className="font-serif text-lg font-semibold text-stone-900 tracking-tight">책장</span>
-        </Link>
-
-        <nav className="hidden sm:flex items-center gap-1">
-          <Link to="/" className={linkClass('/')}>검색</Link>
-
-          <Link to="/bookshelf" className={linkClass('/bookshelf')}>
-            <Library size={15} />내 책장
+    <>
+      <a
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById('main')?.focus({ preventScroll: false });
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[100] focus:rounded focus:bg-ink focus:px-3 focus:py-2 focus:text-paper-raised"
+      >
+        본문으로 건너뛰기
+      </a>
+      <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">
+        <div className="page-x flex h-16 items-center gap-6 lg:gap-10">
+          <Link to="/" className="group flex shrink-0 items-center gap-2.5" aria-label="책장 처음으로">
+            <span className="seal-mark transition-transform duration-200 group-hover:-rotate-3">책</span>
+            <span className="font-serif text-[21px] font-bold tracking-[-0.01em] text-ink">책장</span>
           </Link>
 
-          <Link to="/reading-log" className={linkClass('/reading-log')}>
-            <CalendarDays size={15} />독서 기록
-          </Link>
+          <nav aria-label="주요 메뉴" className="hidden h-full items-stretch gap-1 md:flex">
+            {items.map((item) => {
+              const active = section === item.section;
+              return (
+                <Link
+                  key={item.section}
+                  to={item.to}
+                  aria-current={active ? 'page' : undefined}
+                  className={`relative flex items-center px-3 text-[15px] font-medium transition-colors ${
+                    active ? 'text-ink' : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  {item.label}
+                  <span
+                    aria-hidden
+                    className={`absolute inset-x-3 -bottom-px h-[2px] rounded-full transition-colors ${active ? 'bg-ink' : 'bg-transparent'}`}
+                  />
+                </Link>
+              );
+            })}
+          </nav>
 
-          {/* [M-4] /stats 링크도 동일한 스타일 적용 */}
-          <Link to="/stats" className={linkClass('/stats')}>
-            <BarChart3 size={15} />통계
-          </Link>
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5">
+            <GlobalSearch />
+            <AccountMenu />
+          </div>
+        </div>
+      </header>
 
-          <Link to="/admin" className={linkClass('/admin')} title="관리자">
-            <Settings size={14} />
-            <span className="hidden sm:inline">Admin</span>
-          </Link>
-        </nav>
-      </div>
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-stone-200 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2">
-        <div className="grid grid-cols-4 max-w-md mx-auto">
-          <Link to="/" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/' ? 'text-stone-900' : 'text-stone-400'}`}><BookMarked size={19}/>찾기</Link>
-          <Link to="/bookshelf" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/bookshelf' ? 'text-stone-900' : 'text-stone-400'}`}><Library size={19}/>책장</Link>
-          <Link to="/reading-log" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/reading-log' ? 'text-stone-900' : 'text-stone-400'}`}><CalendarDays size={19}/>기록</Link>
-          <Link to="/stats" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/stats' ? 'text-stone-900' : 'text-stone-400'}`}><BarChart3 size={19}/>통계</Link>
+      <nav
+        aria-label="주요 메뉴"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+      >
+        <div className="grid grid-cols-4">
+          {NAV.map((item) => {
+            const active = section === item.section;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.section}
+                to={item.to}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition-colors ${
+                  active ? 'text-ink' : 'text-ink-faint'
+                }`}
+              >
+                <span aria-hidden className={`absolute inset-x-6 top-0 h-[2px] rounded-full ${active ? 'bg-ink' : 'bg-transparent'}`} />
+                <Icon size={20} strokeWidth={active ? 2.1 : 1.7} aria-hidden />
+                {item.short}
+              </Link>
+            );
+          })}
         </div>
       </nav>
-    </header>
+    </>
   );
 }

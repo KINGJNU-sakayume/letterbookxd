@@ -202,36 +202,37 @@ export function FlowchartEditor() {
   }
 
   return (
-    <div className="flex flex-col h-[640px]">
+    <div className="flex h-[calc(100vh-380px)] min-h-[560px] flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200 bg-stone-50 flex-wrap">
+      <div className="flex flex-wrap items-center gap-3 border-b border-line bg-paper px-4 py-3">
         {loadingAuthors ? (
-          <div className="flex items-center gap-2 text-sm text-stone-500">
-            <Loader2 size={14} className="animate-spin" /> 작가 목록 로딩 중...
+          <div className="flex items-center gap-2 text-[14px] text-ink-muted">
+            <Loader2 size={14} className="animate-spin" /> 작가 목록을 불러오는 중
           </div>
         ) : (
           <select
             value={selectedAuthor}
             onChange={e => setSelectedAuthor(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400 max-w-[220px]"
+            aria-label="작가"
+            className="field-select h-9 w-auto max-w-[240px] py-0 text-[14px]"
           >
-            <option value="">작가 선택...</option>
+            <option value="">작가를 고르세요</option>
             {authors.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         )}
 
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <button
             onClick={handleReset}
             disabled={!selectedAuthor || (nodes.length === 0 && edges.length === 0)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-stone-600 border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-40 transition-colors"
+            className="btn btn-secondary btn-sm"
           >
-            <RotateCcw size={13} /> 초기화
+            <RotateCcw size={13} /> 비우기
           </button>
           <button
             onClick={handleSave}
             disabled={!selectedAuthor || saving}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-700 disabled:opacity-50 transition-colors"
+            className="btn btn-primary btn-sm"
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             저장
@@ -239,10 +240,10 @@ export function FlowchartEditor() {
         </div>
 
         {status && (
-          <div className={`flex items-center gap-1.5 text-sm px-3 py-1 rounded-lg w-full sm:w-auto ${
+          <div className={`flex w-full items-center gap-1.5 rounded-[5px] border px-3 py-1 text-[13.5px] sm:w-auto ${
             status.type === 'success'
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
+              ? 'border-completed-border bg-completed-light text-completed-dark'
+              : 'border-seal/25 bg-seal-soft text-seal-dark'
           }`}>
             {status.type === 'success'
               ? <CheckCircle2 size={13} />
@@ -255,23 +256,21 @@ export function FlowchartEditor() {
       {/* Main area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: works list */}
-        <div className="w-56 border-r border-stone-200 flex flex-col bg-stone-50 overflow-hidden">
-          <div className="px-3 py-2 border-b border-stone-200">
-            <p className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-              작품 목록
-            </p>
-            <p className="text-[10px] text-stone-400 mt-0.5">드래그하여 캔버스에 추가</p>
+        <div className="flex w-60 flex-col overflow-hidden border-r border-line bg-paper">
+          <div className="border-b border-line px-3 py-2.5">
+            <p className="text-[13px] font-semibold text-ink-soft">작품</p>
+            <p className="mt-0.5 text-[12px] text-ink-muted">캔버스로 끌어다 놓으세요</p>
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {loadingWorks ? (
-              <div className="flex items-center gap-2 text-xs text-stone-400 p-2">
-                <Loader2 size={12} className="animate-spin" /> 불러오는 중...
+              <div className="flex items-center gap-2 p-2 text-[12.5px] text-ink-muted">
+                <Loader2 size={12} className="animate-spin" /> 불러오는 중
               </div>
             ) : !selectedAuthor ? (
-              <p className="text-xs text-stone-400 p-2">작가를 선택하세요.</p>
+              <p className="p-2 text-[12.5px] text-ink-muted">먼저 작가를 고르세요.</p>
             ) : authorWorks.length === 0 ? (
-              <p className="text-xs text-stone-400 p-2">등록된 작품이 없습니다.</p>
+              <p className="p-2 text-[12.5px] text-ink-muted">등록된 작품이 없습니다.</p>
             ) : (
               authorWorks.map(work => {
                 const onCanvas = nodes.some(n => n.data.workId === work.id);
@@ -284,19 +283,17 @@ export function FlowchartEditor() {
                       e.dataTransfer.setData('label', work.title);
                       e.dataTransfer.effectAllowed = 'move';
                     }}
-                    className={`px-2.5 py-2 rounded-lg text-[12px] border transition-colors select-none ${
+                    className={`select-none rounded-[5px] border px-2.5 py-2 text-[13px] transition-colors ${
                       onCanvas
-                        ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-default'
-                        : 'bg-white text-stone-700 border-stone-200 cursor-grab hover:border-stone-400 hover:bg-stone-50 active:cursor-grabbing'
+                        ? 'cursor-default border-line-soft bg-paper-sunken text-ink-faint'
+                        : 'cursor-grab border-line bg-paper-raised text-ink-soft hover:border-line-strong active:cursor-grabbing'
                     }`}
                   >
-                    <p className="font-medium line-clamp-1">{work.title}</p>
-                    {work.published_year && (
-                      <p className="text-[10px] text-stone-400 mt-0.5">{work.published_year}년</p>
-                    )}
-                    {onCanvas && (
-                      <p className="text-[10px] text-stone-400 mt-0.5">✓ 추가됨</p>
-                    )}
+                    <p className="line-clamp-1 font-medium">{work.title}</p>
+                    <p className="mt-0.5 text-[11.5px] text-ink-faint">
+                      {work.published_year ? `${work.published_year}년` : ''}
+                      {onCanvas && `${work.published_year ? ' · ' : ''}캔버스에 있음`}
+                    </p>
                   </div>
                 );
               })
@@ -307,8 +304,8 @@ export function FlowchartEditor() {
         {/* Canvas */}
         <div className="flex-1 relative" ref={reactFlowWrapper}>
           {!selectedAuthor && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-              <p className="text-stone-400 text-sm font-serif">작가를 선택하면 편집을 시작할 수 있습니다.</p>
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+              <p className="font-serif text-[15px] text-ink-muted">작가를 고르면 읽기 순서를 그릴 수 있습니다.</p>
             </div>
           )}
           <ReactFlow
@@ -329,23 +326,23 @@ export function FlowchartEditor() {
             deleteKeyCode="Delete"
           >
             <Controls />
-            <Background color="#e7e5e4" gap={20} size={1} />
+            <Background color="#ddd5c6" gap={22} size={1} />
           </ReactFlow>
 
           {/* Context menu */}
           {contextMenu && (
             <div
-              className="absolute z-50 bg-white border border-stone-200 rounded-lg shadow-xl py-1 min-w-[120px]"
+              className="panel absolute z-50 min-w-[140px] py-1 shadow-pop"
               style={{ left: contextMenu.x - (reactFlowWrapper.current?.getBoundingClientRect().left ?? 0), top: contextMenu.y - (reactFlowWrapper.current?.getBoundingClientRect().top ?? 0) }}
             >
-              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider px-3 pt-1 pb-1.5">노드 타입</p>
+              <p className="px-3 pb-1.5 pt-1 text-[12px] font-medium text-ink-faint">이 책은</p>
               {(['entry', 'main', 'side'] as FlowchartNodeType[]).map(t => {
-                const labels = { entry: '★ 입문 (entry)', main: '일반 (main)', side: '참고 (side)' };
+                const labels = { entry: '입문 추천', main: '본줄기', side: '곁가지' };
                 return (
                   <button
                     key={t}
                     onClick={() => changeNodeType(contextMenu.nodeId, t)}
-                    className="w-full text-left px-3 py-1.5 text-[12px] text-stone-700 hover:bg-stone-50 transition-colors"
+                    className="w-full px-3 py-1.5 text-left text-[13px] text-ink-soft transition-colors hover:bg-paper-sunken"
                   >
                     {labels[t]}
                   </button>
@@ -357,11 +354,11 @@ export function FlowchartEditor() {
       </div>
 
       {/* Usage hint */}
-      <div className="px-4 py-2 bg-stone-50 border-t border-stone-100 text-[10px] text-stone-400 flex gap-4 flex-wrap">
-        <span>🖱 노드 우클릭 → 타입 변경</span>
-        <span>🔗 노드 하단 핸들 드래그 → 연결</span>
-        <span>🗑 노드 선택 후 Delete → 삭제</span>
-        <span>✏ 엣지 더블클릭 → 레이블 추가</span>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line bg-paper px-4 py-2.5 text-[12px] text-ink-muted">
+        <span>책을 오른쪽 클릭 — 입문·본줄기·곁가지 바꾸기</span>
+        <span>아래쪽 가장자리에서 끌기 — 다음 책과 잇기</span>
+        <span>선택 후 <kbd className="kbd">Delete</kbd> — 지우기</span>
+        <span>선을 두 번 클릭 — 설명 붙이기</span>
       </div>
     </div>
   );

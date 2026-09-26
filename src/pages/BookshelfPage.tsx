@@ -1,402 +1,359 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Heart, Loader2, ChevronDown } from 'lucide-react';
-import { useLogStore } from '../store/logStore';
-import { StarRating } from '../components/ui/StarRating';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Heart } from 'lucide-react';
+import { Page, PageHeader, SectionHeading } from '../components/layout/Page';
 import { BookCover } from '../components/ui/BookCover';
-import { supabase } from '../lib/supabase';
-import { parseEditionSetId, parseVolumeId } from '../utils/editionUtils';
-
-interface WorkMeta {
-  id: string;
-  title: string;
-  author: string;
-  representative_cover_url: string | null;
-  series_id: string | null;
-}
-
-interface EditionMeta {
-  id: string;
-  work_id: string;
-  publisher: string;
-  cover_url: string;
-  volume_number: string;
-  page_count: number;
-}
-
-interface SeriesMeta {
-  id: string;
-  title: string;
-  author: string;
-  cover_url: string | null;
-}
-
+import { StarRating } from '../components/ui/StarRating';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { Tabs } from '../components/ui/Tabs';
+import { EmptyState, ErrorState, PageLoader } from '../components/ui/States';
+import { ReadingCard } from '../components/book/ReadingCard';
+import { ProgressDialog } from '../components/book/ProgressDialog';
+import { useLogStore } from '../store/logStore';
+import { useAuthStore } from '../store/authStore';
+import { useCatalogStore, type CatalogSeries, type CatalogWork } from '../store/catalogStore';
+import { useReadingItems, type ReadingItem } from '../hooks/useLibrary';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { parseEditionSetId } from '../utils/editionUtils';
+import { compareKo, formatDate } from '../utils/format';
+import { setReview } from '../utils/readingState';
 
 type FilterTab = 'all' | 'reading' | 'completed' | 'incomplete_series';
 type SortOption = 'recent' | 'rating' | 'author';
 
+const SORT_LABEL: Record<SortOption, string> = {
+  recent: '최근 완독순',
+  rating: '별점 높은순',
+  author: '작가순',
+};
+
+interface Completion {
+  id: string;
+  work: CatalogWork;
+  publisher: string;
+  cover: string | null;
+  createdAt: string;
+  rating: number | null;
+  liked: boolean;
+}
+
+interface SeriesProgress {
+  series: CatalogSeries;
+  done: number;
+  total: number;
+  covers: (string | null)[];
+  next: CatalogWork | null;
+}
+
+const COVER_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-5 gap-y-8 sm:grid-cols-[repeat(auto-fill,minmax(132px,1fr))] sm:gap-x-6 2xl:grid-cols-[repeat(auto-fill,minmax(144px,1fr))]';
+
 export function BookshelfPage() {
-  const { volumeLogs, setCompletionLogs, updateReadingProgress, isLoading } = useLogStore();
-  const navigate = useNavigate();
-
-  const [works, setWorks] = useState<Map<string, WorkMeta>>(new Map());
-  const [editions, setEditions] = useState<Map<string, EditionMeta>>(new Map());
-  const [seriesMap, setSeriesMap] = useState<Map<string, SeriesMeta>>(new Map());
-  const [metaLoading, setMetaLoading] = useState(false);
-  const [filterTab, setFilterTab] = useState<FilterTab>('all');
-  const [sortOption, setSortOption] = useState<SortOption>('recent');
-  const [sortOpen, setSortOpen] = useState(false);
-
-  // Page update modal state
-  const [updatingVolumeId, setUpdatingVolumeId] = useState<string | null>(null);
-  const [pageInputVal, setPageInputVal] = useState('');
+  useDocumentTitle('내 책장');
+  const { works, series, status, load, reload } = useCatalogStore();
+  const { volumeLogs, setCompletionLogs, hasLoaded } = useLogStore();
+  const { session, ready } = useAuthStore();
+  const [params, setParams] = useSearchParams();
+  const [progressItem, setProgressItem] = useState<ReadingItem | null>(null);
 
   useEffect(() => {
-    const fetchMeta = async () => {
-      setMetaLoading(true);
-      const [worksRes, editionsRes, seriesRes] = await Promise.all([
-        supabase.from('works').select('id, title, author, representative_cover_url, series_id'),
-        supabase.from('editions').select('id, work_id, publisher, cover_url, volume_number, page_count'),
-        supabase.from('series').select('id, title, author, cover_url'),
-      ]);
+    void load();
+  }, [load]);
 
-      const workMap = new Map<string, WorkMeta>();
-      (worksRes.data ?? []).forEach(w => workMap.set(w.id, w as WorkMeta));
-      setWorks(workMap);
+  const tab: FilterTab = (['reading', 'completed', 'incomplete_series'] as const).find((t) => t === params.get('tab')) ?? 'all';
+  const sort: SortOption = (['rating', 'author'] as const).find((s) => s === params.get('sort')) ?? 'recent';
+  function update(patch: Record<string, string | null>) {
+    const next = new URLSearchParams(params);
+    Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)));
+    setParams(next, { replace: true });
+  }
 
-      const editionMap = new Map<string, EditionMeta>();
-      (editionsRes.data ?? []).forEach(e => editionMap.set(e.id, e as EditionMeta));
-      setEditions(editionMap);
+  const readingItems = useReadingItems(works);
+  const workById = useMemo(() => new Map(works.map((w) => [w.id, w])), [works]);
 
-      const sMap = new Map<string, SeriesMeta>();
-      (seriesRes.data ?? []).forEach(s => sMap.set(s.id, s as SeriesMeta));
-      setSeriesMap(sMap);
+  // 같은 판본 세트의 완독 기록은 하나만 센다
+  const completions = useMemo<Completion[]>(() => {
+    const unique = Array.from(new Map(setCompletionLogs.map((log) => [log.editionSetId, log])).values());
+    return unique
+      .map((log) => {
+        const work = workById.get(log.workId);
+        if (!work) return null;
+        const { publisher } = parseEditionSetId(log.editionSetId);
+        const setEditions = work.editions.filter((e) => e.publisher === publisher);
+        const first = setEditions.find((e) => e.volume_number === '1') ?? setEditions[0];
+        return { id: log.id, work, publisher, cover: first?.cover_url || work.cover, createdAt: log.createdAt, ...setReview(log, volumeLogs) };
+      })
+      .filter((c): c is Completion => c !== null);
+  }, [setCompletionLogs, volumeLogs, workById]);
 
-      setMetaLoading(false);
-    };
-    fetchMeta();
-  }, []);
+  const incompleteSeries = useMemo<SeriesProgress[]>(() => {
+    const doneIds = new Set(completions.map((c) => c.work.id));
+    return series
+      .map((s) => {
+        const members = s.workIds.map((id) => workById.get(id)).filter((w): w is CatalogWork => !!w);
+        const done = members.filter((w) => doneIds.has(w.id)).length;
+        return {
+          series: s,
+          done,
+          total: members.length,
+          covers: members.slice(0, 4).map((w) => w.cover),
+          next: members.find((w) => !doneIds.has(w.id)) ?? null,
+        };
+      })
+      .filter((p) => p.done > 0 && p.done < p.total);
+  }, [series, completions, workById]);
 
-  // Reading in progress: volume logs with readingState === 'reading'
-  const readingLogs = volumeLogs.filter(l => l.readingState === 'reading');
-
-  // Completed sets
-  const completedLogs = Array.from(
-    new Map(setCompletionLogs.map(log => [log.editionSetId, log])).values()
-  );
-
-  // Incomplete series: series where user has at least one completion but not all
-  const incompleteSeries = (() => {
-    const seriesCompletionCount: Record<string, number> = {};
-    const seriesWorkCount: Record<string, number> = {};
-    completedLogs.forEach(cl => {
-      const work = works.get(cl.workId);
-      if (work?.series_id) {
-        seriesCompletionCount[work.series_id] = (seriesCompletionCount[work.series_id] ?? 0) + 1;
-      }
-    });
-    works.forEach(w => {
-      if (w.series_id) {
-        seriesWorkCount[w.series_id] = (seriesWorkCount[w.series_id] ?? 0) + 1;
-      }
-    });
-    return Object.entries(seriesCompletionCount)
-      .filter(([sId, count]) => count < (seriesWorkCount[sId] ?? 0))
-      .map(([sId, count]) => ({ seriesId: sId, completedCount: count, totalCount: seriesWorkCount[sId] ?? 0 }));
-  })();
-
-  // Sort completed logs
-  const sortedCompletions = [...completedLogs].sort((a, b) => {
-    if (sortOption === 'recent') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    if (sortOption === 'rating') return (b.rating ?? 0) - (a.rating ?? 0);
-    if (sortOption === 'author') {
-      const aWork = works.get(a.workId);
-      const bWork = works.get(b.workId);
-      return (aWork?.author ?? '').localeCompare(bWork?.author ?? '', 'ko');
+  const groups = useMemo(() => {
+    if (sort === 'author') {
+      return [{ key: 'all', label: '', items: [...completions].sort((a, b) => compareKo(a.work.author, b.work.author) || compareKo(a.work.title, b.work.title)) }];
     }
-    return 0;
-  });
+    if (sort === 'rating') {
+      const buckets = new Map<number, Completion[]>();
+      completions.forEach((c) => buckets.set(c.rating ?? 0, [...(buckets.get(c.rating ?? 0) ?? []), c]));
+      return Array.from(buckets.entries())
+        .sort((a, b) => b[0] - a[0])
+        .map(([rating, items]) => ({
+          key: `r${rating}`,
+          label: rating ? `별 ${rating}개` : '별점 없음',
+          items: items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        }));
+    }
+    const byYear = new Map<number, Completion[]>();
+    completions.forEach((c) => {
+      const y = new Date(c.createdAt).getFullYear();
+      byYear.set(y, [...(byYear.get(y) ?? []), c]);
+    });
+    return Array.from(byYear.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([year, items]) => ({ key: `y${year}`, label: `${year}년`, items: items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }));
+  }, [completions, sort]);
 
-  const readingCount = readingLogs.length;
-  const completedCount = completedLogs.length;
-  const incompleteSeriesCount = incompleteSeries.length;
+  if (!ready) return <PageLoader />;
 
-  const sortLabels: Record<SortOption, string> = {
-    recent: '최근 기록순',
-    rating: '별점 높은순',
-    author: '작가명순',
-  };
-
-  if (isLoading) {
+  if (!session) {
     return (
-      <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-stone-400" />
-      </main>
+      <Page>
+        <PageHeader title="내 책장" />
+        <EmptyState
+          className="border-t-0 pt-2"
+          title="로그인하면 내 책장이 보입니다"
+          description="읽는 중인 책과 완독한 책, 이어 읽을 시리즈가 여기에 모입니다."
+          action={
+            <Link to="/login" state={{ from: '/bookshelf' }} className="btn btn-primary">
+              로그인
+            </Link>
+          }
+        />
+      </Page>
     );
   }
 
-  const showReading = filterTab === 'all' || filterTab === 'reading';
-  const showCompleted = filterTab === 'all' || filterTab === 'completed';
-  const showIncompleteSeries = filterTab === 'all' || filterTab === 'incomplete_series';
+  if (!hasLoaded || status === 'idle' || status === 'loading') return <PageLoader />;
+
+  const thisYear = new Date().getFullYear();
+  const thisYearCount = completions.filter((c) => new Date(c.createdAt).getFullYear() === thisYear).length;
+  const showReading = tab === 'all' || tab === 'reading';
+  const showCompleted = tab === 'all' || tab === 'completed';
+  const showSeries = tab === 'all' || tab === 'incomplete_series';
+  const nothingAtAll = readingItems.length === 0 && completions.length === 0 && incompleteSeries.length === 0;
 
   return (
-    <main className="min-h-[calc(100vh-56px)] bg-stone-50">
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="font-serif text-3xl font-bold text-stone-900 mb-1">내 책장</h1>
-          <p className="text-stone-500 text-sm">
-            완독 {completedCount}권 · 읽는 중 {readingCount}권 · 미완독 시리즈 {incompleteSeriesCount}개
-          </p>
-        </div>
+    <Page>
+      <PageHeader
+        title="내 책장"
+        actions={
+          <dl className="flex gap-7 sm:gap-10">
+            <HeaderFigure label="완독" value={completions.length} unit="권" />
+            <HeaderFigure label={`${thisYear}년 완독`} value={thisYearCount} unit="권" />
+            <HeaderFigure label="읽는 중" value={readingItems.length} unit="권" />
+          </dl>
+        }
+      />
 
-        {/* Filter bar */}
-        <div className="flex items-center justify-between mb-8 border-b border-stone-200 pb-3">
-          <div className="flex gap-1">
-            {([
-              ['all', '전체'],
-              ['reading', `읽는 중 ${readingCount}`],
-              ['completed', `완독 ${completedCount}`],
-              ['incomplete_series', `미완독 시리즈 ${incompleteSeriesCount}`],
-            ] as [FilterTab, string][]).map(([tab, label]) => (
-              <button
-                key={tab}
-                onClick={() => setFilterTab(tab)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filterTab === tab
-                    ? 'bg-stone-900 text-white'
-                    : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
-                }`}
+      {status === 'error' ? (
+        <ErrorState className="border-t-0 pt-2" onRetry={() => void reload()} />
+      ) : nothingAtAll ? (
+        <EmptyState
+          className="border-t-0 pt-2"
+          title="아직 기록한 책이 없습니다"
+          description="둘러보기에서 책을 골라 권마다 ‘읽는 중’이나 ‘완독’으로 표시하면 이곳에 꽂힙니다."
+          action={
+            <Link to="/" className="btn btn-primary">
+              둘러보기
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 lg:mb-10">
+            <Tabs
+              label="책장 보기"
+              className="min-w-0 flex-1"
+              value={tab}
+              onChange={(t) => update({ tab: t === 'all' ? null : t })}
+              items={[
+                { value: 'all', label: '전체' },
+                { value: 'reading', label: '읽는 중', count: readingItems.length },
+                { value: 'completed', label: '완독', count: completions.length },
+                { value: 'incomplete_series', label: '이어 읽을 시리즈', count: incompleteSeries.length },
+              ]}
+            />
+            {showCompleted && completions.length > 0 && (
+              <select
+                value={sort}
+                onChange={(e) => update({ sort: e.target.value === 'recent' ? null : e.target.value })}
+                aria-label="완독 정렬"
+                className="field-select h-10 w-auto py-0 text-[14px]"
               >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setSortOpen(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-stone-600 border border-stone-200 rounded-lg hover:border-stone-400 bg-white transition-colors"
-            >
-              {sortLabels[sortOption]}
-              <ChevronDown size={14} />
-            </button>
-            {sortOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg z-10 min-w-[120px] py-1">
-                {(Object.entries(sortLabels) as [SortOption, string][]).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => { setSortOption(key); setSortOpen(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                      sortOption === key ? 'text-stone-900 font-medium bg-stone-50' : 'text-stone-600 hover:bg-stone-50'
-                    }`}
-                  >
-                    {label}
-                  </button>
+                {(Object.keys(SORT_LABEL) as SortOption[]).map((s) => (
+                  <option key={s} value={s}>
+                    {SORT_LABEL[s]}
+                  </option>
                 ))}
-              </div>
+              </select>
             )}
           </div>
-        </div>
 
-        {metaLoading && (
-          <div className="flex justify-center py-8">
-            <Loader2 size={20} className="animate-spin text-stone-300" />
-          </div>
-        )}
+          {showReading && (readingItems.length > 0 || tab === 'reading') && (
+            <Shelf title="읽는 중" count={`${readingItems.length}권`}>
+              {readingItems.length === 0 ? (
+                <p className="text-[14.5px] text-ink-muted">지금 읽는 책이 없습니다.</p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4">
+                  {readingItems.map((it) => (
+                    <ReadingCard
+                      key={it.log.id}
+                      workId={it.work.id}
+                      title={it.work.title}
+                      author={it.work.author}
+                      cover={it.edition?.cover_url || it.work.cover}
+                      publisher={it.publisher}
+                      volume={it.volume}
+                      currentPage={it.log.currentPage}
+                      totalPages={it.edition?.page_count ?? null}
+                      action={
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setProgressItem(it)}>
+                          쪽수 적기
+                        </button>
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </Shelf>
+          )}
 
-        {/* Section 1: Reading in progress */}
-        {!metaLoading && showReading && readingLogs.length > 0 && (
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">읽는 중</h2>
-            <div className="space-y-3">
-              {readingLogs.map((vl) => {
-                const work = works.get(vl.workId);
-                const edition = editions.get(parseVolumeId(vl.volumeId));
-                const coverSrc = edition?.cover_url || work?.representative_cover_url || '';
-                const { publisher } = parseEditionSetId(vl.editionSetId);
-                const totalPages = edition?.page_count;
-                const pct = totalPages && vl.currentPage
-                  ? Math.min(100, Math.round((vl.currentPage / totalPages) * 100))
-                  : null;
+          {showSeries && (incompleteSeries.length > 0 || tab === 'incomplete_series') && (
+            <Shelf title="이어 읽을 시리즈" count={`${incompleteSeries.length}개`}>
+              {incompleteSeries.length === 0 ? (
+                <p className="text-[14.5px] text-ink-muted">중간까지 읽은 시리즈가 없습니다.</p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4">
+                  {incompleteSeries.map((p) => (
+                    <SeriesCard key={p.series.id} progress={p} />
+                  ))}
+                </div>
+              )}
+            </Shelf>
+          )}
 
-                return (
-                  <div key={vl.id} className="bg-white rounded-xl border border-stone-200 p-4 flex gap-4">
-                    <button onClick={() => navigate(`/book/${vl.workId}`)} className="shrink-0">
-                      <BookCover src={coverSrc} alt={work?.title ?? ''} className="w-12 shadow-sm" />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <button onClick={() => navigate(`/book/${vl.workId}`)} className="text-left">
-                        <p className="text-sm font-medium text-stone-900 line-clamp-1">{work?.title}</p>
-                        <p className="text-xs text-stone-500 mt-0.5">{work?.author} · {publisher}</p>
-                      </button>
-                      {pct !== null && vl.currentPage ? (
-                        <div className="mt-2">
-                          <div className="flex items-center gap-2 text-xs text-stone-500 mb-1">
-                            <span style={{ color: '#378ADD' }}>p.{vl.currentPage} / {totalPages} · {pct}%</span>
-                          </div>
-                          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden w-full max-w-xs">
-                            <div
-                              className="h-full rounded-full"
-                              style={{ width: `${pct}%`, backgroundColor: '#378ADD' }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-stone-400 mt-2">진행 중</p>
+          {showCompleted && (completions.length > 0 || tab === 'completed') && (
+            <Shelf title="완독" count={`${completions.length}권`}>
+              {completions.length === 0 ? (
+                <p className="text-[14.5px] text-ink-muted">아직 완독한 책이 없습니다.</p>
+              ) : (
+                <div className="space-y-10">
+                  {groups.map((g) => (
+                    <div key={g.key}>
+                      {g.label && (
+                        <h3 className="mb-4 flex items-baseline gap-2 font-serif text-[17px] font-bold text-ink-soft">
+                          {g.label}
+                          <span className="tnum font-sans text-[12.5px] font-normal text-ink-faint">{g.items.length}권</span>
+                        </h3>
                       )}
+                      <ul className={COVER_GRID}>
+                        {g.items.map((c) => (
+                          <li key={c.id}>
+                            <CompletedTile item={c} />
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <button
-                      onClick={() => {
-                        setUpdatingVolumeId(vl.volumeId);
-                        setPageInputVal(vl.currentPage?.toString() ?? '');
-                      }}
-                      className="shrink-0 self-center px-3 py-1.5 text-xs font-medium border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 hover:text-stone-900 transition-colors"
-                    >
-                      페이지 업데이트
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
+                  ))}
+                </div>
+              )}
+            </Shelf>
+          )}
+        </>
+      )}
 
-        {/* Section 2: Completed */}
-        {!metaLoading && showCompleted && sortedCompletions.length > 0 && (
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">완독</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {sortedCompletions.map((cl) => {
-                const work = works.get(cl.workId);
-                const { publisher } = parseEditionSetId(cl.editionSetId);
-                const targetEditions = Array.from(editions.values()).filter(e => e.work_id === cl.workId && e.publisher === publisher);
-                const firstEdition = targetEditions.find(e => e.volume_number === '1') || targetEditions[0];
-                const coverSrc = firstEdition?.cover_url || work?.representative_cover_url || '';
+      <ProgressDialog item={progressItem} onClose={() => setProgressItem(null)} />
+    </Page>
+  );
+}
 
-                return (
-                  <button key={cl.id} onClick={() => navigate(`/book/${cl.workId}`)} className="group text-left">
-                    <BookCover src={coverSrc} alt={work?.title ?? ''} className="w-full shadow-sm group-hover:-translate-y-1 transition-transform" />
-                    <div className="mt-2.5">
-                      <p className="text-[13px] font-medium text-stone-900 line-clamp-1">{work?.title}</p>
-                      <p className="text-[11px] text-stone-500 uppercase">{publisher}</p>
-                      <div className="mt-1 flex items-center justify-between">
-                        <StarRating rating={cl.rating} size="sm" readonly />
-                        {cl.liked && <Heart size={12} className="text-rose-500 fill-rose-500" />}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
+function HeaderFigure({ label, value, unit }: { label: string; value: number; unit: string }) {
+  return (
+    <div>
+      <dt className="text-[12.5px] text-ink-muted">{label}</dt>
+      <dd className="mt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] text-ink">
+        {value}
+        <span className="ml-0.5 text-[14px] font-medium tracking-normal text-ink-muted">{unit}</span>
+      </dd>
+    </div>
+  );
+}
 
-        {/* Section 3: Incomplete series */}
-        {!metaLoading && showIncompleteSeries && incompleteSeries.length > 0 && (
-          <section className="mb-10">
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">미완독 시리즈</h2>
-            <div className="space-y-3">
-              {incompleteSeries.map(({ seriesId, completedCount: comp, totalCount }) => {
-                const series = seriesMap.get(seriesId);
-                if (!series) return null;
-                // Collect cover thumbnails from completed works in this series
-                const seriesWorks = Array.from(works.values()).filter(w => w.series_id === seriesId);
-                const covers = seriesWorks
-                  .map(w => {
-                    const ed = Array.from(editions.values()).find(e => e.work_id === w.id);
-                    return ed?.cover_url || '';
-                  })
-                  .filter(Boolean)
-                  .slice(0, 3);
+function Shelf({ title, count, children }: { title: string; count: string; children: ReactNode }) {
+  return (
+    <section className="mb-14">
+      <SectionHeading title={title} count={count} />
+      {children}
+    </section>
+  );
+}
 
-                return (
-                  <button
-                    key={seriesId}
-                    onClick={() => navigate(`/series/${seriesId}`)}
-                    className="w-full bg-white rounded-xl border border-stone-200 p-4 flex items-center gap-4 hover:border-stone-300 transition-colors text-left"
-                  >
-                    <div className="relative flex shrink-0" style={{ width: covers.length > 1 ? 52 : 36 }}>
-                      {covers.map((src, i) => (
-                        <div
-                          key={i}
-                          className="absolute"
-                          style={{ left: i * 12, zIndex: covers.length - i, width: 32 }}
-                        >
-                          <BookCover src={src} alt="" className="w-8 shadow-sm border border-white" />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex-1 min-w-0 pl-2">
-                      <p className="text-sm font-medium text-stone-900 line-clamp-1">{series.title}</p>
-                      <p className="text-xs text-stone-500 mt-0.5">{series.author}</p>
-                    </div>
-                    <span className="shrink-0 text-xs text-stone-500">{comp}/{totalCount}권 완독</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
+function CompletedTile({ item }: { item: Completion }) {
+  return (
+    <Link to={`/book/${item.work.id}`} className="group block outline-none">
+      <BookCover src={item.cover} alt={item.work.title} title={item.work.title} author={item.work.author} className="lift w-full" />
+      <p className="mt-2.5 line-clamp-1 text-[14px] font-semibold text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+        {item.work.title}
+      </p>
+      <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
+        {item.publisher} · <span className="tnum">{formatDate(item.createdAt)}</span>
+      </p>
+      {(item.rating || item.liked) && (
+        <div className="mt-1 flex items-center gap-1.5">
+          <StarRating rating={item.rating} size="xs" readonly showEmpty={false} />
+          {item.liked && <Heart size={11} className="fill-seal text-seal" aria-label="인생책" />}
+        </div>
+      )}
+    </Link>
+  );
+}
 
-        {/* Empty state */}
-        {!metaLoading && readingCount === 0 && completedCount === 0 && incompleteSeriesCount === 0 && (
-          <div className="text-center py-20 text-stone-400">
-            <p className="text-sm">아직 기록된 책이 없습니다.</p>
+function SeriesCard({ progress }: { progress: SeriesProgress }) {
+  const { series, done, total, covers, next } = progress;
+  return (
+    <Link to={`/series/${series.id}`} className="panel group flex items-center gap-5 p-4 transition-colors hover:border-line-strong">
+      <div className="relative h-[92px] w-[104px] shrink-0" aria-hidden>
+        {covers.slice(0, 3).map((src, i) => (
+          <div key={i} className="absolute top-0 w-[60px]" style={{ left: i * 20, zIndex: 3 - i, transform: `translateY(${i * 3}px)` }}>
+            <BookCover src={src} alt="" title={series.title} className="w-full" />
           </div>
-        )}
+        ))}
       </div>
-
-      {/* Page update modal */}
-      {updatingVolumeId && (() => {
-        const vl = volumeLogs.find(l => l.volumeId === updatingVolumeId);
-        const work = vl ? works.get(vl.workId) : undefined;
-        const edition = vl ? editions.get(parseVolumeId(updatingVolumeId)) : undefined;
-        const totalPages = edition?.page_count;
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm" onClick={() => setUpdatingVolumeId(null)}>
-            <div className="bg-white rounded-2xl shadow-xl p-6 w-80 mx-4" onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-semibold text-stone-900 mb-1">{work?.title}</h3>
-              <p className="text-xs text-stone-500 mb-4">현재 페이지를 입력해주세요</p>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm text-stone-500">p.</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={totalPages}
-                  value={pageInputVal}
-                  onChange={e => setPageInputVal(e.target.value)}
-                  className="flex-1 border border-stone-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-stone-400"
-                  placeholder="127"
-                  autoFocus
-                />
-                {totalPages && <span className="text-sm text-stone-500">/ {totalPages}p</span>}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setUpdatingVolumeId(null)}
-                  className="flex-1 py-2 text-sm text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={async () => {
-                    const page = parseInt(pageInputVal, 10);
-                    if (!isNaN(page) && page >= 0) {
-                      await updateReadingProgress(updatingVolumeId, page);
-                    }
-                    setUpdatingVolumeId(null);
-                  }}
-                  className="flex-1 py-2 text-sm font-medium text-white rounded-lg transition-colors"
-                  style={{ backgroundColor: '#378ADD' }}
-                >
-                  저장
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-    </main>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-serif text-[18px] font-bold text-ink decoration-line-strong underline-offset-4 group-hover:underline">{series.title}</p>
+        <p className="truncate text-[13px] text-ink-muted">{series.author}</p>
+        <div className="mt-3 flex items-center gap-3">
+          <ProgressBar value={(done / total) * 100} tone="completed" className="flex-1" label={`${series.title} 완독 비율`} />
+          <span className="tnum shrink-0 text-[12.5px] font-medium text-completed-dark">
+            {done}/{total}
+          </span>
+        </div>
+        {next && <p className="mt-1.5 truncate text-[12.5px] text-ink-muted">다음 차례 · {next.title}</p>}
+      </div>
+    </Link>
   );
 }

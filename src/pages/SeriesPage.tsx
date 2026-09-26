@@ -1,50 +1,31 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, BookText, Loader2, Heart, Eye } from 'lucide-react';
+import { useParams, Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
+import { Breadcrumbs, Page, SectionHeading } from '../components/layout/Page';
 import { BookCover } from '../components/ui/BookCover';
-import { VolumeRow } from '../components/book/VolumeRow';
 import { StarRating } from '../components/ui/StarRating';
+import { LikeButton } from '../components/ui/LikeButton';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { ReadingMark } from '../components/ui/ReadingMark';
+import { Tabs } from '../components/ui/Tabs';
+import { EmptyState, PageLoader } from '../components/ui/States';
+import { VolumeRow } from '../components/book/VolumeRow';
+import { SetReviewPanel } from '../components/book/SetReviewPanel';
 import { useLogStore } from '../store/logStore';
 import { useBookStore } from '../store/bookStore';
+import { useAuthStore } from '../store/authStore';
 import { fetchSeriesById, fetchWorksBySeriesId, groupEditionsByPublisher } from '../services/db';
 import type { DbSeries, DbWork, DbEdition } from '../services/db';
-import type { Work, EditionSet, Volume, VolumeLog, SetCompletionLog } from '../types';
+import type { Work, EditionSet, Volume } from '../types';
 import { groupKey, dbWorkToWork, groupToEditionSet, editionToVolume } from '../utils/bookMappers';
+import { bestCompletion, workReadingState } from '../utils/readingState';
+import { formatDate, splitGenre, volumeLabel } from '../utils/format';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 type WorkWithEditions = DbWork & { editions: DbEdition[] };
 
-function getWorkReadingState(
-  workId: string,
-  volumeLogs: VolumeLog[],
-  setCompletionLogs: SetCompletionLog[],
-  editions: DbEdition[]
-): 'unread' | 'reading' | 'completed' {
-  const publishers = Array.from(new Set(editions.map(e => e.publisher)));
-  const hasCompletion = publishers.some(pub => {
-    const setId = groupKey(workId, pub);
-    return setCompletionLogs.some(l => l.editionSetId === setId);
-  });
-  if (hasCompletion) return 'completed';
-  const hasReading = volumeLogs.some(l => l.workId === workId && l.readingState === 'reading');
-  if (hasReading) return 'reading';
-  return 'unread';
-}
-
-const TAB_CIRCLE_COLORS = {
-  unread: '#a8a29e',
-  reading: '#378ADD',
-  completed: '#639922',
-} as const;
-
-const TAB_BORDER_COLORS = {
-  unread: '#e7e5e4',
-  reading: '#B5D4F4',
-  completed: '#C0DD97',
-} as const;
-
 export function SeriesPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
   const [series, setSeries] = useState<DbSeries | null>(null);
   const [works, setWorks] = useState<WorkWithEditions[]>([]);
@@ -53,17 +34,17 @@ export function SeriesPage() {
 
   const [selectedWorkId, setSelectedWorkId] = useState<string>('');
   const [selectedPublisher, setSelectedPublisher] = useState<string>('');
-  const [repEditionIds, setRepEditionIds] = useState<Record<string, string | null>>({});
 
   const { setGroupedData } = useBookStore();
   const {
     volumeLogs,
     setCompletionLogs,
     getSetCompletionLog,
-    upsertSetCompletionLog,
     getSeriesCompletionLog,
     upsertSeriesCompletionLog,
   } = useLogStore();
+  const signedIn = useAuthStore((s) => !!s.session);
+  useDocumentTitle(series?.title);
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return; }
@@ -74,10 +55,6 @@ export function SeriesPage() {
         if (!s) { setNotFound(true); return; }
         setSeries(s);
         setWorks(ws);
-
-        const repMap: Record<string, string | null> = {};
-        ws.forEach(w => { repMap[w.id] = w.representative_edition_id ?? null; });
-        setRepEditionIds(repMap);
 
         if (ws.length > 0) setSelectedWorkId(ws[0].id);
 
@@ -103,32 +80,18 @@ export function SeriesPage() {
     [selectedWork]
   );
 
-  useEffect(() => {
-    if (editionGroups.length > 0) {
-      const repId = repEditionIds[selectedWorkId];
-      const repEdition = selectedWork?.editions.find(e => e.id === repId);
-      setSelectedPublisher(repEdition?.publisher ?? editionGroups[0].publisher);
-    } else {
-      setSelectedPublisher('');
-    }
-  }, [selectedWorkId, editionGroups, repEditionIds, selectedWork]);
-
-  if (loading) {
-    return (
-      <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-stone-400" />
-      </main>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   if (notFound || !series) {
     return (
-      <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-stone-500 mb-4">시리즈 정보를 찾을 수 없습니다.</p>
-          <button onClick={() => navigate('/')} className="text-sm text-stone-700 underline">홈으로 돌아가기</button>
-        </div>
-      </main>
+      <Page>
+        <EmptyState
+          className="mt-6"
+          title="시리즈를 찾을 수 없습니다"
+          description="지워졌거나 주소가 잘못된 시리즈입니다."
+          action={<Link to="/?view=series" className="btn btn-primary">시리즈 목록으로</Link>}
+        />
+      </Page>
     );
   }
 
@@ -136,6 +99,7 @@ export function SeriesPage() {
     const groups = groupEditionsByPublisher(work.editions);
     return groups.some(g => !!getSetCompletionLog(groupKey(work.id, g.publisher)));
   });
+  const completedCount = works.filter(w => workReadingState(w.id, volumeLogs, setCompletionLogs) === 'completed').length;
 
   const seriesLog = getSeriesCompletionLog(series.id);
 
@@ -153,216 +117,249 @@ export function SeriesPage() {
     });
   }
 
-  function handleWorkRating(rating: number | null, editionSetId: string, workId: string, currentLiked: boolean) {
-    upsertSetCompletionLog({ editionSetId, workId, liked: currentLiked, rating });
-  }
+  const seriesCover = series.cover_url || works.find(w => w.editions[0]?.cover_url)?.editions[0]?.cover_url || '';
 
-  function toggleWorkLiked(editionSetId: string, workId: string, currentLiked: boolean, currentRating: number | null) {
-    upsertSetCompletionLog({ editionSetId, workId, liked: !currentLiked, rating: currentRating });
-  }
+  // 고른 출판사가 없으면 대표 판본, 그것도 없으면 첫 출판사
+  const repEdition = selectedWork?.editions.find(e => e.id === selectedWork.representative_edition_id);
+  const activePublisher = editionGroups.some(g => g.publisher === selectedPublisher)
+    ? selectedPublisher
+    : repEdition?.publisher ?? editionGroups[0]?.publisher ?? '';
+  const selectedGroup = editionGroups.find(g => g.publisher === activePublisher);
 
-  const seriesCover = series.cover_url || works[0]?.editions[0]?.cover_url || '';
-  const selectedGroup = editionGroups.find(g => g.publisher === selectedPublisher);
-  const repIdForWork = selectedWork ? (repEditionIds[selectedWork.id] ?? null) : null;
-
-  const displayCoverUrl = (() => {
+  const selectedCover = (() => {
     if (!selectedWork) return '';
-    if (selectedPublisher) {
-      const pubGroup = editionGroups.find(g => g.publisher === selectedPublisher);
-      if (pubGroup?.editions[0]?.cover_url) return pubGroup.editions[0].cover_url;
-    }
-    const repEdition = selectedWork.editions.find(e => e.id === repIdForWork);
+    if (selectedGroup?.editions[0]?.cover_url) return selectedGroup.editions[0].cover_url;
     return repEdition?.cover_url || selectedWork.editions[0]?.cover_url || '';
   })();
 
+  const tags = splitGenre(series.genre);
+
   return (
-    <main className="min-h-[calc(100vh-56px)] bg-stone-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-800 transition-colors mb-8"
-        >
-          <ArrowLeft size={16} />돌아가기
-        </button>
+    <Page>
+      <Breadcrumbs
+        items={[
+          { label: '둘러보기', to: '/' },
+          { label: '시리즈', to: '/?view=series' },
+          { label: series.title },
+        ]}
+      />
 
-        {/* Hero */}
-        <div className="flex flex-col sm:flex-row gap-8 mb-10">
-          <div className="w-36 sm:w-44 shrink-0 mx-auto sm:mx-0">
-            <BookCover src={seriesCover} alt={series.title} className="w-full shadow-md transition-all duration-300" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 bg-stone-800 text-white text-[11px] font-bold rounded uppercase tracking-wider">시리즈</span>
-              {series.genre && (
-                <span className="px-2 py-0.5 border border-stone-200 bg-white text-stone-500 text-[11px] rounded">{series.genre}</span>
-              )}
+      <div className="mt-6 grid gap-x-10 gap-y-10 lg:mt-8 lg:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)_320px] 2xl:grid-cols-[288px_minmax(0,1fr)_380px] 2xl:gap-x-16 3xl:grid-cols-[320px_minmax(0,1fr)_420px]">
+        {/* 시리즈 표지와 진행 */}
+        <aside className="lg:row-span-2 xl:row-span-1" aria-label="시리즈 진행">
+          <div className="lg:sticky lg:top-24">
+            <div className="relative mx-auto w-40 sm:w-48 lg:w-full">
+              <span aria-hidden className="absolute inset-0 translate-x-[8px] translate-y-[-8px] rounded-[3px] bg-paper-deep shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
+              <span aria-hidden className="absolute inset-0 translate-x-[4px] translate-y-[-4px] rounded-[3px] bg-line shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
+              <BookCover src={seriesCover} alt={`${series.title} 표지`} title={series.title} author={series.author} loading="eager" className="relative w-full" />
             </div>
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 leading-tight mb-2">{series.title}</h1>
-            <p className="text-lg text-stone-600 mb-3">{series.author}</p>
-            <div className="flex items-center gap-4 text-sm text-stone-500 mb-4 pb-4 border-b border-stone-100">
-              <span className="flex items-center gap-1"><BookText size={14} />{works.length}개 작품</span>
-            </div>
-            {series.description && (
-              <p className="text-stone-700 leading-relaxed font-serif text-base sm:text-lg break-keep whitespace-pre-wrap max-w-2xl mb-5">
-                {series.description}
-              </p>
-            )}
 
-            {/* Inline series action row */}
-            <div className="flex items-center gap-3 pt-3 border-t border-stone-100">
-              <span className="text-sm text-stone-500 font-medium">시리즈 전체</span>
-              <StarRating
-                rating={seriesLog?.rating ?? null}
-                onChange={isSeriesComplete ? handleSeriesRating : undefined}
-                size="sm"
-                readonly={!isSeriesComplete}
-              />
-              {isSeriesComplete && (
-                <button onClick={toggleSeriesLiked} className="transition-transform hover:scale-110">
-                  <Heart
-                    size={16}
-                    className={seriesLog?.liked ? 'fill-rose-500 text-rose-500' : 'text-stone-400 hover:text-rose-400'}
-                  />
-                </button>
-              )}
-              <button
-                disabled
-                className="p-1.5 rounded-md border"
-                style={isSeriesComplete
-                  ? { color: '#639922', backgroundColor: '#EAF3DE', borderColor: '#C0DD97' }
-                  : { color: '#a8a29e', backgroundColor: 'transparent', borderColor: 'transparent' }
-                }
-                title={isSeriesComplete ? '시리즈 완독' : '미완독'}
-              >
-                <Eye size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
+            {signedIn && works.length > 0 && (
+              <div className="mt-6 border-t border-line pt-4">
+                <p className="text-[12.5px] font-medium text-ink-faint">내 진행</p>
+                <p className="mt-1.5 text-[14px] text-ink-soft">
+                  <span className="tnum font-semibold text-ink">{completedCount}</span>
+                  <span className="tnum text-ink-muted"> / {works.length}작품 완독</span>
+                </p>
+                <ProgressBar value={(completedCount / works.length) * 100} tone="completed" className="mt-2" label="시리즈 완독 비율" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <section>
-              <h2 className="text-base font-semibold text-stone-800 mb-3">수록 작품</h2>
-
-              {/* Volume tabs with state indicators */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {works.map(work => {
-                  const state = getWorkReadingState(work.id, volumeLogs, setCompletionLogs, work.editions);
-                  const isActive = selectedWorkId === work.id;
-                  const circleColor = TAB_CIRCLE_COLORS[state];
-                  const borderColor = isActive ? 'transparent' : TAB_BORDER_COLORS[state];
-
-                  return (
-                    <button
-                      key={work.id}
-                      onClick={() => setSelectedWorkId(work.id)}
-                      className="relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all"
-                      style={isActive
-                        ? { backgroundColor: '#1c1917', color: '#fff', borderColor: '#1c1917' }
-                        : { backgroundColor: '#fff', color: '#57534e', borderColor }
-                      }
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: isActive ? '#fff' : circleColor }}
-                      />
-                      {work.series_order != null && (
-                        <span className={`text-xs ${isActive ? 'text-stone-300' : 'text-stone-400'}`}>
-                          {work.series_order}부
+                <div className="mt-5">
+                  {isSeriesComplete ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="-rotate-[4deg] rounded-[3px] border-[1.5px] border-completed px-1.5 py-[3px] font-serif text-[12.5px] font-bold leading-none text-completed-dark">
+                          완주
                         </span>
-                      )}
-                      {work.title}
-                    </button>
+                        {seriesLog && <span className="tnum text-[13px] text-ink-soft">{formatDate(seriesLog.createdAt)}</span>}
+                      </div>
+                      <p className="mt-3 text-[12.5px] text-ink-muted">시리즈 전체 평가</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <StarRating rating={seriesLog?.rating ?? null} onChange={handleSeriesRating} size="md" label="시리즈 별점" />
+                        <LikeButton liked={seriesLog?.liked ?? false} onToggle={toggleSeriesLiked} compact />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-[12.5px] leading-relaxed text-ink-muted">모든 작품을 읽으면 시리즈 전체에 별점을 남길 수 있습니다.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* 본문 */}
+        <div className="min-w-0">
+          <header>
+            <p className="mb-2 text-[13px] font-medium text-ink-muted">
+              시리즈 · <span className="tnum">{works.length}부작</span>
+            </p>
+            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.015em] text-ink sm:text-[44px] 2xl:text-[52px]">
+              {series.title}
+            </h1>
+            <p className="mt-3 text-[17px] text-ink-soft">
+              <Link to={`/author/${encodeURIComponent(series.author)}`} className="link-quiet font-medium">
+                {series.author}
+              </Link>
+            </p>
+            {tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {tags.map((t) => (
+                  <Link key={t} to={`/?view=series&tag=${encodeURIComponent(t)}`} className="chip transition-colors hover:border-ink-faint hover:text-ink">
+                    {t}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </header>
+
+          {series.description && (
+            <p className="text-pretty mt-7 max-w-[68ch] whitespace-pre-line font-serif text-[17px] leading-[1.9] text-ink-soft">
+              {series.description}
+            </p>
+          )}
+
+          <section className="mt-12" aria-labelledby="series-works">
+            <SectionHeading id="series-works" title="수록 작품" count={`${works.length}편`} />
+
+            {works.length === 0 ? (
+              <p className="border-y border-line py-8 text-[14.5px] text-ink-muted">아직 이 시리즈에 등록된 작품이 없습니다.</p>
+            ) : (
+              <ol className="divide-y divide-line-soft border-y border-line">
+                {works.map((work, index) => {
+                  const state = workReadingState(work.id, volumeLogs, setCompletionLogs);
+                  const best = state === 'completed' ? bestCompletion(work.id, volumeLogs, setCompletionLogs) : null;
+                  const active = work.id === selectedWorkId;
+                  const cover = work.editions.find(e => e.id === work.representative_edition_id)?.cover_url || work.editions[0]?.cover_url;
+                  return (
+                    <li key={work.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedWorkId(work.id)}
+                        aria-pressed={active}
+                        className={`group relative flex w-full items-center gap-4 py-3 pl-4 pr-3 text-left transition-colors ${
+                          active ? 'bg-paper-raised' : 'hover:bg-paper-raised/60'
+                        }`}
+                      >
+                        <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${active ? 'bg-ink' : 'bg-transparent'}`} />
+                        <span className="tnum w-9 shrink-0 font-serif text-[15px] font-bold text-ink-muted">
+                          {work.series_order != null ? `${work.series_order}부` : index + 1}
+                        </span>
+                        <BookCover src={cover} alt="" title={work.title} className="w-10 shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15.5px] font-semibold text-ink">{work.title}</span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-muted">
+                            {work.published_year ? <span className="tnum">{work.published_year}</span> : null}
+                            <span className="tnum">{groupEditionsByPublisher(work.editions).length > 1 ? `${groupEditionsByPublisher(work.editions).length}개 출판사` : `${work.editions.length}권`}</span>
+                            {signedIn && <ReadingMark state={state} rating={best?.rating} liked={best?.liked} />}
+                          </span>
+                        </span>
+                        <ChevronRight size={16} className={`shrink-0 transition-colors ${active ? 'text-ink' : 'text-line-strong group-hover:text-ink-muted'}`} aria-hidden />
+                      </button>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
+            )}
 
-              {selectedWork && selectedGroup && (() => {
-                const setId = groupKey(selectedWork.id, selectedGroup.publisher);
-                const log = getSetCompletionLog(setId);
-                const setComplete = !!log;
-                const volCount = selectedGroup.editions.length;
-                const isSingle = volCount === 1;
+            {selectedWork && selectedGroup && (() => {
+              const setId = groupKey(selectedWork.id, selectedGroup.publisher);
+              const setComplete = !!getSetCompletionLog(setId);
+              const volCount = selectedGroup.editions.length;
+              const isSingle = volCount === 1;
+              const totalPages = selectedGroup.editions.reduce((sum, e) => sum + (e.page_count || 0), 0);
 
-                return (
-                  <div className="rounded-xl border border-stone-200 overflow-hidden bg-white">
-                    <div className="flex items-center justify-between px-4 py-2.5 bg-stone-800 min-h-[48px]">
-                      <h3 className="text-sm font-semibold text-white">{selectedWork.title}</h3>
-                      {setComplete && log && (
-                        <div className="flex items-center gap-3 border-l border-stone-600 pl-3 ml-2 animate-in fade-in">
-                          <StarRating
-                            rating={log.rating}
-                            onChange={(r) => handleWorkRating(r, setId, selectedWork.id, log.liked)}
-                            size="sm"
-                          />
-                          <button
-                            onClick={() => toggleWorkLiked(setId, selectedWork.id, log.liked, log.rating)}
-                            className="transition-transform hover:scale-110 p-1"
-                          >
-                            <Heart size={16} className={log.liked ? 'fill-rose-500 text-rose-500' : 'text-stone-400 hover:text-rose-400'} />
-                          </button>
-                        </div>
-                      )}
+              return (
+                <div className="mt-8">
+                  <h3 className="mb-3 font-serif text-[19px] font-bold text-ink">
+                    {selectedWork.series_order != null && <span className="text-ink-muted">{selectedWork.series_order}부 </span>}
+                    {selectedWork.title}
+                  </h3>
+                  {editionGroups.length > 1 && (
+                    <Tabs
+                      label="출판사"
+                      size="sm"
+                      className="mb-4"
+                      value={activePublisher}
+                      onChange={setSelectedPublisher}
+                      items={editionGroups.map(g => ({ value: g.publisher, label: g.publisher, count: g.editions.length }))}
+                    />
+                  )}
+                  <div className="panel overflow-hidden">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line-soft bg-paper px-4 py-3 text-[13px] text-ink-muted sm:px-5">
+                      <span className="font-medium text-ink-soft">{selectedGroup.publisher}</span>
+                      <span className="tnum">
+                        {isSingle ? '한 권' : `${volCount}권 구성`}
+                        {totalPages > 0 && ` · ${totalPages.toLocaleString()}쪽`}
+                      </span>
                     </div>
-                    <div className="px-4 py-2 bg-stone-100 border-b border-stone-200 text-xs text-stone-500">
-                      {isSingle ? '단권 구성' : `${volCount}권 구성`}
-                    </div>
-                    <div className="p-1">
+                    <ul className="divide-y divide-line-soft">
                       {selectedGroup.editions.map(edition => (
                         <VolumeRow
                           key={edition.id}
                           volume={editionToVolume(edition, selectedWork.id)}
-                          label={isSingle ? selectedWork.title : `${selectedWork.title} ${edition.volume_number}권`}
+                          volumeMark={edition.volume_number}
+                          label={isSingle ? selectedWork.title : `${selectedWork.title} ${volumeLabel(edition.volume_number)}`}
                           workId={selectedWork.id}
                           editionSetId={setId}
                           isSingleVolume={isSingle}
                           totalPages={edition.page_count || undefined}
+                          canEdit={signedIn}
                         />
                       ))}
-                    </div>
+                    </ul>
+                    {!isSingle && setComplete && (
+                      <SetReviewPanel
+                        editionSetId={setId}
+                        workId={selectedWork.id}
+                        publisher={selectedGroup.publisher}
+                        title={selectedWork.title}
+                        isSinglePublisher={editionGroups.length === 1}
+                        canEdit={signedIn}
+                      />
+                    )}
+                    {!signedIn && (
+                      <p className="border-t border-line-soft px-4 py-3 text-[13px] text-ink-muted sm:px-5">
+                        <Link to="/login" state={{ from: `/series/${series.id}` }} className="link-quiet font-medium text-ink-soft">
+                          로그인
+                        </Link>
+                        하면 읽은 권과 별점을 남길 수 있습니다.
+                      </p>
+                    )}
                   </div>
-                );
-              })()}
-
-              {works.length === 0 && (
-                <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-                  아직 이 시리즈에 등록된 작품이 없습니다.
                 </div>
-              )}
-            </section>
-          </div>
-
-          <div className="lg:col-span-1 space-y-6">
-            {selectedWork && (
-              <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-                <div className="p-4">
-                  <div className="w-full max-w-[140px] mx-auto mb-4">
-                    <BookCover src={displayCoverUrl} alt={selectedWork.title} className="w-full shadow-sm transition-all duration-300" />
-                  </div>
-                  <Link
-                    to={`/book/${selectedWork.id}`}
-                    className="block text-center text-sm font-semibold text-stone-800 hover:text-stone-500 transition-colors mb-1 truncate"
-                  >
-                    {selectedWork.title} ↗
-                  </Link>
-                  {selectedWork.description && (
-                    <p className="text-xs text-stone-500 leading-relaxed line-clamp-4 text-center mt-2">
-                      {selectedWork.description}
-                    </p>
-                  )}
-                  <Link
-                    to={`/book/${selectedWork.id}`}
-                    className="block text-center text-xs text-stone-400 hover:text-stone-600 mt-3 transition-colors"
-                  >
-                    작품 페이지로 이동 →
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
+              );
+            })()}
+          </section>
         </div>
+
+        {/* 고른 작품 미리보기 */}
+        {selectedWork && (
+          <aside className="min-w-0 lg:col-start-2 xl:col-start-3 xl:row-start-1" aria-label="고른 작품">
+            <div className="xl:sticky xl:top-24">
+              <div className="panel p-5">
+                <div className="flex gap-4 xl:block">
+                  <BookCover src={selectedCover} alt={`${selectedWork.title} 표지`} title={selectedWork.title} author={selectedWork.author} className="w-24 shrink-0 xl:w-40" />
+                  <div className="min-w-0 xl:mt-4">
+                    <p className="text-[12.5px] font-medium text-ink-muted">
+                      {selectedWork.series_order != null ? `${selectedWork.series_order}부` : '수록 작품'}
+                      {selectedWork.published_year ? ` · ${selectedWork.published_year}` : ''}
+                    </p>
+                    <Link to={`/book/${selectedWork.id}`} className="mt-1 block font-serif text-[21px] font-bold leading-snug text-ink decoration-line-strong underline-offset-4 hover:underline">
+                      {selectedWork.title}
+                    </Link>
+                  </div>
+                </div>
+                {selectedWork.description && (
+                  <p className="mt-3 line-clamp-6 whitespace-pre-line font-serif text-[15px] leading-[1.8] text-ink-soft">{selectedWork.description}</p>
+                )}
+                <Link to={`/book/${selectedWork.id}`} className="btn btn-secondary mt-5 w-full">
+                  작품 페이지로
+                </Link>
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
-    </main>
+    </Page>
   );
 }

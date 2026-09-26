@@ -27,6 +27,7 @@ export interface DbWork {
   representative_edition_id?: string | null;
   series_id?: string | null;
   series_order?: number | null;
+  published_year?: number | null;
   created_at: string;
 }
 
@@ -139,6 +140,32 @@ export async function insertEdition(payload: Omit<DbEdition, 'id' | 'created_at'
   return data as DbEdition;
 }
 
+// --- 둘러보기·검색용 카탈로그 ---
+
+/** 작품(판본 표지·쪽수 포함), 시리즈, 작가를 한 번에 읽는다. 시리즈·작가 오류는 빈 목록으로 넘긴다. */
+export async function fetchCatalogRows() {
+  const [worksRes, seriesRes, authorsRes] = await Promise.all([
+    supabase
+      .from('works')
+      .select(`
+        id, title, author, genre, lists, published_year, series_id, series_order,
+        representative_edition_id, created_at,
+        editions!work_id ( id, cover_url, page_count, volume_number, publisher )
+      `)
+      .order('title', { ascending: true }),
+    supabase.from('series').select('id, title, author, genre, cover_url').order('title', { ascending: true }),
+    supabase.from('authors').select('id, name, photo_url, country').order('name', { ascending: true }),
+  ]);
+  if (worksRes.error) throw worksRes.error;
+  if (seriesRes.error) console.warn('시리즈 목록을 불러오지 못했습니다:', seriesRes.error);
+  if (authorsRes.error) console.warn('작가 목록을 불러오지 못했습니다:', authorsRes.error);
+  return {
+    works: (worksRes.data ?? []) as unknown[],
+    series: (seriesRes.data ?? []) as unknown[],
+    authors: (authorsRes.data ?? []) as unknown[],
+  };
+}
+
 // --- 플로우차트 함수 ---
 
 export async function fetchFlowchartByAuthor(authorName: string): Promise<DbFlowchart | null> {
@@ -165,7 +192,7 @@ export async function upsertFlowchart(
   if (error) throw error;
 }
 
-// [H-2] cors-anywhere 제거 → vite proxy(/aladin-api) 경유
+// 개발 중에는 vite 프록시(/aladin-api), 배포본에서는 Supabase Edge Function을 거친다
 export async function getAladinDetail(isbn: string) {
   const params = new URLSearchParams({
     itemIdType: 'ISBN13',

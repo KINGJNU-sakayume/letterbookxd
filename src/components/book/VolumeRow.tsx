@@ -1,43 +1,37 @@
-import { useState } from 'react';
-import { Heart } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { StarRating } from '../ui/StarRating';
+import { LikeButton } from '../ui/LikeButton';
+import { ProgressBar } from '../ui/ProgressBar';
+import { useConfirm } from '../ui/confirm';
 import { useLogStore } from '../../store/logStore';
 import type { Volume } from '../../types';
+import { progressPercent } from '../../utils/format';
+import { READING_STATE_LABEL, type ReadingState } from '../../utils/readingState';
 
 interface VolumeRowProps {
   volume: Volume;
+  /** 권 표시 ('상', '1' …). 한 권짜리는 비워 둔다 */
+  volumeMark?: string;
   label?: string;
   workId: string;
   editionSetId: string;
   isSingleVolume?: boolean;
   totalPages?: number;
+  /** 로그인한 사람만 기록을 바꿀 수 있다 */
+  canEdit?: boolean;
 }
 
-// Three-state eye icon colors per spec
-const STATE_STYLES = {
-  unread: {
-    icon: '#a8a29e', // stone-400
-    bg: 'transparent',
-    border: 'transparent',
-  },
-  reading: {
-    icon: '#378ADD',
-    bg: '#E6F1FB',
-    border: '#B5D4F4',
-  },
-  completed: {
-    icon: '#639922',
-    bg: '#EAF3DE',
-    border: '#C0DD97',
-  },
-} as const;
-
-type ReadingState = 'unread' | 'reading' | 'completed';
+const STATE_STYLE: Record<ReadingState, string> = {
+  unread: 'bg-paper-raised text-ink shadow-[0_0_0_1px_rgb(29_27_23/0.1)]',
+  reading: 'bg-reading text-paper-raised',
+  completed: 'bg-completed text-paper-raised',
+};
 
 export function VolumeRow({
-  volume, label, workId, editionSetId, isSingleVolume = false, totalPages
+  volume, volumeMark, label, workId, editionSetId, isSingleVolume = false, totalPages, canEdit = true,
 }: VolumeRowProps) {
-  const { getVolumeLog, upsertVolumeLog, updateReadingProgress } = useLogStore();
+  const { getVolumeLog, upsertVolumeLog } = useLogStore();
+  const confirm = useConfirm();
   const log = getVolumeLog(volume.id);
 
   const readingState: ReadingState = log?.readingState ?? 'unread';
@@ -45,19 +39,21 @@ export function VolumeRow({
   const rating = log?.rating ?? null;
   const currentPage = log?.currentPage ?? null;
 
-  const [pageInput, setPageInput] = useState<string>(currentPage?.toString() ?? '');
-  const [isSavingPage, setIsSavingPage] = useState(false);
-
   const isReading = readingState === 'reading';
   const isCompleted = readingState === 'completed';
 
-  function setReadingState(next: ReadingState) {
+  async function setReadingState(next: ReadingState) {
     if (next === readingState) return;
     if (readingState === 'completed' && next === 'unread') {
-      const ok = window.confirm('완독 상태를 취소하면 별점과 인생책 표시도 초기화됩니다. 계속할까요?');
+      const ok = await confirm({
+        title: '완독 표시를 지울까요?',
+        description: '이 권에 남긴 별점과 인생책 표시도 함께 지워집니다.',
+        confirmLabel: '지우기',
+        tone: 'danger',
+      });
       if (!ok) return;
     }
-    upsertVolumeLog({
+    await upsertVolumeLog({
       volumeId: volume.id,
       editionSetId,
       workId,
@@ -67,12 +63,11 @@ export function VolumeRow({
       liked: next === 'unread' ? false : liked,
       rating: next === 'unread' ? null : rating,
     });
-    if (next === 'reading') setPageInput(currentPage?.toString() ?? '');
   }
 
   function handleRating(newRating: number | null) {
     if (!isCompleted) return;
-    upsertVolumeLog({
+    void upsertVolumeLog({
       volumeId: volume.id,
       editionSetId,
       workId,
@@ -86,7 +81,7 @@ export function VolumeRow({
 
   function handleLiked() {
     if (!isCompleted) return;
-    upsertVolumeLog({
+    void upsertVolumeLog({
       volumeId: volume.id,
       editionSetId,
       workId,
@@ -98,15 +93,103 @@ export function VolumeRow({
     });
   }
 
-  async function handleSavePage() {
-    const page = parseInt(pageInput, 10);
-    if (isNaN(page) || page < 0) return;
-    setIsSavingPage(true);
-    if (log) {
-      await updateReadingProgress(volume.id, page);
+  const progress = progressPercent(currentPage, totalPages);
+
+  return (
+    <li className="px-4 py-3.5 sm:px-5">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+        <div className="flex min-w-0 flex-1 basis-56 items-center gap-3.5">
+          {!isSingleVolume && (
+            <span className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-[4px] border border-line bg-paper px-1.5 font-serif text-[15px] font-bold text-ink-soft">
+              {volumeMark || volume.volumeNumber}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-medium text-ink">{label ?? volume.title}</p>
+            {totalPages ? <p className="tnum text-[12.5px] text-ink-muted">{totalPages.toLocaleString()}쪽</p> : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {isReading && (
+            <div className="flex w-36 items-center gap-2" title={currentPage ? `${currentPage}쪽까지 읽음` : undefined}>
+              {progress !== null ? (
+                <>
+                  <ProgressBar value={progress} className="flex-1" label={`${label ?? volume.title} 읽은 비율`} />
+                  <span className="tnum w-9 text-right text-[12.5px] font-semibold text-reading">{progress}%</span>
+                </>
+              ) : (
+                <span className="text-[12.5px] text-ink-muted">쪽수 미입력</span>
+              )}
+            </div>
+          )}
+          {isCompleted && (
+            <div className="flex items-center gap-1">
+              <StarRating rating={rating} onChange={canEdit ? handleRating : undefined} readonly={!canEdit} size="sm" label={`${label ?? volume.title} 별점`} />
+              <LikeButton liked={liked} onToggle={canEdit ? handleLiked : undefined} compact />
+            </div>
+          )}
+
+          {canEdit ? (
+            <div role="group" aria-label="읽기 상태" className="flex items-center gap-0.5 rounded-[6px] bg-paper-sunken p-[3px]">
+              {(['unread', 'reading', 'completed'] as ReadingState[]).map((state) => {
+                const active = readingState === state;
+                return (
+                  <button
+                    key={state}
+                    type="button"
+                    onClick={() => void setReadingState(state)}
+                    aria-pressed={active}
+                    className={`h-7 rounded-[4px] px-2.5 text-[12.5px] font-medium transition-colors ${
+                      active ? STATE_STYLE[state] : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    {READING_STATE_LABEL[state]}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            readingState !== 'unread' && (
+              <span className={`text-[12.5px] font-medium ${isReading ? 'text-reading' : 'text-completed-dark'}`}>
+                {READING_STATE_LABEL[readingState]}
+              </span>
+            )
+          )}
+        </div>
+      </div>
+
+      {isReading && canEdit && (
+        <PageForm key={currentPage ?? 'none'} volumeId={volume.id} workId={workId} editionSetId={editionSetId} initialPage={currentPage} totalPages={totalPages} />
+      )}
+    </li>
+  );
+}
+
+function PageForm({
+  volumeId, workId, editionSetId, initialPage, totalPages,
+}: {
+  volumeId: string;
+  workId: string;
+  editionSetId: string;
+  initialPage: number | null;
+  totalPages?: number;
+}) {
+  const { getVolumeLog, upsertVolumeLog, updateReadingProgress } = useLogStore();
+  const [value, setValue] = useState(initialPage?.toString() ?? '');
+  const [saving, setSaving] = useState(false);
+  const invalid = value !== '' && (Number.isNaN(Number(value)) || Number(value) < 0 || (!!totalPages && Number(value) > totalPages));
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    const page = parseInt(value, 10);
+    if (isNaN(page) || page < 0 || invalid) return;
+    setSaving(true);
+    if (getVolumeLog(volumeId)) {
+      await updateReadingProgress(volumeId, page);
     } else {
       await upsertVolumeLog({
-        volumeId: volume.id,
+        volumeId,
         editionSetId,
         workId,
         logType: 'volume',
@@ -116,129 +199,35 @@ export function VolumeRow({
         rating: null,
       });
     }
-    setIsSavingPage(false);
+    setSaving(false);
   }
 
-  const progressPercent = totalPages && currentPage
-    ? Math.min(100, Math.round((currentPage / totalPages) * 100))
-    : null;
-
   return (
-    <div>
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        {!isSingleVolume && (
-          <span className="w-6 h-6 rounded-full bg-stone-200 text-stone-600 text-xs font-semibold flex items-center justify-center shrink-0">
-            {volume.volumeNumber}
-          </span>
-        )}
-        <span className="flex-1 text-sm font-medium text-stone-800 truncate">{label ?? volume.title}</span>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {isReading ? (
-            // Reading state: progress bar + %
-            <div className="flex items-center gap-2">
-              {progressPercent !== null ? (
-                <>
-                  <div className="w-20 h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${progressPercent}%`, backgroundColor: '#378ADD' }}
-                    />
-                  </div>
-                  <span className="text-xs tabular-nums" style={{ color: '#378ADD' }}>{progressPercent}%</span>
-                </>
-              ) : (
-                <span className="text-xs text-stone-400">읽는 중</span>
-              )}
-            </div>
-          ) : (
-            // Unread / Completed: star rating + heart
-            <>
-              <StarRating
-                rating={rating}
-                onChange={isCompleted ? handleRating : undefined}
-                size="sm"
-                readonly={!isCompleted}
-              />
-              {isCompleted && (
-                <button
-                  onClick={handleLiked}
-                  title="인생책"
-                  className="p-1.5 rounded-md transition-colors"
-                  style={liked
-                    ? { color: '#e11d48', backgroundColor: '#fff1f2' }
-                    : { color: '#a8a29e' }
-                  }
-                >
-                  <Heart size={16} className={liked ? 'fill-rose-500' : ''} />
-                </button>
-              )}
-            </>
-          )}
-
-          <div className="flex items-center rounded-lg border border-stone-200 bg-stone-50 p-0.5" aria-label="독서 상태">
-            {([
-              ['unread', '안 읽음'],
-              ['reading', '읽는 중'],
-              ['completed', '완독'],
-            ] as [ReadingState, string][]).map(([state, label]) => {
-              const active = readingState === state;
-              return (
-                <button
-                  key={state}
-                  type="button"
-                  onClick={() => setReadingState(state)}
-                  aria-pressed={active}
-                  className="px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
-                  style={active ? {
-                    color: STATE_STYLES[state].icon,
-                    backgroundColor: STATE_STYLES[state].bg === 'transparent' ? '#ffffff' : STATE_STYLES[state].bg,
-                  } : { color: '#78716c' }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+    <form
+      onSubmit={save}
+      className="animate-fade-in mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[5px] border border-reading-border/70 bg-reading-light/60 px-3 py-2.5"
+    >
+      <label htmlFor={`page-${volumeId}`} className="text-[13px] font-medium text-reading-dark">
+        지금 읽는 쪽
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id={`page-${volumeId}`}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={totalPages}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          aria-invalid={invalid}
+          className={`field tnum h-8 w-24 py-0 text-[14px] ${invalid ? 'border-seal focus:border-seal focus:ring-seal' : ''}`}
+        />
+        <span className="tnum text-[13px] text-ink-muted">{totalPages ? `/ ${totalPages}쪽` : '쪽'}</span>
       </div>
-
-      {/* Reading accordion */}
-      <div
-        className="overflow-hidden transition-all duration-200"
-        style={{ maxHeight: isReading ? '72px' : '0px' }}
-      >
-        <div
-          className="mx-3 mb-2 px-3 py-2.5 rounded-lg flex items-center gap-2 text-sm"
-          style={{ backgroundColor: '#E6F1FB', border: '1px solid #B5D4F4' }}
-        >
-          <span className="text-stone-500 shrink-0">p.</span>
-          <input
-            type="number"
-            min={0}
-            max={totalPages}
-            value={pageInput}
-            onChange={(e) => setPageInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSavePage(); }}
-            className="w-16 bg-white border rounded px-2 py-0.5 text-sm text-stone-800 outline-none focus:ring-1"
-            style={{ borderColor: '#B5D4F4' }}
-            placeholder="127"
-          />
-          {totalPages ? (
-            <span className="text-stone-500 shrink-0">/ {totalPages}p</span>
-          ) : (
-            <span className="text-stone-400 shrink-0">p</span>
-          )}
-          <button
-            onClick={handleSavePage}
-            disabled={isSavingPage}
-            className="ml-auto px-3 py-0.5 rounded text-xs font-medium text-white transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: '#378ADD' }}
-          >
-            저장
-          </button>
-        </div>
-      </div>
-    </div>
+      {invalid && <span className="text-[12.5px] text-seal">{totalPages ? `0~${totalPages} 사이로 적어 주세요` : '0 이상으로 적어 주세요'}</span>}
+      <button type="submit" disabled={saving || value === '' || invalid} className="btn btn-sm ml-auto bg-reading text-paper-raised hover:bg-reading-dark">
+        {saving ? '저장 중' : '기록'}
+      </button>
+    </form>
   );
 }

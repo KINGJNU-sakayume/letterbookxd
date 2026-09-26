@@ -1,12 +1,19 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { Eye, MapPin, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { useParams, Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useLogStore } from '../store/logStore';
-import { StarRating } from '../components/ui/StarRating';
+import { useAuthStore } from '../store/authStore';
 import { fetchFlowchartByAuthor } from '../services/db';
 import type { DbFlowchart } from '../types';
 import { FlowchartSidebar, FlowchartModal } from '../components/flowchart';
+import { Breadcrumbs, Page, SectionHeading } from '../components/layout/Page';
+import { BookCover } from '../components/ui/BookCover';
+import { Portrait } from '../components/ui/Portrait';
+import { ReadingMark } from '../components/ui/ReadingMark';
+import { EmptyState, PageLoader } from '../components/ui/States';
+import { bestCompletion, setReview, workReadingState } from '../utils/readingState';
+import { progressPercent } from '../utils/format';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface WorkItem {
   id: string;
@@ -15,28 +22,29 @@ interface WorkItem {
   representative_edition_id: string | null;
   series_id: string | null;
   display_cover: string;
-  editions: { id: string; cover_url: string }[];
+  editions: { id: string; cover_url: string; publisher?: string; page_count?: number }[];
 }
 
-const EYE_STATE_STYLES = {
-  unread: { icon: '#a8a29e', bg: 'rgba(0,0,0,0.45)', size: 12 },
-  reading: { icon: '#378ADD', bg: '#E6F1FB', size: 12 },
-  completed: { icon: '#639922', bg: '#EAF3DE', size: 12 },
-} as const;
+interface AuthorRecord {
+  name: string;
+  photo_url: string | null;
+  birth_death: string | null;
+  country: string | null;
+  awards: string[] | null;
+  bio: string | null;
+}
 
 export function AuthorPage() {
   const { name } = useParams();
-  const navigate = useNavigate();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [author, setAuthor] = useState<any>(null);
+  const [author, setAuthor] = useState<AuthorRecord | null>(null);
   const [works, setWorks] = useState<WorkItem[]>([]);
-  const [lifeBookOpen, setLifeBookOpen] = useState(false);
   const [flowchart, setFlowchart] = useState<DbFlowchart | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
 
   const { volumeLogs, setCompletionLogs } = useLogStore();
+  const signedIn = useAuthStore((s) => !!s.session);
+  useDocumentTitle(name);
 
   useEffect(() => {
     async function fetchAuthorData() {
@@ -48,8 +56,7 @@ export function AuthorPage() {
           .select('*')
           .eq('name', name)
           .maybeSingle();
-        setAuthor(authorData);
-        if (!authorData) setNotFound(true);
+        setAuthor(authorData as AuthorRecord | null);
 
         const { data: worksData, error } = await supabase
           .from('works')
@@ -62,7 +69,8 @@ export function AuthorPage() {
             editions!work_id (
               id,
               cover_url,
-              publisher
+              publisher,
+              page_count
             )
           `)
           .eq('author', name)
@@ -70,18 +78,17 @@ export function AuthorPage() {
 
         if (error) { console.error('데이터 로드 에러:', error); return; }
 
-        const processedWorks = worksData?.map(work => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const editions = (work.editions as any[]) || [];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const repEdition = editions.find((e: any) => e.id === work.representative_edition_id);
+        const processedWorks = ((worksData ?? []) as unknown as Omit<WorkItem, 'display_cover'>[]).map(work => {
+          const editions = work.editions || [];
+          const repEdition = editions.find(e => e.id === work.representative_edition_id);
           return {
             ...work,
+            editions,
             display_cover: repEdition?.cover_url || editions[0]?.cover_url || '',
           };
         });
 
-        setWorks(processedWorks || []);
+        setWorks(processedWorks);
 
         // Fetch flowchart data for this author
         const fc = await fetchFlowchartByAuthor(name);
@@ -95,191 +102,164 @@ export function AuthorPage() {
     fetchAuthorData();
   }, [name]);
 
-  if (isLoading) return (
-    <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-      <Loader2 size={28} className="animate-spin text-stone-400" />
-    </main>
-  );
+  const personal = useMemo(() => {
+    const ids = new Set(works.map(w => w.id));
+    const completions = setCompletionLogs.filter(l => ids.has(l.workId));
+    const readIds = new Set(completions.map(l => l.workId));
+    const reviews = completions.map(l => ({ workId: l.workId, ...setReview(l, volumeLogs) }));
+    const rated = reviews.filter(r => r.rating);
+    const avg = rated.length > 0 ? (rated.reduce((s, r) => s + (r.rating ?? 0), 0) / rated.length).toFixed(1) : null;
+    const lifeBookIds = new Set(reviews.filter(r => r.liked).map(r => r.workId));
+    return { readCount: readIds.size, avg, lifeBooks: works.filter(w => lifeBookIds.has(w.id)) };
+  }, [works, setCompletionLogs, volumeLogs]);
 
-  if (notFound || !author) return (
-    <main className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-stone-500 mb-4">작가 정보를 찾을 수 없습니다.</p>
-        <button onClick={() => navigate('/')} className="text-sm text-stone-700 underline">
-          홈으로 돌아가기
-        </button>
-      </div>
-    </main>
-  );
+  if (isLoading) return <PageLoader />;
 
-  // Personalization band data
-  const authorWorkIds = new Set(works.map(w => w.id));
-
-  const completedForAuthor = setCompletionLogs.filter(l => authorWorkIds.has(l.workId));
-  const readCount = new Set(completedForAuthor.map(l => l.workId)).size;
-
-  const ratedCompletions = completedForAuthor.filter(l => l.rating !== null);
-  const avgRating = ratedCompletions.length > 0
-    ? (ratedCompletions.reduce((s, l) => s + (l.rating ?? 0), 0) / ratedCompletions.length).toFixed(1)
-    : null;
-
-  const lifeBookLogs = completedForAuthor.filter(l => l.liked);
-  const lifeBookCount = lifeBookLogs.length;
-
-  // Life books with work data
-  const lifeBooks = lifeBookLogs.map(l => works.find(w => w.id === l.workId)).filter(Boolean) as WorkItem[];
-
-  // Determine reading state per work (based on all volumes completed = set_completion exists)
-  function getWorkState(workId: string): 'unread' | 'reading' | 'completed' {
-    const hasCompletion = setCompletionLogs.some(l => l.workId === workId);
-    if (hasCompletion) return 'completed';
-    const hasReading = volumeLogs.some(l => l.workId === workId && l.readingState === 'reading');
-    if (hasReading) return 'reading';
-    return 'unread';
+  if (!name || (!author && works.length === 0)) {
+    return (
+      <Page>
+        <EmptyState
+          className="mt-6"
+          title="작가 정보를 찾을 수 없습니다"
+          description="등록되지 않았거나 이름이 바뀐 작가입니다."
+          action={<Link to="/?view=authors" className="btn btn-primary">작가 목록으로</Link>}
+        />
+      </Page>
+    );
   }
 
   const hasFlowchart = flowchart !== null && flowchart.nodes.length > 0;
+  const displayName = author?.name ?? name;
+  const facts: [string, string][] = [
+    ['생몰', author?.birth_death ?? ''],
+    ['국가', author?.country ?? ''],
+  ].filter((f): f is [string, string] => !!f[1]);
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-12">
-      {/* Hero */}
-      <div className="flex flex-col md:flex-row gap-10 mb-10">
-        <div className="w-48 h-64 bg-stone-200 rounded-lg overflow-hidden shadow-lg shrink-0">
-          <img src={author.photo_url} alt={author.name} className="w-full h-full object-cover" />
-        </div>
-        <div className="flex-1">
-          <h1 className="text-4xl font-bold text-stone-900 mb-2">{author.name}</h1>
-          <p className="text-xl text-stone-500 mb-4 font-serif">{author.birth_death}</p>
+    <Page>
+      <Breadcrumbs
+        items={[
+          { label: '둘러보기', to: '/' },
+          { label: '작가', to: '/?view=authors' },
+          { label: displayName },
+        ]}
+      />
 
-          <div className="flex flex-wrap gap-2 mb-6">
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-stone-800 text-white text-[11px] font-bold rounded uppercase tracking-wider shadow-sm">
-              <MapPin size={11} className="text-stone-300" /> {author.country}
-            </span>
-            {author.awards && author.awards.map((award: string, index: number) => (
-              <span
-                key={index}
-                className="px-2 py-0.5 border border-stone-200 bg-white text-stone-600 text-[11px] font-medium rounded hover:border-stone-400 transition-colors shadow-sm"
-              >
-                {award}
-              </span>
-            ))}
-          </div>
-
-          <p className="text-stone-700 leading-relaxed text-lg break-keep max-w-2xl font-serif">
-            {author.bio}
-          </p>
-        </div>
-      </div>
-
-      {/* Personalization band */}
-      <div className="grid grid-cols-3 border border-stone-200 rounded-xl overflow-hidden bg-white mb-10 divide-x divide-stone-200">
-        <div className="px-6 py-5 text-center">
-          <p className="text-2xl font-bold text-stone-900">{readCount}</p>
-          <p className="text-xs text-stone-500 mt-1">내가 읽은 작품</p>
-        </div>
-        <div className="px-6 py-5 text-center">
-          {avgRating !== null ? (
-            <>
-              <p className="text-2xl font-bold text-stone-900">★ {avgRating}</p>
-              <p className="text-xs text-stone-500 mt-1">이 작가 평균 별점</p>
-            </>
-          ) : (
-            <>
-              <p className="text-2xl font-bold text-stone-400">—</p>
-              <p className="text-xs text-stone-500 mt-1">이 작가 평균 별점</p>
-            </>
-          )}
-        </div>
-        <button
-          onClick={() => lifeBookCount > 0 && setLifeBookOpen(v => !v)}
-          className={`px-6 py-5 text-center w-full transition-colors ${lifeBookCount > 0 ? 'hover:bg-stone-50 cursor-pointer' : 'cursor-default'}`}
-        >
-          <p className="text-2xl font-bold text-stone-900">♥ {lifeBookCount}</p>
-          <p className="text-xs text-stone-500 mt-1 flex items-center justify-center gap-1">
-            인생책
-            {lifeBookCount > 0 && (lifeBookOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-          </p>
-        </button>
-      </div>
-
-      {/* Life books accordion */}
       <div
-        className="overflow-hidden transition-all duration-200"
-        style={{ maxHeight: lifeBookOpen ? `${lifeBooks.length * 80 + 48}px` : '0px' }}
+        className={`mt-6 grid gap-x-10 gap-y-10 lg:mt-8 lg:grid-cols-[232px_minmax(0,1fr)] 2xl:gap-x-16 ${
+          hasFlowchart
+            ? 'xl:grid-cols-[248px_minmax(0,1fr)_320px] 2xl:grid-cols-[288px_minmax(0,1fr)_360px] 3xl:grid-cols-[320px_minmax(0,1fr)_400px]'
+            : 'xl:grid-cols-[264px_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1fr)]'
+        }`}
       >
-        <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 mb-6">
-          <div className="flex flex-wrap gap-4">
-            {lifeBooks.map(work => (
-              <Link key={work.id} to={`/book/${work.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <div className="w-10 h-14 bg-stone-100 rounded overflow-hidden shadow-sm shrink-0">
-                  <img src={work.display_cover} alt={work.title} className="w-full h-full object-cover" />
-                </div>
-                <p className="text-sm font-medium text-stone-800 line-clamp-2 max-w-[120px]">{work.title}</p>
-              </Link>
-            ))}
+        {/* 사진과 기본 정보 */}
+        <aside className="lg:row-span-2 xl:row-span-1" aria-label="작가 정보">
+          <div className="flex gap-5 lg:sticky lg:top-24 lg:block">
+            <Portrait
+              src={author?.photo_url}
+              name={displayName}
+              className="aspect-[3/4] w-32 shrink-0 shadow-[0_0_0_1px_rgb(29_27_23/0.07),0_12px_20px_-14px_rgb(29_27_23/0.5)] sm:w-40 lg:w-full"
+            />
+            {(facts.length > 0 || (author?.awards?.length ?? 0) > 0) && (
+              <dl className="min-w-0 space-y-3 text-[13.5px] lg:mt-6 lg:border-t lg:border-line lg:pt-4">
+                {facts.map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-[12.5px] text-ink-faint">{label}</dt>
+                    <dd className="tnum mt-0.5 text-ink-soft">{value}</dd>
+                  </div>
+                ))}
+                {author?.awards && author.awards.length > 0 && (
+                  <div>
+                    <dt className="text-[12.5px] text-ink-faint">수상</dt>
+                    <dd className="mt-1 flex flex-wrap gap-1.5">
+                      {author.awards.map((award) => (
+                        <span key={award} className="chip">{award}</span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            )}
           </div>
-          <button
-            onClick={() => setLifeBookOpen(false)}
-            className="mt-3 text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1"
-          >
-            <ChevronUp size={12} /> 접기
-          </button>
+        </aside>
+
+        {/* 본문 */}
+        <div className="min-w-0">
+          <header>
+            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.015em] text-ink sm:text-[44px] 2xl:text-[52px]">
+              {displayName}
+            </h1>
+            {(author?.birth_death || author?.country) && (
+              <p className="tnum mt-3 text-[17px] text-ink-muted">
+                {[author?.birth_death, author?.country].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </header>
+
+          {author?.bio && (
+            <p className="text-pretty mt-7 max-w-[68ch] whitespace-pre-line font-serif text-[17px] leading-[1.9] text-ink-soft">{author.bio}</p>
+          )}
+
+          {signedIn && works.length > 0 && (
+            <dl className="mt-9 grid max-w-2xl grid-cols-3 divide-x divide-line border-y border-line">
+              <Figure label="읽은 작품" value={personal.readCount} suffix={`/ ${works.length}`} />
+              <Figure label="평균 별점" value={personal.avg ?? '—'} />
+              <Figure label="인생책" value={personal.lifeBooks.length} suffix="권" />
+            </dl>
+          )}
+
+          {signedIn && personal.lifeBooks.length > 0 && (
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <span className="text-[12.5px] font-medium text-seal">인생책</span>
+              {personal.lifeBooks.map((w) => (
+                <Link key={w.id} to={`/book/${w.id}`} className="group flex items-center gap-2.5">
+                  <BookCover src={w.display_cover} alt="" title={w.title} className="w-8" />
+                  <span className="text-[14px] font-medium text-ink decoration-line-strong underline-offset-4 group-hover:underline">{w.title}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <section className="mt-12" aria-labelledby="author-works">
+            <SectionHeading id="author-works" title="작품" count={`${works.length}편 · 발표순`} />
+            {works.length === 0 ? (
+              <p className="border-y border-line py-8 text-[14.5px] text-ink-muted">아직 등록된 작품이 없습니다.</p>
+            ) : (
+              <ul className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-x-5 gap-y-9 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:gap-x-6">
+                {works.map((work) => {
+                  const state = workReadingState(work.id, volumeLogs, setCompletionLogs);
+                  const best = state === 'completed' ? bestCompletion(work.id, volumeLogs, setCompletionLogs) : null;
+                  const readingLog = state === 'reading' ? volumeLogs.find(l => l.workId === work.id && l.readingState === 'reading') : undefined;
+                  const readingEdition = readingLog ? work.editions.find(e => `vol-${e.id}` === readingLog.volumeId) : undefined;
+                  return (
+                    <li key={work.id}>
+                      <Link to={`/book/${work.id}`} className="group block outline-none">
+                        <BookCover src={work.display_cover} alt={work.title} title={work.title} author={displayName} className="lift w-full" />
+                        <p className="tnum mt-3 text-[12.5px] text-ink-faint">{work.published_year || '연도 미상'}</p>
+                        <p className="mt-0.5 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+                          {work.title}
+                        </p>
+                        {signedIn && state !== 'unread' && (
+                          <ReadingMark
+                            className="mt-1.5"
+                            state={state}
+                            rating={best?.rating}
+                            liked={best?.liked}
+                            percent={progressPercent(readingLog?.currentPage, readingEdition?.page_count)}
+                          />
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
-      </div>
 
-      <hr className="border-stone-100 mb-10" />
-
-      {/* Works section — two-column when flowchart exists */}
-      <section>
-        <h2 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-8">등록된 작품</h2>
-        <div className={`grid gap-8 items-start ${hasFlowchart ? 'grid-cols-1 md:grid-cols-[1fr_300px]' : ''}`}>
-          {/* Left: works grid */}
-          <div className={`grid gap-4 ${hasFlowchart ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6'}`}>
-            {works.map((work) => {
-              const state = getWorkState(work.id);
-              const stateStyle = EYE_STATE_STYLES[state];
-              const completionLog = completedForAuthor.find(l => l.workId === work.id);
-
-              return (
-                <button
-                  key={work.id}
-                  onClick={() => navigate(`/book/${work.id}`)}
-                  className="group text-left"
-                >
-                  <div className="relative aspect-[2/3] bg-stone-100 rounded-md overflow-hidden mb-2 shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
-                    <img
-                      src={work.display_cover}
-                      alt={work.title}
-                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                    />
-                    {/* Eye state overlay */}
-                    <div
-                      className="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: stateStyle.bg }}
-                    >
-                      <Eye size={stateStyle.size} style={{ color: stateStyle.icon }} />
-                    </div>
-                  </div>
-                  <h3 className="text-[13px] font-medium text-stone-800 line-clamp-1 group-hover:text-stone-600">
-                    {work.title}
-                  </h3>
-                  <div className="mt-0.5">
-                    {state === 'completed' && completionLog?.rating ? (
-                      <StarRating rating={completionLog.rating} size="sm" readonly />
-                    ) : state === 'reading' ? (
-                      <p className="text-[11px] text-stone-400">읽는 중</p>
-                    ) : (
-                      <p className="text-[11px] text-stone-400 font-serif">{work.published_year}년</p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Right: flowchart sidebar (sticky) */}
-          {hasFlowchart && (
-            <div className="sticky top-20">
+        {hasFlowchart && (
+          <aside className="min-w-0 lg:col-start-2 xl:col-start-3 xl:row-start-1">
+            <div className="xl:sticky xl:top-24">
               <FlowchartSidebar
                 nodes={flowchart!.nodes}
                 edges={flowchart!.edges}
@@ -287,13 +267,13 @@ export function AuthorPage() {
                 onExpand={() => setModalOpen(true)}
               />
             </div>
-          )}
-        </div>
-      </section>
+          </aside>
+        )}
+      </div>
 
-      {/* Flowchart modal */}
       {modalOpen && hasFlowchart && (
         <FlowchartModal
+          title={`${displayName} 읽기 순서`}
           nodes={flowchart!.nodes}
           edges={flowchart!.edges}
           setCompletionLogs={setCompletionLogs}
@@ -301,6 +281,18 @@ export function AuthorPage() {
           onClose={() => setModalOpen(false)}
         />
       )}
-    </main>
+    </Page>
+  );
+}
+
+function Figure({ label, value, suffix }: { label: string; value: string | number; suffix?: string }) {
+  return (
+    <div className="px-4 py-4 first:pl-0 sm:px-6 sm:first:pl-0">
+      <dt className="text-[12.5px] text-ink-muted">{label}</dt>
+      <dd className="mt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] text-ink">
+        {value}
+        {suffix && <span className="tnum ml-1 text-[14px] font-medium tracking-normal text-ink-muted">{suffix}</span>}
+      </dd>
+    </div>
   );
 }
