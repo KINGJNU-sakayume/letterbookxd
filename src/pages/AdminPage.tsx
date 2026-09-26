@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, GitBranch, LogOut } from 'lucide-react';
+import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, GitBranch, LogOut, Database, Zap } from 'lucide-react';
 import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
 import { buildAladinFetchUrl } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
 import type { DbWork } from '../services/db';
+import { QuickAddBook } from '../features/admin/QuickAddBook';
+import { CatalogManager } from '../features/admin/CatalogManager';
 
-type Tab = 'work' | 'edition' | 'author' | 'series' | 'flowchart';
+type Tab = 'quick' | 'manage' | 'work' | 'edition' | 'author' | 'series' | 'flowchart';
 
 interface StatusMsg {
   type: 'success' | 'error';
@@ -22,7 +24,7 @@ interface SeriesItem {
 }
 
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>('work');
+  const [tab, setTab] = useState<Tab>('quick');
   const navigate = useNavigate();
 
   async function handleLogout() {
@@ -46,6 +48,8 @@ export function AdminPage() {
           </button>
         </div>
         <div className="flex gap-1 mb-6 border-b border-stone-200 overflow-x-auto hide-scrollbar">
+          <TabBtn active={tab === 'quick'} onClick={() => setTab('quick')} icon={<Zap size={15} />} label="빠른 등록" />
+          <TabBtn active={tab === 'manage'} onClick={() => setTab('manage')} icon={<Database size={15} />} label="데이터 관리" />
           <TabBtn active={tab === 'work'} onClick={() => setTab('work')} icon={<BookOpen size={15} />} label="작품 추가" />
           <TabBtn active={tab === 'edition'} onClick={() => setTab('edition')} icon={<Library size={15} />} label="판본 추가" />
           <TabBtn active={tab === 'author'} onClick={() => setTab('author')} icon={<PenTool size={15} />} label="작가 추가" />
@@ -53,7 +57,9 @@ export function AdminPage() {
           <TabBtn active={tab === 'flowchart'} onClick={() => setTab('flowchart')} icon={<GitBranch size={15} />} label="플로우차트 편집" />
         </div>
         <div className={`bg-white rounded-xl border border-stone-200 shadow-sm ${tab === 'flowchart' ? 'p-0 overflow-hidden' : 'p-6'}`}>
-          {tab === 'work' ? <WorkForm />
+          {tab === 'quick' ? <QuickAddBook />
+           : tab === 'manage' ? <CatalogManager />
+           : tab === 'work' ? <WorkForm />
            : tab === 'edition' ? <EditionForm />
            : tab === 'author' ? <AuthorForm />
            : tab === 'series' ? <SeriesForm />
