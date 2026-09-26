@@ -6,7 +6,9 @@
 
 ## 1. Project Overview
 
-**letterbookxd** (책장, "bookshelf") is a Korean-focused single-page application for tracking personal reading history. It allows a single authenticated owner to catalogue their book collection across multiple publishers and editions, record per-volume reading progress, rate completed works, and visualize reading habits through rich statistics. The app models the nuances of Korean book publishing — multiple translation editions, volume series (권/상/중/하), and author-centric browsing — with a clean, serif-heavy UI.
+**letterbookxd** (책장, "bookshelf") is a Korean-focused single-page application for tracking personal reading history. It allows a single authenticated owner to catalogue their book collection across multiple publishers and editions, record per-volume reading progress, rate completed works, and visualize reading habits through statistics. The app models the nuances of Korean book publishing — multiple translation editions, volume series (권/상/중/하), and author-centric browsing.
+
+The interface uses a "paper and ink" look: a warm paper background, ink-coloured text, a seal-red (인주) accent taken from 장서인 ownership stamps, Gowun Batang for titles and reading text and Pretendard for the UI. Layouts are fluid and use the full width of desktop monitors (multi-column pages instead of a narrow centred column).
 
 **Core value proposition:** A highly personalized, single-owner reading diary that handles the full complexity of multi-publisher, multi-volume Korean literature — far beyond what a generic shelf app provides.
 
@@ -19,19 +21,22 @@
 | Framework | React | 18.3.1 |
 | Language | TypeScript | 5.5.3 |
 | Build Tool | Vite | 5.4.2 |
-| Routing | React Router DOM | 7.13.1 |
-| Styling | Tailwind CSS | 3.4.1 |
+| Routing | React Router DOM (`HashRouter`) | 7.13.1 |
+| Styling | Tailwind CSS (custom paper/ink tokens) | 3.4.1 |
+| Fonts | Pretendard (jsDelivr), Gowun Batang (Google Fonts) | 1.3.9 / — |
 | Icons | Lucide React | 0.344.0 |
 | State Management | Zustand | 5.0.11 |
 | Database / BaaS | Supabase (PostgreSQL) | 2.57.4 |
-| Charts | Recharts | 3.7.0 |
+| Flowcharts | @xyflow/react | 12.10.2 |
 | Map Visualization | react-simple-maps | 3.0.0 |
 | PostCSS | postcss + autoprefixer | 8.4.35 / 10.4.18 |
 | Linting | ESLint 9 + TypeScript plugin | 9.9.1 |
 
+Charts on the stats page are plain HTML/SVG components (`src/components/stats/`); there is no chart library.
+
 **Architectural notes:**
 - **SPA** — entirely client-side rendered; no SSR or SSG.
-- **Deployed to GitHub Pages** at the `/letterbookxd/` subpath; Vite `base` is set accordingly.
+- **Deployed to GitHub Pages** at the `/letterbookxd/` subpath; Vite `base` is set accordingly and routing uses `HashRouter`.
 - **Authenticated owner** — Supabase Auth sessions identify log ownership; catalogue administration requires `app_metadata.role = "admin"`.
 - **Supabase** serves as both the database and the only backend. There are no custom server routes.
 - A **Vite dev proxy** (`/aladin-api`) routes requests to the Aladin (Korean book) external API to avoid CORS during development.
@@ -42,177 +47,82 @@
 
 ```
 letterbookxd/
-├── .env                          # Environment variables (Supabase URL, anon key, owner ID)
-├── .github/
-│   └── workflows/
-│       └── deploy.yml            # CI/CD: build → commit docs/ → push to GitHub Pages
-├── .gitignore
+├── .github/workflows/            # ci.yml (PR checks), deploy.yml (Pages), deploy-edge-functions.yml
 ├── docs/                         # ⚠️ Generated build output (GitHub Pages source) — do not edit
-├── eslint.config.js              # ESLint flat config with TS + React Hooks rules
-├── index.html                    # Vite HTML entry point; mounts <div id="root">
-├── package.json                  # Dependencies, scripts (dev/build/lint/preview/typecheck)
-├── postcss.config.js             # PostCSS config for Tailwind + Autoprefixer
-├── tailwind.config.js            # Tailwind theme: stone palette, Noto KR fonts, custom utilities
-├── tsconfig.json                 # TypeScript project references
-├── tsconfig.app.json             # App-specific TS config (strict mode, bundler resolution)
-├── vite.config.ts                # Vite config: base path, React plugin, Aladin API proxy, docs output
+├── index.html                    # Vite entry; loads Pretendard + Gowun Batang
+├── tailwind.config.js            # Design tokens: paper/ink/line/seal/reading/completed/star, fonts, 3xl breakpoint
+├── vite.config.ts                # base path, React plugin, Aladin dev proxy, docs output
+├── supabase/                     # RLS migrations, aladin-proxy edge function
+├── tests/                        # node:test suites (stats, Hangul helpers)
 │
 └── src/
-    ├── main.tsx                  # React entry — mounts <App> into #root with StrictMode
-    ├── App.tsx                   # Root component: BrowserRouter + all <Route> definitions
-    ├── index.css                 # Global styles: Tailwind directives, Korean fonts, hide-scrollbar
-    ├── vite-env.d.ts             # Vite environment type declarations
+    ├── main.tsx                  # React entry
+    ├── App.tsx                   # HashRouter, routes, auth → log loading, confirm/toast providers
+    ├── index.css                 # Base styles + component classes (.btn, .field, .panel, .book-cover …)
     │
-    ├── types/
-    │   └── index.ts              # All shared TypeScript interfaces (Work, EditionSet, Volume, logs, DB rows)
-    │
+    ├── types/index.ts            # Shared client + flowchart types
     ├── lib/
-    │   └── supabase.ts           # Supabase client singleton (createClient with env vars)
-    │
+    │   ├── supabase.ts           # Supabase client singleton
+    │   ├── hangul.ts             # 초성 search, match ranking, highlight ranges, 조사(을/를…) helper
+    │   └── authMessages.ts       # Korean messages for Supabase auth errors
     ├── store/
-    │   ├── bookStore.ts          # Zustand store: caches works/editionSets/volumes; mergeById helper
-    │   └── logStore.ts           # Zustand store: all reading logs + full CRUD + auto-completion cascade
-    │
+    │   ├── authStore.ts          # Session + ready flag (onAuthStateChange), sign out
+    │   ├── catalogStore.ts       # Cached catalogue (works+editions, series, authors) for browse/search/shelf/log/stats
+    │   ├── bookStore.ts          # Works/editionSets/volumes used by the completion cascade
+    │   ├── logStore.ts           # Reading logs + CRUD + auto-completion cascade
+    │   └── toastStore.ts         # Small toast queue (`toast(message, tone)`)
     ├── services/
-    │   ├── api.ts                # searchBooks() — legacy/unused search; Aladin API call helper
-    │   └── db.ts                 # All Supabase queries: fetch/insert for works, editions, series, authors, logs
-    │
-    ├── utils/
-    │   ├── bookGrouping.ts       # Groups flat DB rows → Work hierarchy; Korean text normalization; slugify
-    │   └── bookMappers.ts        # Converts DbWork/DbEdition rows → client-side Work/EditionSet/Volume types
-    │
-    ├── data/                     # ⚠️ DEPRECATED — mock data files pending deletion
-    │   ├── mockData.ts           # Static mock works (unused)
-    │   ├── mockApiData.ts        # Static mock API responses (unused)
-    │   └── searchIndex.ts        # Pre-built search index (unused, replaced by Supabase)
+    │   ├── db.ts                 # Supabase queries (works, editions, series, catalogue, flowcharts, Aladin detail)
+    │   ├── api.ts                # Aladin URL builder (+ unused legacy `searchBooks`)
+    │   └── bookCache.ts          # `ensureWorkLoaded` — loads a work's volumes before changing state outside its page
+    ├── hooks/                    # useDocumentTitle, useMediaQuery, useOutsideClick, useLibrary (work status, reading items)
+    ├── domain/
+    │   ├── books/identity.ts     # Edition-set / volume id helpers
+    │   └── stats/computeStats.ts # Pure statistics calculation (tested)
+    ├── utils/                    # bookMappers, bookGrouping, editionUtils, format, readingState
     │
     ├── pages/
-    │   ├── SearchPage.tsx        # / — Book search, genre badge filtering, series/author/list browsing
-    │   ├── BookDetailPage.tsx    # /book/:workId — Work detail with editions, volumes, translations
-    │   ├── BookshelfPage.tsx     # /bookshelf — Personal shelf with reading state filtering and pagination
-    │   ├── ReadingLogPage.tsx    # /reading-log — Editable log table with sort/filter and deletion
-    │   ├── AuthorPage.tsx        # /author/:name — Author stats, all works, life-books list
-    │   ├── StatsPage.tsx         # /stats — Full reading analytics dashboard (charts, maps)
-    │   ├── SeriesPage.tsx        # /series/:id — Series overview with per-work progress
-    │   └── AdminPage.tsx         # /admin — Data curation panel (add works/editions/authors/series)
+    │   ├── SearchPage.tsx        # /            둘러보기 — filters (view/state/tag/list) in the URL, cover grid
+    │   ├── BookDetailPage.tsx    # /book/:id    cover column, editions & volumes, translations, related works
+    │   ├── SeriesPage.tsx        # /series/:id  table of contents, selected work's volumes, series rating
+    │   ├── AuthorPage.tsx        # /author/:n   portrait & facts, bio, my figures, works, reading-order timeline
+    │   ├── BookshelfPage.tsx     # /bookshelf   reading / series in progress / completed (grouped)
+    │   ├── ReadingLogPage.tsx    # /reading-log diary table by month, edit & delete dialogs
+    │   ├── StatsPage.tsx         # /stats       figures, monthly chart, bars, map, 100-book list
+    │   ├── AdminPage.tsx         # /admin       works table, add forms with previews, flowchart editor
+    │   ├── LoginPage.tsx         # /login       owner sign-in, returns to the previous page
+    │   └── NotFoundPage.tsx      # *            unknown routes
     │
     └── components/
-        ├── layout/
-        │   └── Navbar.tsx        # Sticky top nav with links to all main sections
-        ├── ui/
-        │   ├── BookCover.tsx     # Cover image with aspect-ratio variants and error fallback icon
-        │   └── StarRating.tsx    # 1–5 star interactive/readonly rating widget
-        └── book/
-            ├── VolumeRow.tsx         # Single volume row: eye-state toggle, page tracker, rating, liked
-            ├── SetReviewPanel.tsx    # Completion review panel for an EditionSet (rating + liked)
-            └── TranslationComparison.tsx  # Tabbed view comparing text excerpts across translations
+        ├── layout/               # Navbar (tabs + mobile tab bar), GlobalSearch, AccountMenu, Page/PageHeader/SectionHeading/Breadcrumbs, ScrollManager
+        ├── ui/                   # BookCover, StarRating, Tabs, Dialog, ConfirmProvider + confirm, Toaster, States, ProgressBar, Portrait, ReadingMark, LikeButton
+        ├── book/                 # VolumeRow, SetReviewPanel, TranslationComparison, ReadingCard, ProgressDialog
+        ├── stats/                # StatFigure, MonthlyChart (+ table view), BarList, LiteraryMap, mapScale
+        ├── flowchart/            # Reading-order sidebar, modal, editor
+        ├── auth/                 # AdminGate, LoginForm
+        └── admin/                # FormControls (Field, TextArea, SelectField, StatusDisplay, FormHeader)
 ```
 
 ---
 
 ## 4. Page-by-Page Breakdown
 
-### `/` — SearchPage
+Every page shares the same shell: a sticky full-width header (seal logo, section tabs, global search, account menu) and, below `md`, a bottom tab bar. Pages use `Page` (fluid width with responsive side padding) and a `PageHeader`. Detail pages use a three-column grid on `xl` (sticky cover column · main · side panel) that collapses to two columns on `lg` and one column on phones.
 
-| Field | Value |
-|-------|-------|
-| **Route** | `/` |
-| **Purpose** | Main discovery page; lets the owner browse and search the entire book catalogue |
-| **Key UI elements** | Search bar with autocomplete dropdown, genre badge filter strip, tab navigation (전체/시리즈/작가/목록), grid of book cards |
-| **User interactions** | Type to search, click genre badges to filter, switch tabs to browse by series/author/list, click a card to navigate to detail |
-| **Auth required** | No |
-| **Data fetched** | `fetchAllWorks()` via `db.ts`; logs loaded from `logStore` for reading-state badges |
+| Route | Page | What it shows |
+|-------|------|---------------|
+| `/` | `SearchPage` (둘러보기) | Continue-reading cards (signed in), a filter sidebar (view: 단행본/시리즈/작가, my reading state, 분류 tags, 목록 lists) and an auto-fill cover grid. Filters, sort and the text filter live in the URL so Back returns to the same list. |
+| `/book/:workId` | `BookDetailPage` | Breadcrumbs, cover + my record summary, title/author/tags (tags link back to filtered browse), description, publisher tabs with volume rows (state switch, page form, ratings), set review for multi-volume editions, translation comparison and other works by the author or series. |
+| `/series/:id` | `SeriesPage` | Series cover with my progress and series rating, a numbered table of contents with reading marks, the selected work's editions and volumes, and a preview panel. |
+| `/author/:name` | `AuthorPage` | Portrait (monogram fallback) and facts, bio, my figures (read / average rating / 인생책), works by year, and the reading-order timeline with a full flowchart modal. Works without an `authors` row still render. |
+| `/bookshelf` | `BookshelfPage` | Header figures, tabs (전체/읽는 중/완독/이어 읽을 시리즈), reading cards with a page-progress dialog (including "다 읽었어요"), series in progress with the next title, completions grouped by year or rating. |
+| `/reading-log` | `ReadingLogPage` | Diary table grouped by month (sticky month labels), filters for year/rating/kind/author/text, edit dialog (date, rating, 인생책) and delete with confirmation. Unread resets are not listed; series completions show the series. |
+| `/stats` | `StatsPage` | Year switch, six key figures, monthly completions (hover/focus tooltips + table view), rating/author/tag/publisher bars, a choropleth map with a country list, and progress on the 노벨 연구소 100선 list. |
+| `/admin` | `AdminPage` (behind `AdminGate`) | Section nav, a searchable works table with an edit dialog, add forms with live previews, and the flowchart editor. |
+| `/login` | `LoginPage` | Email/password sign-in; returns to the page that sent you there. |
+| `*` | `NotFoundPage` | Unknown routes. |
 
----
-
-### `/book/:workId` — BookDetailPage
-
-| Field | Value |
-|-------|-------|
-| **Route** | `/book/:workId` |
-| **Purpose** | Full detail view for one literary work — all editions, volumes, and translations |
-| **Key UI elements** | Cover image, metadata (author, year, genre), TranslationComparison tabs, VolumeRow list per publisher, SetReviewPanel |
-| **User interactions** | Toggle reading state per volume (eye icon: unread→reading→completed), set current page, rate volumes, mark as life-book, rate the entire edition set |
-| **Auth required** | No (owner is implicit via env var) |
-| **Data fetched** | `fetchWorkById()`, `fetchEditionsByWorkId()` → `bookStore`; `logStore.loadLogs()` |
-
----
-
-### `/bookshelf` — BookshelfPage
-
-| Field | Value |
-|-------|-------|
-| **Route** | `/bookshelf` |
-| **Purpose** | Personal library view — all logged works with filtering by reading state and pagination |
-| **Key UI elements** | Filter tabs (all/reading/completed/unread), book grid with state badges, inline page-update modal |
-| **User interactions** | Filter by reading state, click book to open detail, update current page inline |
-| **Auth required** | No |
-| **Data fetched** | Uses cached `bookStore` + `logStore`; no additional fetches if stores are populated |
-
----
-
-### `/reading-log` — ReadingLogPage
-
-| Field | Value |
-|-------|-------|
-| **Route** | `/reading-log` |
-| **Purpose** | Chronological, editable log of all reading events |
-| **Key UI elements** | Sortable/filterable table of log entries, rating filter, author filter, delete buttons |
-| **User interactions** | Sort by date/rating/author, filter, delete individual log entries |
-| **Auth required** | No |
-| **Data fetched** | `logStore` (all volume logs, set completion logs, series completion logs) |
-
----
-
-### `/author/:name` — AuthorPage
-
-| Field | Value |
-|-------|-------|
-| **Route** | `/author/:name` |
-| **Purpose** | Author-centric view with personal stats and all works by that author |
-| **Key UI elements** | Author stats summary, grid of all works, life-books section |
-| **User interactions** | Browse works, click to navigate to book detail |
-| **Auth required** | No |
-| **Data fetched** | Filters `bookStore.works` by author name; cross-references `logStore` |
-
----
-
-### `/stats` — StatsPage
-
-| Field | Value |
-|-------|-------|
-| **Route** | `/stats` |
-| **Purpose** | Comprehensive reading analytics dashboard |
-| **Key UI elements** | Summary cards (total books, pages, avg rating), bar/line charts (Recharts), world map (react-simple-maps), genre breakdown, monthly trends, Nobel Prize count, life-books list |
-| **User interactions** | Read-only data visualization; no user input |
-| **Auth required** | No |
-| **Data fetched** | Computed from `bookStore` + `logStore` client-side; no additional network calls |
-
----
-
-### `/series/:id` — SeriesPage
-
-| Field | Value |
-|-------|-------|
-| **Route** | `/series/:id` |
-| **Purpose** | Series overview showing all works in a series with aggregate progress |
-| **Key UI elements** | Series title/description, work list with per-work reading state, series completion log panel |
-| **User interactions** | Browse works, mark series-level review/rating once complete |
-| **Auth required** | No |
-| **Data fetched** | `fetchSeriesById()`, `fetchWorksBySeriesId()` via `db.ts` |
-
----
-
-### `/admin` — AdminPage
-
-| Field | Value |
-|-------|-------|
-| **Route** | `/admin` |
-| **Purpose** | Owner-only data curation panel for adding/editing the catalogue |
-| **Key UI elements** | Tabbed forms: Add Work, Add Edition (with Aladin ISBN lookup), Add Author, Add Series |
-| **User interactions** | Fill forms, trigger Aladin API lookup by ISBN, submit to Supabase |
-| **Auth required** | Supabase 이메일/비밀번호 로그인 + `app_metadata.role = "admin"` claim |
-| **Data fetched** | Aladin API (via `/aladin-api` Vite proxy) for book metadata on ISBN lookup; writes to Supabase |
+Personal pages (`/bookshelf`, `/reading-log`, `/stats`) show a sign-in prompt to visitors. Catalogue pages are public; editing controls appear only when signed in.
 
 ---
 
@@ -222,19 +132,26 @@ letterbookxd/
 
 | Component | Used by | What it does |
 |-----------|---------|--------------|
-| `Navbar` | `App.tsx` (wraps all pages) | Top navigation; links to /, /bookshelf, /reading-log, /stats, /admin |
-| `BookCover` | `SearchPage`, `BookDetailPage`, `BookshelfPage`, `AuthorPage`, `SeriesPage` | Renders cover image with aspect-ratio variants (`portrait`/`square`) and fallback icon |
-| `StarRating` | `VolumeRow`, `SetReviewPanel`, `ReadingLogPage`, `StatsPage` | 1–5 star rating, interactive or readonly |
-| `VolumeRow` | `BookDetailPage` | Per-volume reading state (eye toggle), page progress, rating, liked |
-| `SetReviewPanel` | `BookDetailPage` | Edition-set-level completion review with rating and liked |
-| `TranslationComparison` | `BookDetailPage` | Tabbed comparison of text excerpts across different translation editions |
+| `Navbar` | `App.tsx` | Header tabs with section-aware active state, `GlobalSearch`, `AccountMenu`, mobile tab bar, skip link |
+| `GlobalSearch` | `Navbar` | Quick search over works/series/authors (초성, keyboard, `/` or Ctrl/⌘+K); inline on `lg`, full-screen overlay below |
+| `Page`, `PageHeader`, `SectionHeading`, `Breadcrumbs` | all pages | Layout primitives |
+| `BookCover` | most pages | Cover with spine shading and fade-in; cloth-bound typographic fallback when there is no image |
+| `StarRating` | book, shelf, log, author | Read-only stars (no nested buttons) or an interactive radio group with hover preview |
+| `Tabs` | browse, book, shelf, admin | Underline tabs with arrow-key navigation |
+| `Dialog`, `ConfirmProvider` / `useConfirm` | log, book, shelf, admin | Accessible modal (focus trap, Esc, stacking) and promise-based confirmation replacing `window.confirm` |
+| `Toaster` / `toast()` | `App.tsx`, stores | Save/failure feedback (store write errors surface here) |
+| `VolumeRow`, `SetReviewPanel`, `TranslationComparison` | book, series | Reading state per volume, set rating, stacked translation excerpts |
+| `ReadingCard`, `ProgressDialog` | browse, shelf | In-progress volume card; page update / mark finished |
 
 ### Global State (Zustand)
 
 | Store | Controls | Consumed by |
 |-------|----------|-------------|
-| `useBookStore` | `works[]`, `editionSets[]`, `volumes[]` | Nearly all pages; populated once on app load |
-| `useLogStore` | `volumeLogs[]`, `setCompletionLogs[]`, `seriesCompletionLogs[]` + all CRUD | `BookDetailPage`, `BookshelfPage`, `ReadingLogPage`, `AuthorPage`, `StatsPage`, `SeriesPage` |
+| `useAuthStore` | session, `ready`, `signOut` | App (loads/clears logs on user change), header, pages |
+| `useCatalogStore` | cached works/series/authors | browse, search, shelf, log, stats, related works; `reload()` after admin edits |
+| `useBookStore` | works/editionSets/volumes of opened works | completion cascade in `logStore` |
+| `useLogStore` | volume/set/series logs + CRUD, `hasLoaded` | all personal views |
+| `useToastStore` | toast queue | `Toaster` |
 
 ---
 
@@ -244,7 +161,8 @@ letterbookxd/
 
 | Function | Table(s) | Purpose |
 |----------|----------|---------|
-| `fetchAllWorks()` | `works`, `editions` | Loads full catalogue on app init |
+| `fetchCatalogRows()` | `works`+`editions`, `series`, `authors` | Catalogue for browse, search, shelf, log and stats (cached in `catalogStore`) |
+| `fetchAllWorks()` | `works` | Admin: work list for the edition form |
 | `fetchWorkById(workId)` | `works` | Single work metadata |
 | `fetchEditionsByWorkId(workId)` | `editions` | All editions for a work |
 | `fetchSeriesById(id)` | `series` | Series metadata |
@@ -273,7 +191,10 @@ Supabase DB
     ▼
 db.ts (query functions)
     │
-    ├──► bookStore (Zustand)  ──► SearchPage, BookDetailPage, BookshelfPage, ...
+    ├──► catalogStore (Zustand) ──► browse grid, global search, shelf, log, stats
+    │       works[] (+editions), series[], authors[]
+    │
+    ├──► bookStore (Zustand)  ──► completion cascade (volumes of opened works)
     │       works[], editionSets[], volumes[]
     │
     └──► logStore (Zustand)   ──► All pages that display reading state
@@ -417,14 +338,9 @@ The `autoGenerated: true` flag distinguishes system-created logs from user-creat
 
 `extractVolumeNumber()` in `src/utils/bookGrouping.ts` handles: `1권`, `상`, `중`, `하`, and numeric-only titles. Modify this function when changing volume grouping logic.
 
-### Deprecated Files — Safe to Delete
+### Unused Code
 
-The following files in `src/data/` are unused and marked for deletion:
-- `src/data/mockData.ts`
-- `src/data/mockApiData.ts`
-- `src/data/searchIndex.ts`
-
-Also, `searchBooks()` in `src/services/api.ts` is no longer called (replaced by Supabase).
+`searchBooks()` in `src/services/api.ts` is no longer called (the catalogue comes from Supabase). The old `src/data/` mock files have already been removed.
 
 ### Naming Conventions
 
@@ -435,19 +351,39 @@ Also, `searchBooks()` in `src/services/api.ts` is no longer called (replaced by 
 | Stores | camelCase + `Store` suffix | `bookStore.ts` |
 | Utilities | camelCase | `bookGrouping.ts` |
 | DB functions | camelCase verb phrases | `fetchEditionsByWorkId()` |
-| CSS classes | Tailwind utilities; custom via `@layer` in `index.css` | `hide-scrollbar` |
+| CSS classes | Tailwind utilities; shared classes via `@layer` in `index.css` | `btn btn-primary`, `field`, `panel`, `book-cover`, `hide-scrollbar` |
+
+### Design System
+
+Tokens live in `tailwind.config.js`; shared component classes live in `src/index.css`.
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `paper` / `paper-raised` / `paper-sunken` | `#f4f0e8` / `#fbf9f4` / `#ece6da` | Page, panels, wells |
+| `ink` / `ink-soft` / `ink-muted` / `ink-faint` | `#1d1b17` / `#3b3730` / `#6d665a` / `#8a8274` | Text (muted ≥ 4.5:1 on paper; faint is for non-essential text only) |
+| `line` / `line-strong` / `line-soft` | `#dcd4c4` / `#c5bba7` / `#e7e1d5` | Hairlines and borders |
+| `seal` | `#a0312a` | Logo, 인생책 heart, destructive actions, focus ring |
+| `reading` | `#2e5d8a` | 읽는 중 |
+| `completed` | `#4d7a2e` (text: `completed-dark` `#3b5f22`) | 완독, completion stamps, chart bars |
+| `star` | `#b27d17` | Star ratings, rating bars |
+
+- **Type:** `font-serif` (Gowun Batang) for page/book titles, section headings and reading text (descriptions, excerpts); `font-sans` (Pretendard) for everything else, including all numbers in figures and charts. Use `tnum` for numbers that align in columns.
+- **Layout:** no fixed max width. `page-x` gives responsive side padding (up to `3xl` = 1920px); grids use `repeat(auto-fill, minmax(…))` so wider screens get more columns; long text is limited to ~68ch inside wide columns.
+- **Components first:** use `Page`/`PageHeader`/`SectionHeading`, `Tabs`, `Dialog`/`useConfirm`, `toast()`, `BookCover`, `StarRating`, `ReadingMark` rather than one-off markup. Do not use `window.confirm`/`alert`.
+- **Copy:** short, plain Korean. Use `josa()` from `src/lib/hangul.ts` when a particle follows dynamic text (`josa(title, '을', '를')`). Avoid emoji and decorative glyphs in the UI.
+- **Charts:** one hue per single-series chart, hairline grids, ≤24px bars with 4px rounded ends, values written as text or available in a table view; the map uses the validated 5-step moss ramp in `mapScale.ts`.
 
 ### Reading State Color Codes
 
-| State | Color | Value |
+| State | Token | Value |
 |-------|-------|-------|
-| `reading` | Blue | `#378ADD` |
-| `completed` | Green | `#639922` |
-| `unread` | Gray | `#a8a29e` (stone-400) |
+| `reading` | `reading` | `#2e5d8a` |
+| `completed` | `completed` | `#4d7a2e` |
+| `unread` | `ink-faint` | `#8a8274` |
 
 ### Base Path
 
-The app is deployed at `/letterbookxd/`. React Router's `basename="/letterbookxd"` is set in `App.tsx`. Do not hardcode absolute paths in `<Link>` or `navigate()` calls.
+The app is deployed at `/letterbookxd/` (Vite `base`). Routing uses `HashRouter`, so app paths look like `/letterbookxd/#/book/<id>`; always navigate with `<Link>`/`navigate()` and route-relative paths.
 
 ### Known Limitations
 
