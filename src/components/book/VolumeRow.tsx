@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { StarRating } from '../ui/StarRating';
 import { useLogStore } from '../../store/logStore';
 import type { Volume } from '../../types';
@@ -13,32 +13,7 @@ interface VolumeRowProps {
   totalPages?: number;
 }
 
-// Three-state eye icon colors per spec
-const STATE_STYLES = {
-  unread: {
-    icon: '#a8a29e', // stone-400
-    bg: 'transparent',
-    border: 'transparent',
-  },
-  reading: {
-    icon: '#378ADD',
-    bg: '#E6F1FB',
-    border: '#B5D4F4',
-  },
-  completed: {
-    icon: '#639922',
-    bg: '#EAF3DE',
-    border: '#C0DD97',
-  },
-} as const;
-
 type ReadingState = 'unread' | 'reading' | 'completed';
-
-function nextState(current: ReadingState): ReadingState {
-  if (current === 'unread') return 'reading';
-  if (current === 'reading') return 'completed';
-  return 'unread';
-}
 
 export function VolumeRow({
   volume, label, workId, editionSetId, isSingleVolume = false, totalPages
@@ -57,8 +32,17 @@ export function VolumeRow({
   const isReading = readingState === 'reading';
   const isCompleted = readingState === 'completed';
 
-  function cycleEyeState() {
-    const next = nextState(readingState);
+  function changeReadingState(next: ReadingState) {
+    if (next === readingState) return;
+    if (
+      next === 'unread' &&
+      readingState === 'completed' &&
+      (liked || rating !== null) &&
+      !confirm('완독 상태를 해제하면 별점과 인생책 표시가 함께 초기화됩니다. 계속할까요?')
+    ) {
+      return;
+    }
+
     upsertVolumeLog({
       volumeId: volume.id,
       editionSetId,
@@ -69,8 +53,11 @@ export function VolumeRow({
       liked: next === 'unread' ? false : liked,
       rating: next === 'unread' ? null : rating,
     });
+
     if (next === 'reading') {
       setPageInput(currentPage?.toString() ?? '');
+    } else if (next === 'unread') {
+      setPageInput('');
     }
   }
 
@@ -122,8 +109,6 @@ export function VolumeRow({
     }
     setIsSavingPage(false);
   }
-
-  const stateStyle = STATE_STYLES[readingState];
 
   const progressPercent = totalPages && currentPage
     ? Math.min(100, Math.round((currentPage / totalPages) * 100))
@@ -182,19 +167,22 @@ export function VolumeRow({
             </>
           )}
 
-          {/* Three-state eye icon */}
-          <button
-            onClick={cycleEyeState}
-            title={readingState === 'unread' ? '읽기 시작' : readingState === 'reading' ? '완독 표시' : '읽기 취소'}
-            className="p-1.5 rounded-md border transition-colors"
-            style={{
-              color: stateStyle.icon,
-              backgroundColor: stateStyle.bg,
-              borderColor: stateStyle.border,
-            }}
+          <select
+            value={readingState}
+            onChange={(event) => changeReadingState(event.target.value as ReadingState)}
+            aria-label="독서 상태"
+            className={`text-xs font-medium rounded-md border px-2 py-1.5 outline-none transition-colors ${
+              readingState === 'completed'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : readingState === 'reading'
+                  ? 'bg-blue-50 border-blue-200 text-blue-700'
+                  : 'bg-white border-stone-200 text-stone-500'
+            }`}
           >
-            <Eye size={16} />
-          </button>
+            <option value="unread">안 읽음</option>
+            <option value="reading">읽는 중</option>
+            <option value="completed">완독</option>
+          </select>
         </div>
       </div>
 
