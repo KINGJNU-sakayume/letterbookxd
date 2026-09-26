@@ -10,7 +10,6 @@ import { supabase } from '../lib/supabase';
 import { computeStats, COUNTRY_MAPPING, type YearFilter } from '../domain/stats/computeStats';
 import { MetricCard } from '../components/stats/MetricCard';
 
-const OWNER_ID = import.meta.env.VITE_OWNER_ID;
 const geoUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
 const countryMapping = COUNTRY_MAPPING;
@@ -32,8 +31,13 @@ export function StatsPage() {
     async function fetchRaw() {
       setLoading(true);
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setRawData(null);
+          return;
+        }
         const [logsRes, worksRes, editionsRes, seriesRes] = await Promise.all([
-          supabase.from('logs').select('*').eq('user_id', OWNER_ID),
+          supabase.from('logs').select('*').eq('user_id', session.user.id),
           supabase.from('works').select('*'),
           supabase.from('editions').select('id, work_id, cover_url, page_count, publisher'),
           supabase.from('series').select('id'),

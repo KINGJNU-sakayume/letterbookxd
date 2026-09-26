@@ -32,7 +32,7 @@
 **Architectural notes:**
 - **SPA** — entirely client-side rendered; no SSR or SSG.
 - **Deployed to GitHub Pages** at the `/letterbookxd/` subpath; Vite `base` is set accordingly.
-- **Single-owner** — no multi-user auth. The owner's UUID is stored in an environment variable and used to filter Supabase rows.
+- **Authenticated owner** — Supabase Auth sessions identify log ownership; catalogue administration requires `app_metadata.role = "admin"`.
 - **Supabase** serves as both the database and the only backend. There are no custom server routes.
 - A **Vite dev proxy** (`/aladin-api`) routes requests to the Aladin (Korean book) external API to avoid CORS during development.
 
@@ -295,17 +295,15 @@ User actions (toggle state, rate, update page) → `logStore` method → `db.ts`
 |----------|---------|----------|---------|
 | `VITE_SUPABASE_URL` | Supabase project REST endpoint | ✅ | `https://xxxx.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Supabase public anonymous key | ✅ | `eyJhbGci...` (JWT) |
-| `VITE_OWNER_ID` | UUID of the single owner user; filters all log queries | ✅ | `d004d5f7-5e75-4336-b33c-ca4b2d39f99e` |
 
 **Setup:**
 
 ```bash
 # Create a .env file at the project root
-# (no .env.example exists — create manually)
+# Copy .env.example and provide the project credentials.
 
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key
-VITE_OWNER_ID=your_user_uuid
 ```
 
 All variables are prefixed with `VITE_` — Vite exposes them to the browser via `import.meta.env`.
@@ -430,7 +428,7 @@ The app is deployed at `/letterbookxd/`. React Router's `basename="/letterbookxd
 
 ### Known Limitations
 
-- **Single-owner:** No user authentication. Write access relies on Supabase RLS using `VITE_OWNER_ID`.
+- **Authenticated ownership:** Log reads and writes use the signed-in Supabase user's UUID and RLS `auth.uid()`. Catalogue writes additionally require `app_metadata.role = "admin"`; `user_metadata` is never trusted for authorization.
 - **No offline support:** All data is fetched from Supabase on load; no service worker or local cache beyond Zustand in-memory state.
 - **Aladin proxy is dev-only:** The `/aladin-api` proxy in `vite.config.ts` only works during development. The admin ISBN lookup will fail in production unless a separate CORS proxy is deployed.
 - **`docs/` is committed:** The build output lives in `/docs` and is version-controlled for GitHub Pages. Run `npm run build` before committing if deploying manually.
