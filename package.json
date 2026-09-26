@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test": "tsc src/domain/stats/computeStats.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && node --test tests/stats.test.mjs"
+    "test": "tsc src/domain/stats/computeStats.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && tsc src/lib/hangul.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && node --test tests/stats.test.mjs tests/hangul.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
