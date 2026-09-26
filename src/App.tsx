@@ -10,6 +10,7 @@ import { AuthorPage } from './pages/AuthorPage';
 import { useLogStore } from './store/logStore';
 import { StatsPage } from './pages/StatsPage';
 import { SeriesPage } from './pages/SeriesPage';
+import { AdminGate } from './components/auth/AdminGate';
 
 function AppContent() {
   const { loadLogs } = useLogStore();
@@ -27,7 +28,7 @@ function AppContent() {
         <Route path="/bookshelf" element={<BookshelfPage />} />
         <Route path="/reading-log" element={<ReadingLogPage />} />
         <Route path="/author/:name" element={<AuthorPage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin" element={<AdminGate><AdminPage /></AdminGate>} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/series/:id" element={<SeriesPage />} />
       </Routes>
