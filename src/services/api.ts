@@ -31,10 +31,7 @@ export interface AladinSearchResponse {
 }
 
 export async function searchBooks(query: string): Promise<GroupedBookData> {
-  const key = import.meta.env.VITE_ALADIN_API_KEY as string;
-
   const params = new URLSearchParams({
-    ttbkey: key,
     Query: query,
     QueryType: 'Keyword',
     MaxResults: '50',

@@ -5,8 +5,8 @@
 //   https://walvasjnydandxpzivzd.supabase.co/functions/v1/aladin-proxy/{path}?{params}
 //
 // Examples:
-//   .../aladin-proxy/ItemSearch.aspx?ttbkey=...&Query=...
-//   .../aladin-proxy/ItemLookUp.aspx?ttbkey=...&ItemId=...
+//   .../aladin-proxy/ItemSearch.aspx?Query=...
+//   .../aladin-proxy/ItemLookUp.aspx?ItemId=...
 //
 // Deploy with:
 //   supabase functions deploy aladin-proxy --no-verify-jwt
@@ -45,7 +45,17 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Forward all query parameters (including ttbkey) as-is
+  const apiKey = Deno.env.get('ALADIN_API_KEY');
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'ALADIN_API_KEY is not configured' }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Keep the Aladin key server-side. Client supplied ttbkey values are ignored.
+  url.searchParams.delete('ttbkey');
+  url.searchParams.set('ttbkey', apiKey);
   const targetUrl = `${ALADIN_BASE}/${aladinPath}?${url.searchParams.toString()}`;
 
   let aladinRes: Response;

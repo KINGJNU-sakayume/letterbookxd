@@ -3,9 +3,10 @@
  */
 import type { Work, EditionSet, Volume } from '../types';
 import type { DbWork, DbEdition, EditionGroup } from '../services/db';
+import { createEditionSetRef, createVolumeRef } from '../domain/books/identity';
 
 export function groupKey(workId: string, publisher: string): string {
-  return `${workId}::${publisher}`;
+  return createEditionSetRef(workId, publisher);
 }
 
 export function dbWorkToWork(w: DbWork): Work {
@@ -42,7 +43,7 @@ export function editionToVolume(e: DbEdition, workId: string): Volume {
   const setId = groupKey(workId, e.publisher);
   const volLabel = e.volume_number ? e.volume_number : '1';
   return {
-    id: `vol-${e.id}`,
+    id: createVolumeRef(e.id),
     editionSetId: setId,
     volumeNumber: parseInt(volLabel) || 1,
     title: volLabel,
