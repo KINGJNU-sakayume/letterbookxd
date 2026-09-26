@@ -243,9 +243,8 @@ function EditionForm() {
     setSearchResults([]);
     setStatus(null);
     try {
-      const apiKey = import.meta.env.VITE_ALADIN_API_KEY as string;
       const params = new URLSearchParams({
-        ttbkey: apiKey, Query: query, QueryType: 'Keyword',
+        Query: query, QueryType: 'Keyword',
         MaxResults: '10', start: '1', SearchTarget: 'Book', output: 'js', Version: '20131101',
       });
       const response = await fetch(buildAladinFetchUrl('ItemSearch.aspx', params));
@@ -266,14 +265,13 @@ function EditionForm() {
 
   const handleSelectBook = async (book: AladinBookResult) => {
     const isbn = book.isbn13 || book.isbn;
-    const apiKey = import.meta.env.VITE_ALADIN_API_KEY as string;
     const suggested = extractVolumeFromTitle(book.title);
     setForm((f) => ({ ...f, isbn, publisher: book.publisher, cover_url: book.cover.replace('coversum', 'cover500'), volume_number: suggested || '', page_count: '' }));
     setSearchResults([]);
     setIsbnQuery(book.title);
     setStatus({ type: 'success', text: '상세 정보(쪽수)를 가져오는 중...' });
     try {
-      const detail = await getAladinDetail(isbn, apiKey);
+      const detail = await getAladinDetail(isbn);
       if (detail && detail.page_count) {
         setForm(f => ({ ...f, page_count: detail.page_count.toString() }));
         setStatus({ type: 'success', text: `"${book.title}" 정보를 가져왔습니다. (${detail.page_count}쪽)` });
