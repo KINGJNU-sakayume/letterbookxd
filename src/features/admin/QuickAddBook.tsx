@@ -79,6 +79,13 @@ export function QuickAddBook() {
         return;
       }
 
+      const { data: authorRow, error: authorError } = await supabase
+        .from('authors')
+        .upsert({ name: author }, { onConflict: 'name' })
+        .select('id')
+        .single();
+      if (authorError) throw authorError;
+
       let workId = (works ?? []).find(work =>
         normalize(work.title) === normalize(title) &&
         normalize(work.author) === normalize(author)
@@ -94,6 +101,7 @@ export function QuickAddBook() {
             lists: [],
             description: book.description ?? '',
             ai_translation: '',
+            author_id: authorRow.id,
           })
           .select('id')
           .single();
@@ -101,14 +109,17 @@ export function QuickAddBook() {
         workId = newWork.id;
       }
 
-      const { error: authorError } = await supabase
-        .from('authors')
-        .upsert({ name: author }, { onConflict: 'name' });
-      if (authorError) console.warn('작가 upsert 실패:', authorError);
+      const { data: editionSet, error: editionSetError } = await supabase
+        .from('edition_sets')
+        .upsert({ work_id: workId, publisher: book.publisher }, { onConflict: 'work_id,publisher' })
+        .select('id')
+        .single();
+      if (editionSetError) throw editionSetError;
 
       const detail = await getAladinDetail(isbn);
       const { error: editionError } = await supabase.from('editions').insert({
         work_id: workId,
+        edition_set_id: editionSet.id,
         publisher: book.publisher,
         isbn,
         excerpt: null,
