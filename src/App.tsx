@@ -21,7 +21,7 @@ function AppContent() {
   }, [loadLogs]);
 
   return (
-    <div className="min-h-screen bg-stone-50 font-sans text-stone-900">
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-900 pb-16 sm:pb-0">
       <Navbar />
       <Routes>
         <Route path="/" element={<SearchPage />} />
