@@ -76,7 +76,20 @@ export const COUNTRY_MAPPING: Record<string, string> = {
   '영국': 'United Kingdom', '프랑스': 'France', '독일': 'Germany', '중국': 'China',
   '이탈리아': 'Italy', '스페인': 'Spain', '그리스': 'Greece', '오스트리아': 'Austria',
   '브라질': 'Brazil', '인도': 'India', '캐나다': 'Canada', '노르웨이': 'Norway', '스웨덴': 'Sweden',
+  '콜롬비아': 'Colombia', '체코': 'Czechia', '아일랜드': 'Ireland', '포르투갈': 'Portugal', '아르헨티나': 'Argentina',
+  '칠레': 'Chile', '멕시코': 'Mexico', '페루': 'Peru', '쿠바': 'Cuba', '폴란드': 'Poland', '헝가리': 'Hungary',
+  '루마니아': 'Romania', '우크라이나': 'Ukraine', '튀르키예': 'Turkey', '터키': 'Turkey',
+  '네덜란드': 'Netherlands', '벨기에': 'Belgium', '스위스': 'Switzerland', '덴마크': 'Denmark', '핀란드': 'Finland',
+  '아이슬란드': 'Iceland', '알바니아': 'Albania', '이스라엘': 'Israel', '이란': 'Iran', '이집트': 'Egypt',
+  '나이지리아': 'Nigeria', '남아프리카': 'South Africa', '호주': 'Australia', '뉴질랜드': 'New Zealand',
+  '베트남': 'Vietnam', '대만': 'Taiwan', '인도네시아': 'Indonesia',
 };
+
+/** 분류 태그에서 나라를 찾는다. '인도네시아'처럼 다른 이름을 품은 경우 긴 이름을 쓴다. */
+export function findCountry(tags: string[]): string | undefined {
+  const hits = Object.keys(COUNTRY_MAPPING).filter(k => tags.some(t => t.includes(k)));
+  return hits.find(k => !hits.some(other => other !== k && other.includes(k)));
+}
 
 const KOR_MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
@@ -147,18 +160,32 @@ export function computeStats(rawData: RawStatsData, yearFilter: YearFilter): Sta
   const annualAvg = yearFilter === 'all' ? Number((totalWorks / yearsWithData).toFixed(1)) : totalWorks;
   const avgPagesPerBook = totalWorks > 0 ? Math.round(totalPages / totalWorks) : 0;
 
-  const validRatingLogs = completionLogsForPeriod.filter(l => (l.rating ?? 0) > 0);
-  const avgRating = validRatingLogs.length
-    ? (validRatingLogs.reduce((sum, l) => sum + (l.rating ?? 0), 0) / validRatingLogs.length).toFixed(1)
+  // 한 권짜리 판본은 별점·인생책을 권 기록에 남긴다(자동 생성된 세트 기록은 비어 있음)
+  const volumeReviewBySet = new Map<string, { rating: number | null; liked: boolean }>();
+  logs.forEach(log => {
+    if (log.log_type !== 'volume' || log.reading_state !== 'completed' || !log.edition_set_id) return;
+    volumeReviewBySet.set(log.edition_set_id, { rating: log.rating ?? null, liked: !!log.liked });
+  });
+  const reviewOf = (log: StatsLog) => {
+    const own = { rating: log.rating ?? null, liked: !!log.liked };
+    if (!log.edition_set_id || editionSetTotalCounts[log.edition_set_id] !== 1) return own;
+    const vol = volumeReviewBySet.get(log.edition_set_id);
+    return vol ? { rating: own.rating ?? vol.rating, liked: own.liked || vol.liked } : own;
+  };
+  const periodReviews = completionLogsForPeriod.map(reviewOf);
+
+  const validRatings = periodReviews.map(r => r.rating ?? 0).filter(r => r > 0);
+  const avgRating = validRatings.length
+    ? (validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length).toFixed(1)
     : '0.0';
-  const lifeBookCount = completionLogsForPeriod.filter(l => l.liked).length;
+  const lifeBookCount = periodReviews.filter(r => r.liked).length;
 
   const seriesCompletedCount = logs.filter(l => l.log_type === 'series_completion' && filterByYear(l)).length;
   const seriesCompletionRate = seriesTotal > 0 ? Math.round((seriesCompletedCount / seriesTotal) * 100) : 0;
 
   const ratingDist = [1,2,3,4,5].map(r => ({
     rating: `${r}점`,
-    count: validRatingLogs.filter(l => Math.floor(l.rating ?? 0) === r).length,
+    count: validRatings.filter(v => Math.floor(v) === r).length,
   }));
 
   const monthCounts: Record<number, number> = {};
@@ -200,7 +227,7 @@ export function computeStats(rawData: RawStatsData, yearFilter: YearFilter): Sta
     const w = workWithCoverLookup[id];
     if (!w) return;
     const tags = (w.genre || '').split(',').map(t=>t.trim());
-    const found = Object.keys(COUNTRY_MAPPING).find(k => tags.some(t => t.includes(k))) || '미분류';
+    const found = findCountry(tags) || '미분류';
     (countryDataMap[found] ??= { works: [] }).works.push(w);
   });
 
