@@ -6,9 +6,7 @@ import { groupBooks } from '../utils/bookGrouping';
 import type { GroupedBookData } from '../utils/bookGrouping';
 
 export function buildAladinFetchUrl(path: string, params: URLSearchParams): string {
-  return import.meta.env.DEV
-    ? `/aladin-api/${path}?${params}`
-    : `https://walvasjnydandxpzivzd.supabase.co/functions/v1/aladin-proxy/${path}?${params}`;
+  return `https://walvasjnydandxpzivzd.supabase.co/functions/v1/aladin-proxy/${path}?${params}`;
 }
 
 export interface AladinBook {
@@ -31,10 +29,7 @@ export interface AladinSearchResponse {
 }
 
 export async function searchBooks(query: string): Promise<GroupedBookData> {
-  const key = import.meta.env.VITE_ALADIN_API_KEY as string;
-
   const params = new URLSearchParams({
-    ttbkey: key,
     Query: query,
     QueryType: 'Keyword',
     MaxResults: '50',
