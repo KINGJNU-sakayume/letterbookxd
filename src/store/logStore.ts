@@ -30,6 +30,8 @@ interface LogState {
   getVolumeLog: (volumeId: string) => VolumeLog | undefined;
   getSetCompletionLog: (editionSetId: string) => SetCompletionLog | undefined;
   getSeriesCompletionLog: (seriesId: string) => SeriesCompletionLog | undefined;
+  updateLogMetadata: (id: string, patch: { rating: number; liked: boolean; createdAt: string }) => Promise<boolean>;
+  deleteLogById: (id: string) => Promise<boolean>;
 }
 
 function rowToVolumeLog(row: Record<string, unknown>): VolumeLog {
@@ -322,6 +324,68 @@ export const useLogStore = create<LogState>((set, get) => ({
         ? prev.seriesCompletionLogs.map(cl => cl.seriesId === patch.seriesId ? updatedLog : cl)
         : [...prev.seriesCompletionLogs, updatedLog],
     }));
+  },
+
+  updateLogMetadata: async (id, patch) => {
+    const { error } = await supabase
+      .from('logs')
+      .update({ rating: patch.rating, liked: patch.liked, created_at: patch.createdAt })
+      .eq('id', id);
+    if (error) {
+      console.error('Error updating log metadata:', error);
+      return false;
+    }
+    await get().loadLogs();
+    return true;
+  },
+
+  deleteLogById: async (id) => {
+    const state = get();
+    const volumeLog = state.volumeLogs.find(l => l.id === id);
+    const setLog = state.setCompletionLogs.find(l => l.id === id);
+    const seriesLog = state.seriesCompletionLogs.find(l => l.id === id);
+
+    const { error } = await supabase.from('logs').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting log:', error);
+      return false;
+    }
+
+    if (volumeLog) {
+      await supabase
+        .from('logs')
+        .delete()
+        .eq('user_id', OWNER_ID)
+        .eq('edition_set_id', volumeLog.editionSetId)
+        .eq('log_type', 'set_completion');
+
+      const { data: workData } = await supabase
+        .from('works').select('series_id').eq('id', volumeLog.workId).maybeSingle();
+      if (workData?.series_id) {
+        await supabase
+          .from('logs')
+          .delete()
+          .eq('user_id', OWNER_ID)
+          .eq('series_id', workData.series_id)
+          .eq('log_type', 'series_completion');
+      }
+    } else if (setLog) {
+      const { data: workData } = await supabase
+        .from('works').select('series_id').eq('id', setLog.workId).maybeSingle();
+      if (workData?.series_id) {
+        await supabase
+          .from('logs')
+          .delete()
+          .eq('user_id', OWNER_ID)
+          .eq('series_id', workData.series_id)
+          .eq('log_type', 'series_completion');
+      }
+    } else if (seriesLog) {
+      // no dependent completion log exists above series level
+    }
+
+    await get().loadLogs();
+    return true;
   },
 
   getVolumeLog: (volumeId) => get().volumeLogs.find(l => l.volumeId === volumeId),
