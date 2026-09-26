@@ -23,6 +23,8 @@ interface LogState {
   isLoading: boolean;
   loadLogs: () => Promise<void>;
   clearLogs: () => void;
+  deleteLog: (logId: string) => Promise<void>;
+  updateLogReview: (logId: string, patch: { rating: number | null; liked: boolean; createdAt: string }) => Promise<void>;
   upsertVolumeLog: (patch: Omit<VolumeLog, 'id' | 'createdAt' | 'updatedAt' | 'watched'>) => Promise<void>;
   updateReadingProgress: (volumeId: string, currentPage: number) => Promise<void>;
   upsertSetCompletionLog: (patch: Pick<SetCompletionLog, 'editionSetId' | 'workId' | 'liked' | 'rating'>) => Promise<void>;
@@ -236,6 +238,155 @@ export const useLogStore = create<LogState>((set, get) => ({
           }
         }
       }
+    }
+  },
+
+
+  deleteLog: async (logId) => {
+    const state = get();
+    const volumeTarget = state.volumeLogs.find(log => log.id === logId);
+    const setTarget = state.setCompletionLogs.find(log => log.id === logId);
+    const seriesTarget = state.seriesCompletionLogs.find(log => log.id === logId);
+
+    const { error } = await supabase
+      .from('logs')
+      .delete()
+      .eq('id', logId)
+      .eq('user_id', OWNER_ID);
+    if (error) throw error;
+
+    let invalidatedSetId: string | null = null;
+    let workId: string | null = null;
+
+    if (volumeTarget) {
+      invalidatedSetId = volumeTarget.editionSetId;
+      workId = volumeTarget.workId;
+      const completion = state.setCompletionLogs.find(log => log.editionSetId === invalidatedSetId);
+      if (completion) {
+        const { error: completionError } = await supabase
+          .from('logs')
+          .delete()
+          .eq('id', completion.id)
+          .eq('user_id', OWNER_ID);
+        if (completionError) throw completionError;
+      }
+    } else if (setTarget) {
+      invalidatedSetId = setTarget.editionSetId;
+      workId = setTarget.workId;
+    }
+
+    set(prev => ({
+      volumeLogs: prev.volumeLogs.filter(log => log.id !== logId),
+      setCompletionLogs: prev.setCompletionLogs.filter(log =>
+        log.id !== logId && (!invalidatedSetId || log.editionSetId !== invalidatedSetId)
+      ),
+      seriesCompletionLogs: prev.seriesCompletionLogs.filter(log => log.id !== logId),
+    }));
+
+    if (workId) {
+      const { data: workRow, error: workError } = await supabase
+        .from('works')
+        .select('series_id')
+        .eq('id', workId)
+        .maybeSingle();
+      if (workError) throw workError;
+
+      const seriesId = workRow?.series_id as string | null | undefined;
+      if (seriesId) {
+        const { data: seriesWorks, error: worksError } = await supabase
+          .from('works')
+          .select('id')
+          .eq('series_id', seriesId);
+        if (worksError) throw worksError;
+
+        const workIds = (seriesWorks ?? []).map(work => work.id);
+        const { data: completionRows, error: completionError } = workIds.length > 0
+          ? await supabase
+              .from('logs')
+              .select('work_id')
+              .eq('user_id', OWNER_ID)
+              .eq('log_type', 'set_completion')
+              .in('work_id', workIds)
+          : { data: [], error: null };
+
+        if (completionError) throw completionError;
+
+        const completedWorkIds = new Set((completionRows ?? []).map(row => row.work_id));
+        const shouldBeComplete = workIds.length > 0 && workIds.every(id => completedWorkIds.has(id));
+        const existingSeries = get().seriesCompletionLogs.find(log => log.seriesId === seriesId);
+
+        if (!shouldBeComplete && existingSeries) {
+          const { error: seriesDeleteError } = await supabase
+            .from('logs')
+            .delete()
+            .eq('id', existingSeries.id)
+            .eq('user_id', OWNER_ID);
+          if (seriesDeleteError) throw seriesDeleteError;
+          set(prev => ({
+            seriesCompletionLogs: prev.seriesCompletionLogs.filter(log => log.id !== existingSeries.id),
+          }));
+        } else if (shouldBeComplete && !existingSeries) {
+          const { data: newSeries, error: seriesCreateError } = await supabase
+            .from('logs')
+            .insert({
+              user_id: OWNER_ID,
+              series_id: seriesId,
+              log_type: 'series_completion',
+              watched: false,
+              liked: false,
+              rating: null,
+              auto_generated: true,
+            })
+            .select()
+            .single();
+          if (seriesCreateError) throw seriesCreateError;
+          if (newSeries) {
+            set(prev => ({
+              seriesCompletionLogs: [...prev.seriesCompletionLogs, rowToSeriesLog(newSeries)],
+            }));
+          }
+        }
+      }
+    }
+
+    if (seriesTarget) {
+      set(prev => ({
+        seriesCompletionLogs: prev.seriesCompletionLogs.filter(log => log.id !== seriesTarget.id),
+      }));
+    }
+  },
+
+  updateLogReview: async (logId, patch) => {
+    const { data, error } = await supabase
+      .from('logs')
+      .update({
+        rating: patch.rating,
+        liked: patch.liked,
+        created_at: patch.createdAt,
+      })
+      .eq('id', logId)
+      .eq('user_id', OWNER_ID)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) return;
+
+    if (data.log_type === 'volume') {
+      const updated = rowToVolumeLog(data);
+      set(prev => ({
+        volumeLogs: prev.volumeLogs.map(log => log.id === logId ? updated : log),
+      }));
+    } else if (data.log_type === 'set_completion') {
+      const updated = rowToSetLog(data);
+      set(prev => ({
+        setCompletionLogs: prev.setCompletionLogs.map(log => log.id === logId ? updated : log),
+      }));
+    } else if (data.log_type === 'series_completion') {
+      const updated = rowToSeriesLog(data);
+      set(prev => ({
+        seriesCompletionLogs: prev.seriesCompletionLogs.map(log => log.id === logId ? updated : log),
+      }));
     }
   },
 
