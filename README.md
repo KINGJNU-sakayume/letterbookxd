@@ -428,7 +428,7 @@ The app is deployed at `/letterbookxd/`. React Router's `basename="/letterbookxd
 
 ### Known Limitations
 
-- **Authenticated ownership:** Log reads and writes use the signed-in Supabase user's UUID and RLS `auth.uid()`. Catalogue writes additionally require `app_metadata.role = "admin"`; `user_metadata` is never trusted for authorization.
+- **Authenticated ownership:** Log reads and writes use the signed-in Supabase user's UUID and RLS `auth.uid()`. Catalogue writes additionally require `app_metadata.role = "admin"`; `user_metadata` is never trusted for authorization. Grant that role (including for `test@test.com`) only through the Supabase Dashboard or Admin API, then have the user sign in again to refresh the JWT.
 - **No offline support:** All data is fetched from Supabase on load; no service worker or local cache beyond Zustand in-memory state.
 - **Aladin proxy is dev-only:** The `/aladin-api` proxy in `vite.config.ts` only works during development. The admin ISBN lookup will fail in production unless a separate CORS proxy is deployed.
 - **`docs/` is committed:** The build output lives in `/docs` and is version-controlled for GitHub Pages. Run `npm run build` before committing if deploying manually.

@@ -16,11 +16,8 @@ begin
     where user_id = legacy_owner;
   end if;
 
-  -- Authorization belongs in immutable app_metadata, never user_metadata.
-  update auth.users
-  set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
-    || jsonb_build_object('role', 'admin')
-  where id = auth_owner;
+  -- Do not grant privileges from a migration or an email match. If this account
+  -- is an administrator, set app_metadata.role through the Dashboard or Admin API.
 exception
   when no_data_found then
     raise exception 'Auth user test@test.com must exist before this migration runs';
