@@ -166,9 +166,8 @@ export async function upsertFlowchart(
 }
 
 // [H-2] cors-anywhere 제거 → vite proxy(/aladin-api) 경유
-export async function getAladinDetail(isbn: string, apiKey: string) {
+export async function getAladinDetail(isbn: string) {
   const params = new URLSearchParams({
-    ttbkey: apiKey,
     itemIdType: 'ISBN13',
     ItemId: isbn,
     output: 'js',
