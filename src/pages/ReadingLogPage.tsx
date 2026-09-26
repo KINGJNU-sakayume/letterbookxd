@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, Heart, Loader2, Trash2, Edit2, AlertCircle, X, Calendar, Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { parseEditionSetId, parseVolumeId } from '../utils/editionUtils';
-
-const OWNER_ID = import.meta.env.VITE_OWNER_ID;
+import { useLogStore } from '../store/logStore';
 
 interface LogEntry {
   id: string;
@@ -29,8 +28,17 @@ type SortOption = 'date' | 'rating' | 'author';
 
 export function ReadingLogPage() {
   const navigate = useNavigate();
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    volumeLogs,
+    setCompletionLogs,
+    deleteLog,
+    updateLogReview,
+    isLoading,
+  } = useLogStore();
+  const [metaLoading, setMetaLoading] = useState(true);
+  const [workMap, setWorkMap] = useState(new Map<string, { title: string; author: string; representative_cover_url: string | null }>());
+  const [editionMap, setEditionMap] = useState(new Map<string, { id: string; work_id: string; publisher: string; cover_url: string; volume_number: string }>());
+  const [allEditions, setAllEditions] = useState<Array<{ id: string; work_id: string; publisher: string; cover_url: string; volume_number: string }>>([]);
 
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
@@ -46,91 +54,103 @@ export function ReadingLogPage() {
   const [sortOpen, setSortOpen] = useState(false);
 
   useEffect(() => {
-    async function fetchAndMapLogs() {
+    async function fetchMetadata() {
+      setMetaLoading(true);
       try {
-        setLoading(true);
-        const { data: rawLogs, error: logError } = await supabase
-          .from('logs').select('*').eq('user_id', OWNER_ID).order('created_at', { ascending: false });
-
-        if (logError) throw logError;
-
         const [worksRes, editionsRes] = await Promise.all([
           supabase.from('works').select('id, title, author, representative_cover_url'),
           supabase.from('editions').select('id, work_id, publisher, cover_url, volume_number'),
         ]);
+        if (worksRes.error) throw worksRes.error;
+        if (editionsRes.error) throw editionsRes.error;
 
-        const workMap = new Map<string, { title: string; author: string; representative_cover_url: string | null }>();
-        worksRes.data?.forEach(w => workMap.set(w.id, w));
-        const editionMap = new Map<string, { id: string; work_id: string; publisher: string; cover_url: string; volume_number: string }>();
-        editionsRes.data?.forEach(e => editionMap.set(e.id, e));
-        const allEditions = editionsRes.data || [];
+        const nextWorkMap = new Map<string, { title: string; author: string; representative_cover_url: string | null }>();
+        (worksRes.data ?? []).forEach(work => nextWorkMap.set(work.id, work));
+        setWorkMap(nextWorkMap);
 
-        const mappedLogs: LogEntry[] = (rawLogs || []).reduce((acc: LogEntry[], log) => {
-          const work = workMap.get(log.work_id);
-          const { publisher: extractedPublisher } = parseEditionSetId(log.edition_set_id ?? '');
-          const publisherEditions = allEditions.filter(e => e.work_id === log.work_id && e.publisher === extractedPublisher);
-          const isSingleVolume = publisherEditions.length === 1;
-
-          if (isSingleVolume && log.log_type === 'set_completion') return acc;
-
-          let coverSrc = work?.representative_cover_url || '';
-          let finalPublisher = extractedPublisher;
-          let volumeNumStr = '';
-
-          if (log.log_type === 'set_completion') {
-            const firstEdition = publisherEditions[0];
-            if (firstEdition?.cover_url) coverSrc = firstEdition.cover_url;
-            volumeNumStr = '전권 완독';
-          } else {
-            const edition = editionMap.get(parseVolumeId(log.volume_id ?? ''));
-            if (edition) {
-              coverSrc = edition.cover_url || coverSrc;
-              finalPublisher = edition.publisher || extractedPublisher;
-              volumeNumStr = isSingleVolume ? '' : `${edition.volume_number}권`;
-            }
-          }
-
-          acc.push({
-            ...log,
-            displayData: {
-              title: work?.title || '알 수 없는 작품',
-              author: work?.author || '작가 미상',
-              publisher: finalPublisher,
-              cover_url: coverSrc,
-              volume_number: volumeNumStr,
-            },
-          });
-          return acc;
-        }, []);
-
-        setLogs(mappedLogs);
+        const nextEditionMap = new Map<string, { id: string; work_id: string; publisher: string; cover_url: string; volume_number: string }>();
+        (editionsRes.data ?? []).forEach(edition => nextEditionMap.set(edition.id, edition));
+        setEditionMap(nextEditionMap);
+        setAllEditions(editionsRes.data ?? []);
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        setMetaLoading(false);
       }
     }
-    fetchAndMapLogs();
+    fetchMetadata();
   }, []);
+
+  const logs = useMemo<LogEntry[]>(() => {
+    const source: LogEntry[] = [
+      ...volumeLogs.map(log => ({
+        id: log.id,
+        created_at: log.createdAt,
+        rating: log.rating ?? 0,
+        liked: log.liked,
+        work_id: log.workId,
+        volume_id: log.volumeId,
+        edition_set_id: log.editionSetId,
+        log_type: 'volume',
+      })),
+      ...setCompletionLogs.map(log => ({
+        id: log.id,
+        created_at: log.createdAt,
+        rating: log.rating ?? 0,
+        liked: log.liked,
+        work_id: log.workId,
+        volume_id: null,
+        edition_set_id: log.editionSetId,
+        log_type: 'set_completion',
+      })),
+    ];
+
+    return source
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .reduce((acc: LogEntry[], log) => {
+        const work = workMap.get(log.work_id);
+        const { publisher: extractedPublisher } = parseEditionSetId(log.edition_set_id ?? '');
+        const publisherEditions = allEditions.filter(
+          edition => edition.work_id === log.work_id && edition.publisher === extractedPublisher
+        );
+        const isSingleVolume = publisherEditions.length === 1;
+        if (isSingleVolume && log.log_type === 'set_completion') return acc;
+
+        let coverSrc = work?.representative_cover_url || '';
+        let finalPublisher = extractedPublisher;
+        let volumeNumStr = '';
+
+        if (log.log_type === 'set_completion') {
+          const firstEdition = publisherEditions[0];
+          if (firstEdition?.cover_url) coverSrc = firstEdition.cover_url;
+          volumeNumStr = '전권 완독';
+        } else {
+          const edition = editionMap.get(parseVolumeId(log.volume_id ?? ''));
+          if (edition) {
+            coverSrc = edition.cover_url || coverSrc;
+            finalPublisher = edition.publisher || extractedPublisher;
+            volumeNumStr = isSingleVolume ? '' : `${edition.volume_number}권`;
+          }
+        }
+
+        acc.push({
+          ...log,
+          displayData: {
+            title: work?.title || '알 수 없는 작품',
+            author: work?.author || '작가 미상',
+            publisher: finalPublisher,
+            cover_url: coverSrc,
+            volume_number: volumeNumStr,
+          },
+        });
+        return acc;
+      }, []);
+  }, [volumeLogs, setCompletionLogs, workMap, editionMap, allEditions]);
 
   const confirmDelete = async () => {
     if (!deletingLogId) return;
-    const targetLog = logs.find(l => l.id === deletingLogId);
     try {
-      await supabase.from('logs').delete().eq('id', deletingLogId);
-      if (targetLog?.log_type === 'volume' && targetLog.edition_set_id) {
-        await supabase.from('logs').delete()
-          .eq('user_id', OWNER_ID)
-          .eq('edition_set_id', targetLog.edition_set_id)
-          .eq('log_type', 'set_completion');
-      }
-      setLogs(prev => {
-        const updated = prev.filter(l => l.id !== deletingLogId);
-        if (targetLog?.log_type === 'volume' && targetLog.edition_set_id) {
-          return updated.filter(l => !(l.log_type === 'set_completion' && l.edition_set_id === targetLog.edition_set_id));
-        }
-        return updated;
-      });
+      await deleteLog(deletingLogId);
       setDeletingLogId(null);
     } catch (err) {
       console.error(err);
@@ -148,17 +168,11 @@ export function ReadingLogPage() {
     if (!editingLog) return;
     setIsUpdating(true);
     try {
-      await supabase.from('logs').update({
-        rating: editRating,
+      await updateLogReview(editingLog.id, {
+        rating: editRating || null,
         liked: editLiked,
-        created_at: new Date(editDate).toISOString(),
-      }).eq('id', editingLog.id);
-
-      setLogs(prev => prev.map(l =>
-        l.id === editingLog.id
-          ? { ...l, rating: editRating, liked: editLiked, created_at: new Date(editDate).toISOString() }
-          : l
-      ));
+        createdAt: new Date(editDate).toISOString(),
+      });
       setEditingLog(null);
     } catch (err) {
       console.error(err);
@@ -206,7 +220,7 @@ export function ReadingLogPage() {
     author: '작가명순',
   };
 
-  if (loading) {
+  if (isLoading || metaLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <Loader2 className="animate-spin text-stone-300" size={32} />
