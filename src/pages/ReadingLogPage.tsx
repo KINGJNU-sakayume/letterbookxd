@@ -5,8 +5,6 @@ import { supabase } from '../lib/supabase';
 import { parseEditionSetId, parseVolumeId } from '../utils/editionUtils';
 import { useLogStore } from '../store/logStore';
 
-const OWNER_ID = import.meta.env.VITE_OWNER_ID;
-
 interface LogEntry {
   id: string;
   created_at: string;
@@ -51,8 +49,13 @@ export function ReadingLogPage() {
     async function fetchAndMapLogs() {
       try {
         setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setLogs([]);
+          return;
+        }
         const { data: rawLogs, error: logError } = await supabase
-          .from('logs').select('*').eq('user_id', OWNER_ID).order('created_at', { ascending: false });
+          .from('logs').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
 
         if (logError) throw logError;
 
