@@ -20,7 +20,7 @@ export function Navbar() {
           <span className="font-serif text-lg font-semibold text-stone-900 tracking-tight">책장</span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="hidden sm:flex items-center gap-1">
           <Link to="/" className={linkClass('/')}>검색</Link>
 
           <Link to="/bookshelf" className={linkClass('/bookshelf')}>
@@ -42,6 +42,14 @@ export function Navbar() {
           </Link>
         </nav>
       </div>
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-stone-200 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2">
+        <div className="grid grid-cols-4 max-w-md mx-auto">
+          <Link to="/" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/' ? 'text-stone-900' : 'text-stone-400'}`}><BookMarked size={19}/>찾기</Link>
+          <Link to="/bookshelf" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/bookshelf' ? 'text-stone-900' : 'text-stone-400'}`}><Library size={19}/>책장</Link>
+          <Link to="/reading-log" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/reading-log' ? 'text-stone-900' : 'text-stone-400'}`}><CalendarDays size={19}/>기록</Link>
+          <Link to="/stats" className={`flex flex-col items-center gap-1 py-1 text-[11px] ${location.pathname === '/stats' ? 'text-stone-900' : 'text-stone-400'}`}><BarChart3 size={19}/>통계</Link>
+        </div>
+      </nav>
     </header>
   );
 }
