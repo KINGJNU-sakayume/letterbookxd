@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "test": "rm -rf .test-dist && tsc --target ES2022 --module ES2022 --moduleResolution Bundler --skipLibCheck --outDir .test-dist src/domain/stats/computeStats.ts && node --test tests/stats.test.mjs && rm -rf .test-dist"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

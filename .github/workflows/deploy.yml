@@ -7,20 +7,37 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: github-pages-build
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_OWNER_ID: ${{ secrets.VITE_OWNER_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - run: npm ci
+      - name: Validate deploy environment
+        run: |
+          test -n "$VITE_SUPABASE_URL"
+          test -n "$VITE_SUPABASE_ANON_KEY"
+          test -n "$VITE_OWNER_ID"
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
       - name: Commit and push docs
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add docs/
-          git diff --staged --quiet || git commit -m "build: auto update docs"
+          git diff --staged --quiet || git commit -m "build: auto update docs [skip ci]"
           git push

@@ -8,6 +8,7 @@ export interface DbSeries {
   id: string;
   title: string;
   author: string;
+  author_id?: string | null;
   genre?: string;
   description?: string;
   cover_url?: string;
@@ -33,6 +34,7 @@ export interface DbWork {
 export interface DbEdition {
   id: string;
   work_id: string;
+  edition_set_id?: string | null;
   publisher: string;
   isbn: string;
   excerpt: string | null;
@@ -166,9 +168,8 @@ export async function upsertFlowchart(
 }
 
 // [H-2] cors-anywhere 제거 → vite proxy(/aladin-api) 경유
-export async function getAladinDetail(isbn: string, apiKey: string) {
+export async function getAladinDetail(isbn: string) {
   const params = new URLSearchParams({
-    ttbkey: apiKey,
     itemIdType: 'ISBN13',
     ItemId: isbn,
     output: 'js',

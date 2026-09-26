@@ -45,8 +45,19 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Forward all query parameters (including ttbkey) as-is
-  const targetUrl = `${ALADIN_BASE}/${aladinPath}?${url.searchParams.toString()}`;
+  const apiKey = Deno.env.get('ALADIN_API_KEY');
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'ALADIN_API_KEY is not configured' }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // The browser never receives the Aladin key. Ignore any client-supplied ttbkey
+  // and inject the Edge Function secret server-side.
+  const params = new URLSearchParams(url.searchParams);
+  params.set('ttbkey', apiKey);
+  const targetUrl = `${ALADIN_BASE}/${aladinPath}?${params.toString()}`;
 
   let aladinRes: Response;
   try {
