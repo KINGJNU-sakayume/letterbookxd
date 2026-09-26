@@ -8,6 +8,7 @@ export interface DbSeries {
   id: string;
   title: string;
   author: string;
+  author_id?: string | null;
   genre?: string;
   description?: string;
   cover_url?: string;
@@ -33,6 +34,7 @@ export interface DbWork {
 export interface DbEdition {
   id: string;
   work_id: string;
+  edition_set_id?: string | null;
   publisher: string;
   isbn: string;
   excerpt: string | null;
