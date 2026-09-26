@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, GitBranch, Database, Pencil, Trash2, Save, X } from 'lucide-react';
+import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, Layers, GitBranch, Database, Pencil, Trash2, Save, X } from 'lucide-react';
 import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
 import { buildAladinFetchUrl } from '../services/api';
 import { supabase } from '../lib/supabase';
