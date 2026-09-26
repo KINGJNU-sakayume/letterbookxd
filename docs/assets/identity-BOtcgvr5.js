@@ -1,0 +1,1 @@
+function i(e,t){return`${e}::${t}`}function n(e){const t=e.indexOf("::");return t===-1?{workId:e,publisher:""}:{workId:e.slice(0,t),publisher:e.slice(t+2)}}function r(e){return`vol-${e}`}function o(e){return e.startsWith("vol-")?e.slice(4):e}export{o as a,i as b,r as c,n as p};

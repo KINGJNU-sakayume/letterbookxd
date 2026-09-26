@@ -1,0 +1,1 @@
+import{j as t,P as s,g as e,L as a}from"./index-CO70o6J1.js";import{u as i}from"./useDocumentTitle-CQnAzsTJ.js";function r(){return i("페이지 없음"),t.jsx(s,{children:t.jsx(e,{className:"mt-6",title:"찾는 페이지가 없습니다",description:"주소가 바뀌었거나 지워진 페이지입니다.",action:t.jsx(a,{to:"/",className:"btn btn-primary",children:"둘러보기로 가기"})})})}export{r as NotFoundPage};
