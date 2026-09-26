@@ -1,421 +1,516 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, X, Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Search, X } from 'lucide-react';
+import { Page, PageHeader, SectionHeading } from '../components/layout/Page';
 import { BookCover } from '../components/ui/BookCover';
+import { Portrait } from '../components/ui/Portrait';
+import { ReadingMark } from '../components/ui/ReadingMark';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { Tabs } from '../components/ui/Tabs';
+import { CoverGridSkeleton, EmptyState, ErrorState } from '../components/ui/States';
+import { ReadingCard } from '../components/book/ReadingCard';
+import { useCatalogStore, type CatalogAuthor, type CatalogSeries, type CatalogWork } from '../store/catalogStore';
 import { useLogStore } from '../store/logStore';
-import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../store/authStore';
+import { useReadingItems, useWorkStatuses, type WorkStatus } from '../hooks/useLibrary';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { matchesQuery } from '../lib/hangul';
+import { compareKo, splitGenre } from '../utils/format';
+import type { ReadingState } from '../utils/readingState';
 
-interface WorkData {
-  id: string;
-  title: string;
-  author: string;
-  genre: string | null;
-  series_id: string | null;
-  representative_edition_id: string | null;
-  display_cover: string | null;
-  editions: { id: string; cover_url: string; page_count: number; volume_number: string }[];
-}
+type View = 'works' | 'series' | 'authors';
+type StateFilter = ReadingState;
 
-interface SeriesData {
-  id: string;
-  title: string;
-  author: string;
-  genre: string | null;
-  cover_url: string | null;
-}
+const VIEW_LABEL: Record<View, string> = { works: '단행본', series: '시리즈', authors: '작가' };
+const EMPTY_LABEL: Record<View, string> = { works: '등록된 단행본이 없습니다', series: '등록된 시리즈가 없습니다', authors: '등록된 작가가 없습니다' };
+const STATE_LABEL: Record<StateFilter, string> = { reading: '읽는 중', completed: '완독', unread: '아직 안 읽음' };
+const SORTS: Record<View, { value: string; label: string }[]> = {
+  works: [
+    { value: 'title', label: '제목순' },
+    { value: 'author', label: '작가순' },
+    { value: 'year', label: '발표 연도순' },
+    { value: 'recent', label: '최근 등록순' },
+  ],
+  series: [{ value: 'title', label: '제목순' }],
+  authors: [
+    { value: 'name', label: '이름순' },
+    { value: 'count', label: '작품 많은 순' },
+  ],
+};
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(136px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(148px,1fr))] sm:gap-x-6 2xl:grid-cols-[repeat(auto-fill,minmax(164px,1fr))] 2xl:gap-x-8';
 
-interface AuthorData {
-  id: string;
-  name: string;
-  photo_url: string | null;
-}
-
-// Extract distinct filter badges from genres
-function extractBadges(works: WorkData[]): string[] {
-  const badgeSet = new Set<string>();
-  const COMMON_TAGS = ['러시아', '프랑스', '영국', '미국', '일본', '한국', '독일', '노벨문학상', '판타지', '고전'];
-  works.forEach(w => {
-    if (!w.genre) return;
-    COMMON_TAGS.forEach(tag => {
-      if (w.genre?.includes(tag)) badgeSet.add(tag);
-    });
-  });
-  return COMMON_TAGS.filter(t => badgeSet.has(t));
+function countBy<T>(items: T[], keys: (item: T) => string[]) {
+  const counts = new Map<string, number>();
+  items.forEach((item) => keys(item).forEach((k) => counts.set(k, (counts.get(k) ?? 0) + 1)));
+  return Array.from(counts.entries())
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || compareKo(a.value, b.value));
 }
 
 export function SearchPage() {
-  const [query, setQuery] = useState('');
-  const [works, setWorks] = useState<WorkData[]>([]);
-  const [series, setSeries] = useState<SeriesData[]>([]);
-  const [authors, setAuthors] = useState<AuthorData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [selectedBadge, setSelectedBadge] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'standalone' | 'series' | 'author'>('standalone');
-
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
-
-  const { volumeLogs, isLoading: logsLoading } = useLogStore();
+  useDocumentTitle(null);
+  const { works, series, authors, status, error, load, reload } = useCatalogStore();
+  const setCompletionLogs = useLogStore((s) => s.setCompletionLogs);
+  const signedIn = useAuthStore((s) => !!s.session);
+  const [params, setParams] = useSearchParams();
+  const [showAllTags, setShowAllTags] = useState(false);
 
   useEffect(() => {
-    async function getInitialData() {
-      try {
-        const [worksResult, seriesResult, authorsResult] = await Promise.all([
-          supabase
-            .from('works')
-            .select(`
-              id,
-              title,
-              author,
-              genre,
-              series_id,
-              representative_edition_id,
-              editions!work_id (
-                id,
-                cover_url,
-                page_count,
-                volume_number
-              )
-            `)
-            .order('title', { ascending: true }),
-          supabase
-            .from('series')
-            .select('id, title, author, genre, cover_url')
-            .order('title', { ascending: true }),
-          supabase
-            .from('authors')
-            .select('id, name, photo_url')
-            .order('name', { ascending: true }),
-        ]);
+    void load();
+  }, [load]);
 
-        if (worksResult.error) throw worksResult.error;
+  const view: View = params.get('view') === 'series' || params.get('view') === 'authors' ? (params.get('view') as View) : 'works';
+  const tag = params.get('tag');
+  const list = view === 'works' ? params.get('list') : null;
+  const rawState = params.get('state');
+  const stateFilter: StateFilter | null = signedIn && view !== 'authors' && (rawState === 'reading' || rawState === 'completed' || rawState === 'unread') ? rawState : null;
+  const query = params.get('q') ?? '';
+  const sort = SORTS[view].some((s) => s.value === params.get('sort')) ? (params.get('sort') as string) : SORTS[view][0].value;
 
-        const processedWorks = worksResult.data?.map(work => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const editions = (work.editions as any[]) || [];
-          const repEdition = editions.find(e => e.id === work.representative_edition_id);
-          return {
-            ...work,
-            display_cover: repEdition?.cover_url || editions[0]?.cover_url || null,
-          };
-        }) || [];
-        setWorks(processedWorks as WorkData[]);
-        setSeries((seriesResult.data ?? []) as SeriesData[]);
-        setAuthors((authorsResult.data ?? []) as AuthorData[]);
-      } catch (error) {
-        console.error('데이터 로딩 에러:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    getInitialData();
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !inputRef.current?.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const filteredWorks = query.trim() === ''
-    ? []
-    : works.filter(w =>
-        w.title.toLowerCase().includes(query.toLowerCase()) ||
-        w.author.toLowerCase().includes(query.toLowerCase())
-      );
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen || filteredWorks.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIndex(prev => (prev < filteredWorks.length - 1 ? prev + 1 : prev));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex(prev => (prev > 0 ? prev - 1 : prev));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (activeIndex >= 0 && activeIndex < filteredWorks.length) {
-        navigate(`/book/${filteredWorks[activeIndex].id}`);
-        setIsOpen(false);
-        setQuery('');
-      }
-    } else if (e.key === 'Escape') {
-      setIsOpen(false);
-      inputRef.current?.blur();
-    }
-  };
-
-  // Build "Continue Reading" data from volumeLogs
-  const readingVolumeData = volumeLogs
-    .filter(l => l.readingState === 'reading')
-    .map(vl => {
-      const work = works.find(w => w.id === vl.workId);
-      if (!work) return null;
-      const editionId = vl.volumeId.replace('vol-', '');
-      const edition = work.editions.find(e => e.id === editionId);
-      const totalPages = edition?.page_count ?? null;
-      const pct = totalPages && vl.currentPage
-        ? Math.min(100, Math.round((vl.currentPage / totalPages) * 100))
-        : null;
-      return { vl, work, totalPages, pct };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
-
-  const badges = extractBadges(works);
-
-  const standaloneWorks = selectedBadge
-    ? works.filter(w => w.series_id === null && w.genre?.includes(selectedBadge))
-    : works.filter(w => w.series_id === null);
-
-  const filteredSeries = selectedBadge
-    ? series.filter(s => s.genre?.includes(selectedBadge))
-    : series;
-
-  const filteredAuthors = authors.filter(a =>
-    works.some(w => w.author === a.name) &&
-    (!selectedBadge || works.some(w => w.author === a.name && w.genre?.includes(selectedBadge)))
-  );
-
-  const TABS = [
-    { id: 'standalone' as const, label: '단행본 작품' },
-    { id: 'series' as const,     label: '시리즈 작품' },
-    { id: 'author' as const,     label: '작가' },
-  ];
-
-  function renderGrid() {
-    if (activeTab === 'standalone') {
-      if (standaloneWorks.length === 0) {
-        return <p className="text-sm text-stone-400 text-center py-10">해당 조건의 단행본이 없습니다.</p>;
-      }
-      return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-          {standaloneWorks.map((w) => (
-            <button key={w.id} onClick={() => navigate(`/book/${w.id}`)} className="group text-left">
-              <BookCover src={w.display_cover ?? ''} alt={w.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1" />
-              <div className="mt-2">
-                <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{w.title}</p>
-                <p className="text-[11px] text-stone-500 mt-1">{w.author}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      );
-    }
-
-    if (activeTab === 'series') {
-      if (filteredSeries.length === 0) {
-        return <p className="text-sm text-stone-400 text-center py-10">해당 조건의 시리즈가 없습니다.</p>;
-      }
-      return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-          {filteredSeries.map((s) => (
-            <button key={s.id} onClick={() => navigate(`/series/${s.id}`)} className="group text-left">
-              <BookCover src={s.cover_url ?? ''} alt={s.title} className="w-full shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1" />
-              <div className="mt-2">
-                <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{s.title}</p>
-                <p className="text-[11px] text-stone-500 mt-1">{s.author}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      );
-    }
-
-    // author tab
-    if (filteredAuthors.length === 0) {
-      return <p className="text-sm text-stone-400 text-center py-10">해당 조건의 작가가 없습니다.</p>;
-    }
-    return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-        {filteredAuthors.map((a) => {
-          const workCount = works.filter(w => w.author === a.name).length;
-          return (
-            <button key={a.id} onClick={() => navigate(`/author/${encodeURIComponent(a.name)}`)} className="group text-left">
-              <div className="w-full aspect-square bg-stone-200 rounded-lg overflow-hidden shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
-                {a.photo_url ? (
-                  <img src={a.photo_url} alt={a.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-stone-400 text-3xl font-serif">
-                    {a.name[0]}
-                  </div>
-                )}
-              </div>
-              <div className="mt-2">
-                <p className="text-sm font-medium text-stone-800 leading-snug line-clamp-2 group-hover:text-stone-600 transition-colors">{a.name}</p>
-                <p className="text-[11px] text-stone-500 mt-1">작품 {workCount}편</p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    );
+  function update(patch: Record<string, string | null>) {
+    const next = new URLSearchParams(params);
+    Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)));
+    setParams(next, { replace: true });
+  }
+  function switchView(next: View) {
+    setShowAllTags(false);
+    update({ view: next === 'works' ? null : next, tag: null, list: null, state: null, sort: null });
   }
 
-  return (
-    <main className="min-h-[calc(100vh-56px)] bg-stone-50/50">
-      {/* Search bar */}
-      <section className="bg-stone-900 pt-10 pb-14 px-4 sm:px-6 relative z-20">
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
-            <div className={`flex items-center bg-white rounded-2xl px-4 py-3.5 shadow-lg transition-all ${isOpen && filteredWorks.length > 0 ? 'rounded-b-none border-b border-stone-100' : ''}`}>
-              <Search size={20} className="text-stone-400 shrink-0" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setIsOpen(true);
-                  setActiveIndex(-1);
-                }}
-                onFocus={() => setIsOpen(true)}
-                onKeyDown={handleKeyDown}
-                placeholder="작품명이나 작가 이름으로 검색해보세요"
-                className="flex-1 bg-transparent border-none outline-none px-3 text-stone-900 placeholder-stone-400 font-medium"
-              />
-              {query && (
-                <button
-                  onClick={() => { setQuery(''); inputRef.current?.focus(); }}
-                  className="p-1 hover:bg-stone-100 rounded-full text-stone-400 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
+  const standalone = useMemo(() => works.filter((w) => !w.series_id), [works]);
+  const statuses = useWorkStatuses(works);
+  const readingItems = useReadingItems(works);
 
-            {isOpen && query.trim() !== '' && (
-              <div ref={dropdownRef} className="absolute top-full left-0 right-0 bg-white rounded-b-2xl shadow-xl border-t border-stone-100 overflow-hidden max-h-[360px] overflow-y-auto">
-                {filteredWorks.length > 0 ? (
-                  <ul className="py-2">
-                    {filteredWorks.map((work, index) => (
-                      <li key={work.id}>
-                        <button
-                          onClick={() => { navigate(`/book/${work.id}`); setIsOpen(false); setQuery(''); }}
-                          onMouseEnter={() => setActiveIndex(index)}
-                          className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-colors ${activeIndex === index ? 'bg-stone-50' : 'hover:bg-stone-50'}`}
-                        >
-                          <BookCover src={work.display_cover ?? ''} alt={work.title} className="w-10 h-14 shadow-sm shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-stone-900 truncate">{work.title}</p>
-                            <p className="text-[12px] text-stone-500 truncate mt-0.5">{work.author}</p>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="py-8 text-center text-sm text-stone-500">
-                    "{query}"에 대한 검색 결과가 없습니다.
-                  </div>
+  const seriesState = useMemo(() => {
+    const map = new Map<string, { state: ReadingState; done: number }>();
+    for (const s of series) {
+      const done = s.workIds.filter((id) => statuses.get(id)?.state === 'completed').length;
+      const reading = s.workIds.some((id) => statuses.get(id)?.state === 'reading');
+      const state: ReadingState = s.workIds.length > 0 && done === s.workIds.length ? 'completed' : done > 0 || reading ? 'reading' : 'unread';
+      map.set(s.id, { state, done });
+    }
+    return map;
+  }, [series, statuses]);
+
+  const readByAuthor = useMemo(() => {
+    const authorOf = new Map(works.map((w) => [w.id, w.author]));
+    const read = new Map<string, Set<string>>();
+    for (const log of setCompletionLogs) {
+      const author = authorOf.get(log.workId);
+      if (author) read.set(author, (read.get(author) ?? new Set()).add(log.workId));
+    }
+    return new Map(Array.from(read, ([author, ids]) => [author, ids.size]));
+  }, [setCompletionLogs, works]);
+
+  // ---- 목록과 필터 ----
+  const tagFacets = useMemo(() => {
+    if (view === 'series') return countBy(series, (s) => splitGenre(s.genre));
+    return countBy(view === 'works' ? standalone : works, (w) => splitGenre(w.genre));
+  }, [view, series, standalone, works]);
+  const listFacets = useMemo(() => (view === 'works' ? countBy(standalone, (w) => w.lists ?? []) : []), [view, standalone]);
+
+  const filteredWorks = useMemo(() => {
+    if (view !== 'works') return [];
+    const rows = standalone.filter(
+      (w) =>
+        (!tag || splitGenre(w.genre).includes(tag)) &&
+        (!list || (w.lists ?? []).includes(list)) &&
+        (!stateFilter || statuses.get(w.id)?.state === stateFilter) &&
+        (!query || matchesQuery(w.title, query) || matchesQuery(w.author, query)),
+    );
+    const byTitle = (a: CatalogWork, b: CatalogWork) => compareKo(a.title, b.title);
+    if (sort === 'author') return rows.sort((a, b) => compareKo(a.author, b.author) || byTitle(a, b));
+    if (sort === 'year') return rows.sort((a, b) => (a.published_year ?? 9999) - (b.published_year ?? 9999) || byTitle(a, b));
+    if (sort === 'recent') return rows.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+    return rows.sort(byTitle);
+  }, [view, standalone, tag, list, stateFilter, query, sort, statuses]);
+
+  const filteredSeries = useMemo(
+    () =>
+      view !== 'series'
+        ? []
+        : series
+            .filter(
+              (s) =>
+                (!tag || splitGenre(s.genre).includes(tag)) &&
+                (!stateFilter || seriesState.get(s.id)?.state === stateFilter) &&
+                (!query || matchesQuery(s.title, query) || matchesQuery(s.author, query)),
+            )
+            .sort((a, b) => compareKo(a.title, b.title)),
+    [view, series, tag, stateFilter, query, seriesState],
+  );
+
+  const filteredAuthors = useMemo(() => {
+    if (view !== 'authors') return [];
+    const rows = authors.filter(
+      (a) =>
+        (!tag || works.some((w) => w.author === a.name && splitGenre(w.genre).includes(tag))) &&
+        (!query || matchesQuery(a.name, query)),
+    );
+    return sort === 'count' ? rows.sort((a, b) => b.workCount - a.workCount || compareKo(a.name, b.name)) : rows;
+  }, [view, authors, works, tag, query, sort]);
+
+  const stateFacets = useMemo(() => {
+    if (!signedIn || view === 'authors') return [];
+    const pool: ReadingState[] =
+      view === 'works'
+        ? standalone.map((w) => statuses.get(w.id)?.state ?? 'unread')
+        : series.map((s) => seriesState.get(s.id)?.state ?? 'unread');
+    return (['reading', 'completed', 'unread'] as StateFilter[]).map((value) => ({ value, count: pool.filter((s) => s === value).length }));
+  }, [signedIn, view, standalone, series, statuses, seriesState]);
+
+  const resultCount = view === 'works' ? filteredWorks.length : view === 'series' ? filteredSeries.length : filteredAuthors.length;
+  const hasFilters = !!(tag || list || stateFilter || query);
+  const visibleTags = showAllTags ? tagFacets : tagFacets.slice(0, 12);
+  const loading = status === 'idle' || status === 'loading';
+
+  const viewCounts: Record<View, number> = { works: standalone.length, series: series.length, authors: authors.length };
+
+  return (
+    <Page>
+      <PageHeader
+        title="둘러보기"
+        description={
+          status === 'ready' ? (
+            <span className="tnum">
+              작품 {works.length} · 시리즈 {series.length} · 작가 {authors.length}
+            </span>
+          ) : (
+            '서가에 있는 책을 둘러봅니다'
+          )
+        }
+      />
+
+      {signedIn && readingItems.length > 0 && (
+        <section className="mb-12 lg:mb-14" aria-labelledby="continue-reading">
+          <SectionHeading
+            id="continue-reading"
+            title="이어 읽기"
+            count={`${readingItems.length}권`}
+            action={
+              <Link to="/bookshelf" className="text-[13.5px] text-ink-muted transition-colors hover:text-ink">
+                내 책장에서 보기
+              </Link>
+            }
+          />
+          <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-3 3xl:grid-cols-4">
+            {readingItems.slice(0, 8).map((it) => (
+              <div key={it.log.id} className="w-[86%] shrink-0 snap-start sm:w-auto">
+              <ReadingCard
+                workId={it.work.id}
+                title={it.work.title}
+                author={it.work.author}
+                cover={it.edition?.cover_url || it.work.cover}
+                publisher={it.publisher}
+                volume={it.volume}
+                currentPage={it.log.currentPage}
+                totalPages={it.edition?.page_count ?? null}
+              />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[224px_minmax(0,1fr)] 2xl:gap-16">
+        {/* 넓은 화면: 왼쪽 필터 */}
+        <aside className="hidden lg:block" aria-label="목록 필터">
+          <div className="hide-scrollbar sticky top-24 max-h-[calc(100vh-7rem)] space-y-8 overflow-y-auto pb-8">
+            <FilterGroup title="보기">
+              {(Object.keys(VIEW_LABEL) as View[]).map((v) => (
+                <FilterOption key={v} active={view === v} count={loading ? undefined : viewCounts[v]} onClick={() => switchView(v)}>
+                  {VIEW_LABEL[v]}
+                </FilterOption>
+              ))}
+            </FilterGroup>
+
+            {stateFacets.length > 0 && (
+              <FilterGroup title="내 읽기 상태">
+                <FilterOption active={!stateFilter} onClick={() => update({ state: null })}>
+                  전체
+                </FilterOption>
+                {stateFacets.map((f) => (
+                  <FilterOption
+                    key={f.value}
+                    active={stateFilter === f.value}
+                    count={f.count}
+                    onClick={() => update({ state: stateFilter === f.value ? null : f.value })}
+                  >
+                    {STATE_LABEL[f.value]}
+                  </FilterOption>
+                ))}
+              </FilterGroup>
+            )}
+
+            {tagFacets.length > 0 && (
+              <FilterGroup title="분류">
+                {visibleTags.map((f) => (
+                  <FilterOption key={f.value} active={tag === f.value} count={f.count} onClick={() => update({ tag: tag === f.value ? null : f.value })}>
+                    {f.value}
+                  </FilterOption>
+                ))}
+                {tagFacets.length > 12 && (
+                  <button type="button" onClick={() => setShowAllTags((v) => !v)} className="mt-1 text-[13px] text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-ink">
+                    {showAllTags ? '접기' : `${tagFacets.length - 12}개 더 보기`}
+                  </button>
                 )}
+              </FilterGroup>
+            )}
+
+            {listFacets.length > 0 && (
+              <FilterGroup title="목록">
+                {listFacets.map((f) => (
+                  <FilterOption key={f.value} active={list === f.value} count={f.count} onClick={() => update({ list: list === f.value ? null : f.value })}>
+                    {f.value}
+                  </FilterOption>
+                ))}
+              </FilterGroup>
+            )}
+          </div>
+        </aside>
+
+        <section aria-label={`${VIEW_LABEL[view]} 목록`} className="min-w-0">
+          {/* 좁은 화면: 탭과 가로 스크롤 칩 */}
+          <div className="lg:hidden">
+            <Tabs
+              label="보기"
+              items={(Object.keys(VIEW_LABEL) as View[]).map((v) => ({ value: v, label: VIEW_LABEL[v], count: loading ? undefined : viewCounts[v] }))}
+              value={view}
+              onChange={switchView}
+            />
+            {(stateFacets.length > 0 || tagFacets.length > 0) && (
+              <div className="hide-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
+                {stateFacets.map((f) => (
+                  <Chip key={f.value} active={stateFilter === f.value} onClick={() => update({ state: stateFilter === f.value ? null : f.value })}>
+                    {STATE_LABEL[f.value]} <span className="tnum opacity-60">{f.count}</span>
+                  </Chip>
+                ))}
+                {stateFacets.length > 0 && tagFacets.length > 0 && <span aria-hidden className="mx-1 w-px shrink-0 self-stretch bg-line" />}
+                {tagFacets.map((f) => (
+                  <Chip key={f.value} active={tag === f.value} onClick={() => update({ tag: tag === f.value ? null : f.value })}>
+                    {f.value}
+                  </Chip>
+                ))}
               </div>
             )}
           </div>
-        </div>
-      </section>
 
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 pt-8 space-y-10">
-
-        {/* Continue Reading section */}
-        {!logsLoading && readingVolumeData.length > 0 && (
-          <div>
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">읽는 중</h2>
-            <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">
-              {readingVolumeData.map(({ vl, work, totalPages, pct }) => (
-                <div
-                  key={vl.id}
-                  className="flex-none w-64 bg-white rounded-xl border border-stone-200 p-3 flex gap-3"
-                >
-                  <button onClick={() => navigate(`/book/${work.id}`)} className="shrink-0">
-                    <BookCover src={work.display_cover ?? ''} alt={work.title} className="w-12 shadow-sm" />
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <button onClick={() => navigate(`/book/${work.id}`)} className="text-left">
-                      <p className="text-sm font-medium text-stone-900 line-clamp-1">{work.title}</p>
-                      <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{work.author}</p>
-                    </button>
-                    {pct !== null && vl.currentPage ? (
-                      <div className="mt-2">
-                        <p className="text-[11px] mb-1" style={{ color: '#378ADD' }}>
-                          p.{vl.currentPage} / {totalPages} · {pct}%
-                        </p>
-                        <div className="h-1 bg-stone-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: '#378ADD' }} />
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-stone-400 mt-2">읽는 중</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+          <div className="mb-7 mt-5 flex flex-wrap items-center gap-3 lg:mt-0">
+            <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft sm:max-w-sm">
+              <Search size={15} className="shrink-0 text-ink-faint" aria-hidden />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => update({ q: e.target.value || null })}
+                placeholder={view === 'authors' ? '작가 이름으로 좁히기' : '제목, 작가로 좁히기'}
+                aria-label="목록 안에서 찾기"
+                className="h-full min-w-0 flex-1 bg-transparent text-[14.5px] outline-none placeholder:text-ink-faint [&::-webkit-search-cancel-button]:hidden"
+              />
+              {query && (
+                <button type="button" onClick={() => update({ q: null })} className="rounded p-0.5 text-ink-faint hover:text-ink" aria-label="지우기">
+                  <X size={14} />
+                </button>
+              )}
             </div>
+            <p className="tnum text-[13.5px] text-ink-muted" aria-live="polite">
+              {loading ? '불러오는 중' : `${resultCount}${view === 'authors' ? '명' : view === 'series' ? '개' : '권'}`}
+            </p>
+            {hasFilters && (
+              <button type="button" onClick={() => update({ tag: null, list: null, state: null, q: null })} className="text-[13.5px] text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-ink">
+                필터 지우기
+              </button>
+            )}
+            {SORTS[view].length > 1 && (
+              <select
+                value={sort}
+                onChange={(e) => update({ sort: e.target.value === SORTS[view][0].value ? null : e.target.value })}
+                aria-label="정렬"
+                className="field-select ml-auto h-10 w-auto py-0 text-[14px]"
+              >
+                {SORTS[view].map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {(tag || list || stateFilter) && (
+            <div className="-mt-3 mb-7 flex flex-wrap gap-2">
+              {stateFilter && <ActiveFilter label={STATE_LABEL[stateFilter]} onClear={() => update({ state: null })} />}
+              {tag && <ActiveFilter label={tag} onClear={() => update({ tag: null })} />}
+              {list && <ActiveFilter label={list} onClear={() => update({ list: null })} />}
+            </div>
+          )}
+
+          {status === 'error' ? (
+            <ErrorState description={error} onRetry={() => void reload()} />
+          ) : loading ? (
+            <CoverGridSkeleton className={GRID} count={18} />
+          ) : resultCount === 0 ? (
+            <EmptyState
+              title={hasFilters ? '조건에 맞는 항목이 없습니다' : EMPTY_LABEL[view]}
+              description={hasFilters ? '필터를 하나씩 풀어 보세요.' : undefined}
+              action={
+                hasFilters && (
+                  <button type="button" className="btn btn-secondary" onClick={() => update({ tag: null, list: null, state: null, q: null })}>
+                    필터 지우기
+                  </button>
+                )
+              }
+            />
+          ) : view === 'works' ? (
+            <ul className={GRID}>
+              {filteredWorks.map((w) => (
+                <li key={w.id}>
+                  <WorkTile work={w} status={signedIn ? statuses.get(w.id) : undefined} />
+                </li>
+              ))}
+            </ul>
+          ) : view === 'series' ? (
+            <ul className={GRID}>
+              {filteredSeries.map((s) => (
+                <li key={s.id}>
+                  <SeriesTile series={s} done={signedIn ? seriesState.get(s.id)?.done ?? 0 : null} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ul className="grid grid-cols-[repeat(auto-fill,minmax(136px,1fr))] gap-x-5 gap-y-9 sm:grid-cols-[repeat(auto-fill,minmax(152px,1fr))] sm:gap-x-6 2xl:gap-x-8">
+              {filteredAuthors.map((a) => (
+                <li key={a.id}>
+                  <AuthorTile author={a} read={signedIn ? readByAuthor.get(a.name) ?? 0 : null} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </Page>
+  );
+}
+
+function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <h2 className="mb-2.5 text-[12.5px] font-medium tracking-[0.02em] text-ink-faint">{title}</h2>
+      <div className="flex flex-col items-start">{children}</div>
+    </div>
+  );
+}
+
+function FilterOption({ active, count, onClick, children }: { active: boolean; count?: number; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`group relative flex w-full items-baseline justify-between gap-3 py-[5px] pl-3 text-left text-[14.5px] transition-colors ${
+        active ? 'font-semibold text-ink' : 'text-ink-muted hover:text-ink'
+      }`}
+    >
+      <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full ${active ? 'bg-ink' : 'bg-transparent group-hover:bg-line-strong'}`} />
+      <span className="min-w-0 truncate">{children}</span>
+      {count !== undefined && <span className="tnum shrink-0 text-[12.5px] font-normal text-ink-faint">{count}</span>}
+    </button>
+  );
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13.5px] transition-colors ${
+        active ? 'border-ink bg-ink text-paper-raised' : 'border-line bg-paper-raised text-ink-soft hover:border-line-strong'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ActiveFilter({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      className="inline-flex h-7 items-center gap-1.5 rounded-[4px] bg-ink px-2.5 text-[13px] text-paper-raised transition-colors hover:bg-ink-soft"
+      aria-label={`${label} 필터 해제`}
+    >
+      {label}
+      <X size={13} aria-hidden />
+    </button>
+  );
+}
+
+function WorkTile({ work, status }: { work: CatalogWork; status?: WorkStatus }) {
+  return (
+    <Link to={`/book/${work.id}`} className="group block outline-none">
+      <BookCover src={work.cover} alt={work.title} title={work.title} author={work.author} className="lift w-full" />
+      <div className="mt-3">
+        <p className="line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+          {work.title}
+        </p>
+        <p className="mt-0.5 truncate text-[13px] text-ink-muted">
+          {work.author}
+          {work.published_year ? <span className="tnum"> · {work.published_year}</span> : null}
+        </p>
+        {status && status.state !== 'unread' && (
+          <ReadingMark className="mt-1.5" state={status.state} percent={status.percent} rating={status.rating} liked={status.liked} />
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function SeriesTile({ series, done }: { series: CatalogSeries; done: number | null }) {
+  const total = series.workIds.length;
+  return (
+    <Link to={`/series/${series.id}`} className="group block outline-none">
+      <div className="relative">
+        {/* 여러 권이 겹친 느낌의 뒷장 */}
+        <span aria-hidden className="absolute inset-0 translate-x-[6px] translate-y-[-6px] rounded-[3px] bg-paper-deep shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
+        <span aria-hidden className="absolute inset-0 translate-x-[3px] translate-y-[-3px] rounded-[3px] bg-line shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
+        <BookCover src={series.cover} alt={series.title} title={series.title} author={series.author} className="lift relative w-full" />
+      </div>
+      <div className="mt-3">
+        <p className="line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+          {series.title}
+        </p>
+        <p className="mt-0.5 truncate text-[13px] text-ink-muted">
+          {series.author} · <span className="tnum">{total}부작</span>
+        </p>
+        {done !== null && done > 0 && total > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <ProgressBar value={(done / total) * 100} tone="completed" className="flex-1" label={`${series.title} 완독 비율`} />
+            <span className="tnum text-[12px] text-completed-dark">
+              {done}/{total}
+            </span>
           </div>
         )}
+      </div>
+    </Link>
+  );
+}
 
-        {/* Discovery section */}
-        <div>
-          <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-4">발견하기</h2>
-
-          {/* Tab selector */}
-          <div className="flex gap-0.5 mb-5 bg-stone-100 p-1 rounded-xl w-fit">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-white text-stone-900 shadow-sm'
-                    : 'text-stone-500 hover:text-stone-700'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {badges.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-6">
-              {badges.map(badge => (
-                <button
-                  key={badge}
-                  onClick={() => setSelectedBadge(selectedBadge === badge ? null : badge)}
-                  className="px-3 py-1.5 rounded-full text-sm font-medium border transition-colors"
-                  style={selectedBadge === badge
-                    ? { backgroundColor: '#E6F1FB', color: '#185FA5', borderColor: '#B5D4F4' }
-                    : { backgroundColor: 'white', color: '#57534e', borderColor: '#e7e5e4' }
-                  }
-                >
-                  {badge}
-                  {selectedBadge === badge && (
-                    <span className="ml-1.5 text-xs">✕</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="flex items-center gap-2 text-stone-400 justify-center py-20">
-              <Loader2 size={24} className="animate-spin" />
-              <span className="text-sm font-medium">데이터를 불러오는 중입니다...</span>
-            </div>
-          ) : (
-            renderGrid()
-          )}
-        </div>
-      </section>
-    </main>
+function AuthorTile({ author, read }: { author: CatalogAuthor; read: number | null }) {
+  return (
+    <Link to={`/author/${encodeURIComponent(author.name)}`} className="group block outline-none">
+      <Portrait
+        src={author.photo_url}
+        name={author.name}
+        className="aspect-[3/4] w-full shadow-[0_0_0_1px_rgb(29_27_23/0.06)] transition-transform duration-200 group-hover:-translate-y-1"
+      />
+      <p className="mt-3 line-clamp-1 font-serif text-[16px] font-bold text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+        {author.name}
+      </p>
+      <p className="mt-0.5 truncate text-[13px] text-ink-muted">
+        {[author.country, `작품 ${author.workCount}편`].filter(Boolean).join(' · ')}
+        {read ? <span className="text-completed-dark"> · {read}편 완독</span> : null}
+      </p>
+    </Link>
   );
 }

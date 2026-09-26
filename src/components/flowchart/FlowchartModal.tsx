@@ -1,4 +1,5 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
@@ -8,6 +9,7 @@ import {
   type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { X } from 'lucide-react';
 import type { FlowchartNode, FlowchartEdge, SetCompletionLog } from '../../types';
 import { FlowchartBookNode, type FlowchartBookNodeData } from './FlowchartBookNode';
 
@@ -29,10 +31,11 @@ interface FlowchartModalProps {
   edges: FlowchartEdge[];
   setCompletionLogs: SetCompletionLog[];
   works: WorkCoverInfo[];
+  title?: string;
   onClose: () => void;
 }
 
-export function FlowchartModal({ nodes, edges, setCompletionLogs, works, onClose }: FlowchartModalProps) {
+export function FlowchartModal({ nodes, edges, setCompletionLogs, works, title = '읽기 순서', onClose }: FlowchartModalProps) {
   const navigate = useNavigate();
 
   const completedWorkIds = useMemo(
@@ -54,6 +57,11 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, onClose
     [nodes, works, completedWorkIds]
   );
 
+  const styledEdges = useMemo(
+    () => edges.map(e => ({ ...e, style: { stroke: '#a39a89', strokeWidth: 1.5 }, labelStyle: { fontSize: 11, fill: '#6d665a' } })),
+    [edges]
+  );
+
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const workId = (node.data as FlowchartBookNodeData).workId;
@@ -65,34 +73,44 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, onClose
     [navigate, onClose]
   );
 
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
   }, [onClose]);
 
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      onClick={handleBackdropClick}
-    >
-      <div
-        className="relative w-full h-full max-w-6xl bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col"
-        style={{ maxHeight: '90vh' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1.5 right-3 z-20 w-7 h-7 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-full transition-colors text-lg font-light"
-          aria-label="닫기"
-        >
-          ✕
-        </button>
+  useEffect(() => {
+    const { overflow } = document.body.style;
+    document.body.style.overflow = 'hidden';
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onCloseRef.current();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
 
-        {/* React Flow canvas */}
-        <div className="flex-1 relative">
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-6">
+      <div className="animate-fade-in absolute inset-0 bg-ink/50" onClick={onClose} aria-hidden />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="animate-rise relative flex h-full max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-lg border border-line bg-paper-raised shadow-pop"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line-soft px-5 py-3.5">
+          <h2 className="font-serif text-[19px] font-bold text-ink">{title}</h2>
+          <button type="button" onClick={onClose} className="btn-icon -mr-2" aria-label="닫기" autoFocus>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="relative flex-1 bg-paper">
           <ReactFlow
             nodes={enrichedNodes}
-            edges={enrichedNodes.length > 0 ? edges : []}
+            edges={enrichedNodes.length > 0 ? styledEdges : []}
             nodeTypes={nodeTypes}
             defaultEdgeOptions={{ type: 'step' }}
             onNodeClick={handleNodeClick}
@@ -105,37 +123,25 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, onClose
             elementsSelectable={false}
           >
             <Controls showInteractive={false} />
-            <Background color="#e7e5e4" gap={20} size={1} />
+            <Background color="#ddd5c6" gap={22} size={1} />
           </ReactFlow>
         </div>
 
-        {/* Legend */}
-        <div className="shrink-0 border-t border-stone-100 bg-white px-4 py-2.5 flex flex-wrap items-center gap-4">
-          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mr-1">범례</span>
-          <LegendItem color="#639922" label="읽음" filled />
-          <LegendItem color="#a8a29e" label="미읽음" filled={false} />
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block px-1.5 py-0.5 bg-entry text-white text-[9px] font-bold rounded">★ 입문</span>
-            <span className="text-[11px] text-stone-500">입문 추천</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-5 rounded border-2 border-completed" />
-            <span className="text-[11px] text-stone-500">읽은 책 표시</span>
-          </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-t border-line-soft px-5 py-3 text-[12.5px] text-ink-muted">
+          <span className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-completed" aria-hidden /> 읽은 책 (초록 테두리)
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="rounded-[3px] bg-seal px-1.5 py-0.5 text-[10.5px] font-bold text-paper-raised">입문 추천</span>
+            처음 읽기 좋은 책
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full border border-line-strong bg-paper-raised opacity-70" aria-hidden /> 곁가지 (흐리게)
+          </span>
+          <span className="ml-auto hidden text-ink-faint sm:inline">표지를 누르면 작품으로 이동합니다</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-function LegendItem({ color, label, filled }: { color: string; label: string; filled: boolean }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div
-        className="w-3 h-3 rounded-full border border-white/40 shadow-sm"
-        style={{ backgroundColor: filled ? color : 'transparent', borderColor: color, borderWidth: 2 }}
-      />
-      <span className="text-[11px] text-stone-500">{label}</span>
-    </div>
+    </div>,
+    document.body,
   );
 }

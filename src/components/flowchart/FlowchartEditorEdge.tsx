@@ -85,12 +85,12 @@ export function FlowchartEditorEdge({
               onChange={e => setEditValue(e.target.value)}
               onBlur={handleConfirm}
               onKeyDown={handleKeyDown}
-              placeholder="레이블 입력..."
-              className="text-[10px] text-stone-700 bg-white border border-stone-300 rounded px-1.5 py-0.5 shadow-sm outline-none focus:ring-1 focus:ring-stone-400 w-24"
+              placeholder="설명"
+              className="w-28 rounded-[4px] border border-line-strong bg-paper-raised px-1.5 py-0.5 text-[11px] text-ink shadow-sm outline-none focus:border-ink focus:ring-1 focus:ring-ink"
             />
           ) : label ? (
             <span
-              className="text-[10px] text-stone-600 bg-white/90 px-1.5 py-0.5 rounded border border-stone-200 shadow-sm cursor-pointer hover:bg-stone-50 transition-colors"
+              className="cursor-pointer rounded-[4px] border border-line bg-paper-raised/95 px-1.5 py-0.5 text-[11px] italic text-ink-muted shadow-sm transition-colors hover:bg-paper"
               onDoubleClick={handleDoubleClick}
             >
               {label as string}

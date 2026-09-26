@@ -1,49 +1,158 @@
-import { useState, useEffect } from 'react';
-import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, Layers, GitBranch, Database, Pencil, Trash2, Save, X } from 'lucide-react';
+import { useState, useEffect, useMemo, type FormEvent, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Pencil, Search, Trash2 } from 'lucide-react';
 import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
 import { buildAladinFetchUrl } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
 import type { DbWork } from '../services/db';
-import { Field, TextArea, StatusDisplay, type StatusMsg } from '../components/admin/FormControls';
+import { Field, TextArea, SelectField, StatusDisplay, FormHeader, type StatusMsg } from '../components/admin/FormControls';
+import { Page, PageHeader } from '../components/layout/Page';
+import { Tabs } from '../components/ui/Tabs';
+import { Dialog } from '../components/ui/Dialog';
+import { useConfirm } from '../components/ui/confirm';
+import { BookCover } from '../components/ui/BookCover';
+import { Portrait } from '../components/ui/Portrait';
+import { PageLoader, Spinner } from '../components/ui/States';
+import { useAuthStore } from '../store/authStore';
+import { useCatalogStore } from '../store/catalogStore';
+import { toast } from '../store/toastStore';
+import { josa, matchesQuery } from '../lib/hangul';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 type Tab = 'manage' | 'work' | 'edition' | 'author' | 'series' | 'flowchart';
 
-// [M-1] series 타입 정의
+const TABS: { value: Tab; label: string; description: string }[] = [
+  { value: 'manage', label: '작품 목록', description: '등록된 작품을 찾아 고치거나 지웁니다.' },
+  { value: 'work', label: '작품 추가', description: '새 작품을 서가에 올립니다. 판본은 다음 단계에서 붙입니다.' },
+  { value: 'edition', label: '판본 추가', description: '알라딘에서 책을 찾아 출판사별 판본과 권을 붙입니다.' },
+  { value: 'author', label: '작가 추가', description: '같은 이름이 있으면 덮어씁니다.' },
+  { value: 'series', label: '시리즈 추가', description: '여러 작품을 묶는 시리즈를 만듭니다.' },
+  { value: 'flowchart', label: '읽기 순서', description: '작가별 추천 읽기 순서를 그립니다.' },
+];
+
 interface SeriesItem {
   id: string;
   title: string;
 }
 
+/** 서가 데이터가 바뀌면 둘러보기·검색 목록을 다시 불러온다 */
+function refreshCatalog() {
+  void useCatalogStore.getState().reload();
+}
+
+function autoGrow(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+  if (e.target instanceof HTMLTextAreaElement) {
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  }
+}
+
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>('manage');
+  useDocumentTitle('서가 관리');
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = TABS.find((t) => t.value === params.get('tab'))?.value ?? 'manage';
+  const current = TABS.find((t) => t.value === tab)!;
+  const { session, signOut } = useAuthStore();
+  const [signingOut, setSigningOut] = useState(false);
+
+  function select(next: Tab) {
+    setParams(next === 'manage' ? {} : { tab: next }, { replace: true });
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    const ok = await signOut();
+    setSigningOut(false);
+    if (!ok) toast('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.', 'error');
+  }
 
   return (
-    <main className="min-h-[calc(100vh-56px)] bg-stone-50">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-stone-900 mb-1">관리자 큐레이션</h1>
-          <p className="text-sm text-stone-500">작품, 판본, 작가 및 시리즈 데이터를 직접 등록합니다.</p>
-        </div>
-        <div className="flex gap-1 mb-6 border-b border-stone-200 overflow-x-auto hide-scrollbar">
-          <TabBtn active={tab === 'manage'} onClick={() => setTab('manage')} icon={<Database size={15} />} label="데이터 관리" />
-          <TabBtn active={tab === 'work'} onClick={() => setTab('work')} icon={<BookOpen size={15} />} label="작품 추가" />
-          <TabBtn active={tab === 'edition'} onClick={() => setTab('edition')} icon={<Library size={15} />} label="판본 추가" />
-          <TabBtn active={tab === 'author'} onClick={() => setTab('author')} icon={<PenTool size={15} />} label="작가 추가" />
-          <TabBtn active={tab === 'series'} onClick={() => setTab('series')} icon={<Layers size={15} />} label="시리즈 추가" />
-          <TabBtn active={tab === 'flowchart'} onClick={() => setTab('flowchart')} icon={<GitBranch size={15} />} label="플로우차트 편집" />
-        </div>
-        <div className={`bg-white rounded-xl border border-stone-200 shadow-sm ${tab === 'flowchart' ? 'p-0 overflow-hidden' : 'p-6'}`}>
-          {tab === 'manage' ? <ManageLibraryPanel />
-           : tab === 'work' ? <WorkForm />
-           : tab === 'edition' ? <EditionForm />
-           : tab === 'author' ? <AuthorForm />
-           : tab === 'series' ? <SeriesForm />
-           : <FlowchartEditorWrapper />}
+    <Page>
+      <PageHeader
+        title="서가 관리"
+        description="작품, 판본, 작가, 시리즈와 읽기 순서를 고칩니다."
+        actions={
+          <div className="flex items-center gap-3 text-[13.5px] text-ink-muted">
+            <span className="hidden truncate sm:inline">{session?.user.email}</span>
+            <button type="button" disabled={signingOut} onClick={() => void handleSignOut()} className="btn btn-secondary btn-sm">
+              {signingOut && <Spinner />}
+              로그아웃
+            </button>
+          </div>
+        }
+      />
+
+      <div className="lg:grid lg:grid-cols-[176px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[200px_minmax(0,1fr)] 2xl:gap-16">
+        <nav aria-label="관리 메뉴" className="hidden lg:block">
+          <ul className="sticky top-24 space-y-0.5">
+            {TABS.map((t) => {
+              const active = t.value === tab;
+              return (
+                <li key={t.value}>
+                  <button
+                    type="button"
+                    aria-current={active ? 'page' : undefined}
+                    onClick={() => select(t.value)}
+                    className={`relative w-full py-[7px] pl-3 text-left text-[14.5px] transition-colors ${
+                      active ? 'font-semibold text-ink' : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full ${active ? 'bg-ink' : 'bg-transparent'}`} />
+                    {t.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="min-w-0">
+          <Tabs label="관리 메뉴" className="mb-6 lg:hidden" value={tab} onChange={select} items={TABS.map((t) => ({ value: t.value, label: t.label }))} />
+          {tab === 'flowchart' ? (
+            <>
+              <FormHeader title={current.label} description={current.description} />
+              <div className="panel overflow-hidden">
+                <ReactFlowProvider>
+                  <FlowchartEditor />
+                </ReactFlowProvider>
+              </div>
+            </>
+          ) : (
+            <>
+              <FormHeader title={current.label} description={current.description} />
+              {tab === 'manage' ? <ManageLibraryPanel />
+                : tab === 'work' ? <WorkForm />
+                : tab === 'edition' ? <EditionForm />
+                : tab === 'author' ? <AuthorForm />
+                : <SeriesForm />}
+            </>
+          )}
         </div>
       </div>
-    </main>
+    </Page>
+  );
+}
+
+function FormLayout({ fields, aside, footer }: { fields: ReactNode; aside?: ReactNode; footer: ReactNode }) {
+  return (
+    <div className="grid gap-x-12 gap-y-8 2xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0 max-w-4xl space-y-5">
+        {fields}
+        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">{footer}</div>
+      </div>
+      {aside && <aside className="min-w-0 2xl:sticky 2xl:top-24 2xl:self-start">{aside}</aside>}
+    </div>
+  );
+}
+
+function PreviewCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="panel p-5">
+      <p className="mb-4 text-[12.5px] font-medium text-ink-faint">{title}</p>
+      {children}
+    </div>
   );
 }
 
@@ -64,6 +173,7 @@ function ManageLibraryPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<StatusMsg | null>(null);
+  const confirm = useConfirm();
 
   async function reload() {
     setLoading(true);
@@ -88,7 +198,8 @@ function ManageLibraryPanel() {
     });
   }
 
-  async function saveEdit() {
+  async function saveEdit(e?: FormEvent) {
+    e?.preventDefault();
     if (!editing || !draft.title.trim() || !draft.author.trim()) return;
     setSaving(true);
     const { error } = await supabase.from('works').update({
@@ -103,12 +214,19 @@ function ManageLibraryPanel() {
       return;
     }
     setEditing(null);
-    setStatus({ type: 'success', text: '작품 정보를 수정했습니다.' });
+    setStatus({ type: 'success', text: `“${draft.title.trim()}” 정보를 고쳤습니다.` });
+    refreshCatalog();
     await reload();
   }
 
   async function deleteWork(work: ManageWork) {
-    if (!window.confirm(`"${work.title}" 작품과 연결된 판본/기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+    const ok = await confirm({
+      title: `${josa(`“${work.title}”`, '을', '를')} 지울까요?`,
+      description: '이 작품의 판본과 모든 읽기 기록이 함께 지워지며 되돌릴 수 없습니다.',
+      confirmLabel: '영구히 지우기',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setSaving(true);
     const { error: logsError } = await supabase.from('logs').delete().eq('work_id', work.id);
     if (logsError) { setStatus({ type: 'error', text: logsError.message }); setSaving(false); return; }
@@ -118,90 +236,97 @@ function ManageLibraryPanel() {
     setSaving(false);
     if (error) setStatus({ type: 'error', text: error.message });
     else {
-      setStatus({ type: 'success', text: `"${work.title}"을 삭제했습니다.` });
+      setStatus({ type: 'success', text: `${josa(`“${work.title}”`, '을', '를')} 지웠습니다.` });
+      refreshCatalog();
       await reload();
     }
   }
 
-  const filtered = works.filter(w =>
-    !query.trim() || `${w.title} ${w.author} ${w.genre ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())
+  const filtered = useMemo(
+    () => works.filter(w => !query.trim() || matchesQuery(`${w.title} ${w.author} ${w.genre ?? ''}`, query.trim())),
+    [works, query],
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-semibold text-stone-900">작품 데이터 관리</h2>
-          <p className="text-xs text-stone-500 mt-1">등록된 작품을 검색하고 수정·삭제합니다.</p>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft sm:max-w-sm">
+          <Search size={15} className="shrink-0 text-ink-faint" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="제목, 작가, 분류로 찾기"
+            aria-label="작품 찾기"
+            className="h-full min-w-0 flex-1 bg-transparent text-[14.5px] outline-none placeholder:text-ink-faint"
+          />
         </div>
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="제목·작가 검색"
-            className="pl-9 pr-3 py-2 rounded-lg border border-stone-300 text-sm outline-none focus:ring-2 focus:ring-stone-400" />
-        </div>
+        <p className="tnum text-[13.5px] text-ink-muted">{loading ? '불러오는 중' : `${filtered.length} / ${works.length}편`}</p>
+        <Link to="?tab=work" replace className="btn btn-primary btn-sm ml-auto">작품 추가</Link>
       </div>
       <StatusDisplay status={status} />
       {loading ? (
-        <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stone-400" /></div>
+        <PageLoader />
       ) : (
-        <div className="border border-stone-200 rounded-xl overflow-hidden">
-          <div className="max-h-[480px] overflow-y-auto divide-y divide-stone-100">
-            {filtered.map(work => (
-              <div key={work.id} className="p-3 flex items-center gap-3 bg-white hover:bg-stone-50">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-900 truncate">{work.title}</p>
-                  <p className="text-xs text-stone-500 truncate">{work.author} · 판본 {work.editions?.length ?? 0}개{work.genre ? ` · ${work.genre}` : ''}</p>
-                </div>
-                <button onClick={()=>openEdit(work)} className="p-2 rounded-lg border border-stone-200 text-stone-500 hover:text-stone-900" title="수정"><Pencil size={14}/></button>
-                <button onClick={()=>deleteWork(work)} disabled={saving} className="p-2 rounded-lg border border-stone-200 text-stone-400 hover:text-rose-600" title="삭제"><Trash2 size={14}/></button>
-              </div>
-            ))}
-            {filtered.length === 0 && <p className="text-sm text-stone-400 text-center py-10">검색 결과가 없습니다.</p>}
-          </div>
+        <div className="panel overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-line text-[12.5px] text-ink-faint">
+                <th scope="col" className="px-4 py-2.5 font-medium">제목</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">작가</th>
+                <th scope="col" className="hidden px-4 py-2.5 font-medium xl:table-cell">분류</th>
+                <th scope="col" className="px-4 py-2.5 text-right font-medium">판본</th>
+                <th scope="col" className="w-24 px-4 py-2.5"><span className="sr-only">관리</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-soft">
+              {filtered.map(work => (
+                <tr key={work.id} className="transition-colors hover:bg-paper">
+                  <td className="max-w-0 px-4 py-2.5">
+                    <Link to={`/book/${work.id}`} className="block truncate text-[14.5px] font-semibold text-ink decoration-line-strong underline-offset-4 hover:underline">{work.title}</Link>
+                  </td>
+                  <td className="px-4 py-2.5 text-[14px] text-ink-soft">{work.author}</td>
+                  <td className="hidden max-w-[16rem] truncate px-4 py-2.5 text-[13px] text-ink-muted xl:table-cell">{work.genre || '—'}</td>
+                  <td className="tnum px-4 py-2.5 text-right text-[14px] text-ink-soft">{work.editions?.length ?? 0}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <span className="inline-flex gap-0.5">
+                      <button type="button" onClick={() => openEdit(work)} className="btn-icon h-8 w-8" aria-label={`${work.title} 고치기`}><Pencil size={14} /></button>
+                      <button type="button" onClick={() => void deleteWork(work)} disabled={saving} className="btn-icon h-8 w-8 hover:text-seal" aria-label={`${work.title} 지우기`}><Trash2 size={14} /></button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <p className="py-10 text-center text-[14px] text-ink-muted">맞는 작품이 없습니다.</p>}
         </div>
       )}
 
-      {editing && (
-        <div className="fixed inset-0 z-[70] bg-stone-900/50 flex items-center justify-center p-4" onClick={()=>setEditing(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-semibold text-stone-900">작품 수정</h3>
-              <button onClick={()=>setEditing(null)} className="text-stone-400"><X size={18}/></button>
-            </div>
-            <div className="space-y-4">
-              <Field label="제목 *" name="title" value={draft.title} onChange={e=>setDraft(d=>({...d,title:e.target.value}))} />
-              <Field label="작가 *" name="author" value={draft.author} onChange={e=>setDraft(d=>({...d,author:e.target.value}))} />
-              <Field label="장르" name="genre" value={draft.genre} onChange={e=>setDraft(d=>({...d,genre:e.target.value}))} />
-              <TextArea label="작품 소개" name="description" value={draft.description} onChange={e=>setDraft(d=>({...d,description:e.target.value}))} rows={5} />
-            </div>
-            <button onClick={saveEdit} disabled={saving} className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-stone-900 text-white text-sm font-medium disabled:opacity-50">
-              {saving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} 저장
+      <Dialog
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title="작품 고치기"
+        size="lg"
+        footer={
+          <>
+            <button type="button" onClick={() => setEditing(null)} className="btn btn-ghost">취소</button>
+            <button type="submit" form="edit-work-form" disabled={saving || !draft.title.trim() || !draft.author.trim()} className="btn btn-primary">
+              {saving && <Spinner className="border-paper/40 border-t-paper-raised" />}
+              저장
             </button>
+          </>
+        }
+      >
+        <form id="edit-work-form" onSubmit={saveEdit} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="제목" required name="title" value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} />
+            <Field label="작가" required name="author" value={draft.author} onChange={e => setDraft(d => ({ ...d, author: e.target.value }))} />
           </div>
-        </div>
-      )}
+          <Field label="분류" name="genre" value={draft.genre} onChange={e => setDraft(d => ({ ...d, genre: e.target.value }))} hint="쉼표로 나눕니다. 예: 러시아, 고전" />
+          <TextArea label="작품 소개" name="description" value={draft.description} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} rows={6} />
+        </form>
+      </Dialog>
     </div>
-  );
-}
-
-function FlowchartEditorWrapper() {
-  return (
-    <ReactFlowProvider>
-      <FlowchartEditor />
-    </ReactFlowProvider>
-  );
-}
-
-function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
-        active ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-500 hover:text-stone-700'
-      }`}
-    >
-      {icon}{label}
-    </button>
   );
 }
 
@@ -210,7 +335,7 @@ function WorkForm() {
     title: '', author: '', genre: '', lists: '', description: '', ai_translation: '',
     series_id: '', series_order: '',
   });
-  const [seriesList, setSeriesList] = useState<SeriesItem[]>([]); // [M-1] 타입 명시
+  const [seriesList, setSeriesList] = useState<SeriesItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusMsg | null>(null);
 
@@ -224,16 +349,13 @@ function WorkForm() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-    if (e.target instanceof HTMLTextAreaElement) {
-      e.target.style.height = 'auto';
-      e.target.style.height = `${e.target.scrollHeight}px`;
-    }
+    autoGrow(e);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim() || !form.author.trim()) {
-      setStatus({ type: 'error', text: '제목과 저자는 필수입니다.' });
+      setStatus({ type: 'error', text: '제목과 작가는 꼭 적어야 합니다.' });
       return;
     }
     setLoading(true);
@@ -248,52 +370,61 @@ function WorkForm() {
         series_order: form.series_order ? parseFloat(form.series_order) : null,
       };
       const work = await insertWork(payload as Parameters<typeof insertWork>[0]);
-      setStatus({ type: 'success', text: `"${work.title}" 작품이 등록되었습니다.` });
+      setStatus({ type: 'success', text: `${josa(`“${work.title}”`, '을', '를')} 올렸습니다. 이제 판본을 붙여 주세요.` });
       setForm({ title: '', author: '', genre: '', lists: '', description: '', ai_translation: '', series_id: '', series_order: '' });
+      refreshCatalog();
     } catch (err) {
-      setStatus({ type: 'error', text: err instanceof Error ? err.message : '등록 실패' });
+      setStatus({ type: 'error', text: err instanceof Error ? err.message : '올리지 못했습니다.' });
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 pb-10">
-      <Field label="작품 제목 *" name="title" value={form.title} onChange={handleChange} placeholder="예: 닥터 지바고" />
-      <Field label="저자 *" name="author" value={form.author} onChange={handleChange} placeholder="예: 보리스 파스테르나크" />
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="장르" name="genre" value={form.genre} onChange={handleChange} placeholder="예: 러시아 소설" />
-        <Field label="리스트 (쉼표로 구분)" name="lists" value={form.lists} onChange={handleChange} placeholder="예: 세계문학전집, 스테디셀러" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 p-4 bg-stone-50 rounded-xl border border-stone-100">
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1.5">시리즈 선택 (선택)</label>
-          <select
-            name="series_id" value={form.series_id} onChange={handleChange}
-            className="w-full px-3 py-2.5 rounded-lg border border-stone-300 bg-white text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400"
-          >
-            <option value="">-- 단권이거나 시리즈 아님 --</option>
-            {seriesList.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1.5">시리즈 내 순서 (선택)</label>
-          <input
-            type="number" step="0.5" name="series_order" value={form.series_order} onChange={handleChange}
-            placeholder="예: 1, 1.5, 2" disabled={!form.series_id}
-            className="w-full px-3 py-2.5 rounded-lg border border-stone-300 bg-white text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-50 disabled:bg-stone-200"
-          />
-        </div>
-      </div>
-      <TextArea label="작품 소개" name="description" value={form.description} onChange={handleChange} placeholder="내용이 많아지면 박스가 자동으로 늘어납니다..." rows={3} />
-      <TextArea label="AI 번역 문단" name="ai_translation" value={form.ai_translation} onChange={handleChange} placeholder="AI 번역 문단을 입력하세요..." rows={3} />
-      <StatusDisplay status={status} />
-      <div className="pt-2">
-        <button type="submit" disabled={loading} className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-stone-900 text-white text-sm font-medium rounded-lg hover:bg-stone-700 disabled:opacity-50 transition-all shadow-md">
-          {loading ? <Loader2 size={15} className="animate-spin" /> : <PlusCircle size={15} />}
-          작품 등록하기
-        </button>
-      </div>
+    <form onSubmit={handleSubmit}>
+      <FormLayout
+        fields={
+          <>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="제목" required name="title" value={form.title} onChange={handleChange} placeholder="닥터 지바고" />
+              <Field label="작가" required name="author" value={form.author} onChange={handleChange} placeholder="보리스 파스테르나크" />
+              <Field label="분류" name="genre" value={form.genre} onChange={handleChange} placeholder="러시아, 고전" hint="쉼표로 나눕니다. 나라 이름을 넣으면 통계 지도에 잡힙니다." />
+              <Field label="목록" name="lists" value={form.lists} onChange={handleChange} placeholder="세계문학전집, 노벨 연구소 선정 최고의 책" hint="쉼표로 나눕니다." />
+            </div>
+            <div className="grid gap-5 rounded-md border border-line-soft bg-paper p-4 sm:grid-cols-2">
+              <SelectField label="시리즈" name="series_id" value={form.series_id} onChange={handleChange}>
+                <option value="">시리즈에 속하지 않음</option>
+                {seriesList.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+              </SelectField>
+              <div>
+                <label htmlFor="series-order" className="field-label">시리즈 안 순서</label>
+                <input
+                  id="series-order"
+                  type="number" step="0.5" name="series_order" value={form.series_order} onChange={handleChange}
+                  placeholder="1, 1.5, 2" disabled={!form.series_id}
+                  className="field"
+                />
+              </div>
+            </div>
+            <TextArea label="작품 소개" name="description" value={form.description} onChange={handleChange} rows={5} />
+            <TextArea label="AI 번역 문단" name="ai_translation" value={form.ai_translation} onChange={handleChange} rows={4} hint="작품 화면의 ‘번역 비교’에 판본별 번역과 나란히 나옵니다." />
+            <StatusDisplay status={status} />
+          </>
+        }
+        footer={
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg">
+            {loading && <Spinner className="border-paper/40 border-t-paper-raised" />}
+            작품 올리기
+          </button>
+        }
+        aside={
+          <PreviewCard title="미리보기">
+            <BookCover src={null} alt="" title={form.title || '제목'} author={form.author || '작가'} className="w-36" />
+            <p className="mt-4 font-serif text-[20px] font-bold leading-snug text-ink">{form.title || '제목'}</p>
+            <p className="mt-1 text-[14px] text-ink-muted">{form.author || '작가'}</p>
+          </PreviewCard>
+        }
+      />
     </form>
   );
 }
@@ -305,16 +436,13 @@ function SeriesForm() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-    if (e.target instanceof HTMLTextAreaElement) {
-      e.target.style.height = 'auto';
-      e.target.style.height = `${e.target.scrollHeight}px`;
-    }
+    autoGrow(e);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim() || !form.author.trim()) {
-      setStatus({ type: 'error', text: '시리즈 제목과 원작자는 필수입니다.' });
+      setStatus({ type: 'error', text: '시리즈 이름과 작가는 꼭 적어야 합니다.' });
       return;
     }
     setLoading(true);
@@ -325,31 +453,55 @@ function SeriesForm() {
         description: form.description, cover_url: form.cover_url || null,
       }]);
       if (error) throw error;
-      setStatus({ type: 'success', text: `"${form.title}" 시리즈가 생성되었습니다!` });
+      setStatus({ type: 'success', text: `“${form.title}” 시리즈를 만들었습니다.` });
       setForm({ title: '', author: '', genre: '', description: '', cover_url: '' });
+      refreshCatalog();
     } catch (err) {
-      setStatus({ type: 'error', text: err instanceof Error ? err.message : '등록 실패' });
+      setStatus({ type: 'error', text: err instanceof Error ? err.message : '만들지 못했습니다.' });
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 pb-10">
-      <Field label="시리즈명 *" name="title" value={form.title} onChange={handleChange} placeholder="예: 얼음과 불의 노래" />
-      <Field label="원작자 *" name="author" value={form.author} onChange={handleChange} placeholder="예: 조지 R.R. 마틴" />
-      <Field label="시리즈 장르" name="genre" value={form.genre} onChange={handleChange} placeholder="예: 다크 판타지, 원작소설" />
-      <Field label="대표 표지 URL (선택)" name="cover_url" value={form.cover_url} onChange={handleChange} placeholder="비워두면 1부 표지가 자동 적용됩니다." />
-      <TextArea label="시리즈 세계관 설명" name="description" value={form.description} onChange={handleChange} placeholder="시리즈 전체를 아우르는 배경이나 줄거리를 입력하세요..." rows={4} />
-      <StatusDisplay status={status} />
-      <div className="pt-2">
-        <button type="submit" disabled={loading} className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-stone-900 text-white text-sm font-medium rounded-lg hover:bg-stone-700 disabled:opacity-50 transition-all shadow-md">
-          {loading ? <Loader2 size={15} className="animate-spin" /> : <PlusCircle size={15} />}
-          시리즈 생성하기
-        </button>
-      </div>
+    <form onSubmit={handleSubmit}>
+      <FormLayout
+        fields={
+          <>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="시리즈 이름" required name="title" value={form.title} onChange={handleChange} placeholder="얼음과 불의 노래" />
+              <Field label="작가" required name="author" value={form.author} onChange={handleChange} placeholder="조지 R. R. 마틴" />
+              <Field label="분류" name="genre" value={form.genre} onChange={handleChange} placeholder="미국, 판타지" hint="쉼표로 나눕니다." />
+              <Field label="대표 표지 주소" type="url" name="cover_url" value={form.cover_url} onChange={handleChange} placeholder="https://" hint="비워 두면 1부 표지를 씁니다." />
+            </div>
+            <TextArea label="시리즈 소개" name="description" value={form.description} onChange={handleChange} rows={5} />
+            <StatusDisplay status={status} />
+          </>
+        }
+        footer={
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg">
+            {loading && <Spinner className="border-paper/40 border-t-paper-raised" />}
+            시리즈 만들기
+          </button>
+        }
+        aside={
+          <PreviewCard title="표지 미리보기">
+            <BookCover src={form.cover_url || null} alt="" title={form.title || '시리즈'} author={form.author} className="w-36" />
+          </PreviewCard>
+        }
+      />
     </form>
   );
+}
+
+// 알라딘 검색 결과
+interface AladinBookResult {
+  isbn: string;
+  isbn13: string;
+  title: string;
+  author: string;
+  publisher: string;
+  cover: string;
 }
 
 function EditionForm() {
@@ -366,11 +518,14 @@ function EditionForm() {
     fetchAllWorks().then(setWorks).finally(() => setWorksLoading(false));
   }, []);
 
+  const sortedWorks = useMemo(() => [...works].sort((a, b) => a.title.localeCompare(b.title, 'ko')), [works]);
+  const selectedWork = works.find(w => w.id === form.work_id);
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    autoGrow(e);
   }
 
-  // [H-2] cors-anywhere → vite proxy(/aladin-api) 사용
   async function handleSearch() {
     const query = isbnQuery.trim();
     if (!query) return;
@@ -386,13 +541,12 @@ function EditionForm() {
       const data = await response.json();
       if (data.item && data.item.length > 0) {
         setSearchResults(data.item);
-        setStatus({ type: 'success', text: `"${query}" 검색 결과 ${data.item.length}건을 찾았습니다.` });
       } else {
         setStatus({ type: 'error', text: '검색 결과가 없습니다.' });
       }
     } catch (err) {
       console.error('검색 에러:', err);
-      setStatus({ type: 'error', text: '알라딘 API 호출 중 오류가 발생했습니다.' });
+      setStatus({ type: 'error', text: '알라딘 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
     } finally {
       setIsSearching(false);
     }
@@ -404,109 +558,118 @@ function EditionForm() {
     setForm((f) => ({ ...f, isbn, publisher: book.publisher, cover_url: book.cover.replace('coversum', 'cover500'), volume_number: suggested || '', page_count: '' }));
     setSearchResults([]);
     setIsbnQuery(book.title);
-    setStatus({ type: 'success', text: '상세 정보(쪽수)를 가져오는 중...' });
+    setStatus({ type: 'success', text: '쪽수를 가져오는 중입니다.' });
     try {
       const detail = await getAladinDetail(isbn);
       if (detail && detail.page_count) {
         setForm(f => ({ ...f, page_count: detail.page_count.toString() }));
-        setStatus({ type: 'success', text: `"${book.title}" 정보를 가져왔습니다. (${detail.page_count}쪽)` });
+        setStatus({ type: 'success', text: `“${book.title}” 정보를 채웠습니다. (${detail.page_count}쪽)` });
       } else {
-        setStatus({ type: 'error', text: '쪽수 정보를 가져오지 못했습니다. 수동으로 입력해 주세요.' });
+        setStatus({ type: 'error', text: '쪽수를 가져오지 못했습니다. 직접 적어 주세요.' });
       }
     } catch {
-      setStatus({ type: 'error', text: '상세 정보 조회 중 오류가 발생했습니다.' });
+      setStatus({ type: 'error', text: '상세 정보를 가져오지 못했습니다.' });
     }
   };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.work_id) { setStatus({ type: 'error', text: '작품을 선택해주세요.' }); return; }
-    if (!form.publisher.trim() || !form.isbn.trim()) { setStatus({ type: 'error', text: '출판사와 ISBN은 필수입니다.' }); return; }
+    if (!form.work_id) { setStatus({ type: 'error', text: '작품을 먼저 골라 주세요.' }); return; }
+    if (!form.publisher.trim() || !form.isbn.trim()) { setStatus({ type: 'error', text: '출판사와 ISBN은 꼭 적어야 합니다.' }); return; }
     setLoading(true);
     setStatus(null);
     try {
       const submissionData = { ...form, page_count: form.page_count ? parseInt(form.page_count, 10) : 0 };
       await insertEdition(submissionData);
-      setStatus({ type: 'success', text: `판본이 등록되었습니다. (${submissionData.page_count}p)` });
+      setStatus({ type: 'success', text: `판본을 붙였습니다. (${submissionData.page_count}쪽)` });
       setForm({ work_id: form.work_id, publisher: '', isbn: '', cover_url: '', excerpt: '', volume_number: '', page_count: '' });
       setIsbnQuery('');
+      refreshCatalog();
     } catch (err) {
-      setStatus({ type: 'error', text: err instanceof Error ? err.message : '등록 실패' });
+      setStatus({ type: 'error', text: err instanceof Error ? err.message : '붙이지 못했습니다.' });
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1.5">작품 선택 *</label>
-        {worksLoading ? (
-          <div className="flex items-center gap-2 text-sm text-stone-500"><Loader2 size={14} className="animate-spin" /> 불러오는 중...</div>
-        ) : (
-          <select name="work_id" value={form.work_id} onChange={handleChange} className="w-full px-3 py-2.5 rounded-lg border border-stone-300 bg-white text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400">
-            <option value="">작품을 선택하세요</option>
-            {works.map((w) => <option key={w.id} value={w.id}>{w.title} — {w.author}</option>)}
-          </select>
-        )}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1.5">도서 검색 (제목/저자)</label>
-        <div className="flex gap-2 relative">
-          <input
-            type="text" value={isbnQuery} onChange={(e) => setIsbnQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
-            placeholder="책 제목 또는 저자 입력"
-            className="flex-1 px-3 py-2.5 rounded-lg border border-stone-300 bg-white text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400"
-          />
-          <button type="button" onClick={handleSearch} disabled={isSearching} className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-stone-300 bg-white text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50 transition-colors">
-            {isSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}검색
-          </button>
-          {searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
-              {searchResults.map((book) => (
-                <button key={book.isbn13 || book.isbn} type="button" onClick={() => handleSelectBook(book)} className="w-full flex items-center gap-3 p-3 hover:bg-stone-50 border-b border-stone-100 last:border-0 text-left transition-colors">
-                  <img src={book.cover} alt="" className="w-10 h-14 object-cover rounded shadow-sm shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-stone-900 truncate">{book.title}</p>
-                    <p className="text-[11px] text-stone-500 truncate">{book.author} | {book.publisher}</p>
-                  </div>
+    <form onSubmit={handleSubmit}>
+      <FormLayout
+        fields={
+          <>
+            {worksLoading ? (
+              <p className="flex items-center gap-2 text-[14px] text-ink-muted"><Spinner /> 작품 목록을 불러오는 중</p>
+            ) : (
+              <SelectField label="작품" name="work_id" value={form.work_id} onChange={handleChange}>
+                <option value="">판본을 붙일 작품을 고르세요</option>
+                {sortedWorks.map((w) => <option key={w.id} value={w.id}>{w.title} — {w.author}</option>)}
+              </SelectField>
+            )}
+
+            <div>
+              <label htmlFor="aladin-query" className="field-label">알라딘에서 찾기</label>
+              <div className="flex gap-2">
+                <input
+                  id="aladin-query"
+                  type="search"
+                  value={isbnQuery}
+                  onChange={(e) => setIsbnQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
+                  placeholder="책 제목이나 작가"
+                  className="field flex-1"
+                />
+                <button type="button" onClick={handleSearch} disabled={isSearching} className="btn btn-secondary h-auto px-4">
+                  {isSearching ? <Spinner /> : <Search size={15} aria-hidden />}
+                  찾기
                 </button>
-              ))}
+              </div>
+              {searchResults.length > 0 && (
+                <ul className="panel mt-2 max-h-80 divide-y divide-line-soft overflow-y-auto" aria-label="알라딘 검색 결과">
+                  {searchResults.map((book) => (
+                    <li key={book.isbn13 || book.isbn}>
+                      <button type="button" onClick={() => handleSelectBook(book)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-paper">
+                        <BookCover src={book.cover} alt="" title={book.title} className="w-9 shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-semibold text-ink">{book.title}</span>
+                          <span className="block truncate text-[12.5px] text-ink-muted">{book.author} · {book.publisher}</span>
+                        </span>
+                        <span className="tnum hidden shrink-0 text-[12px] text-ink-faint sm:inline">{book.isbn13 || book.isbn}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Field label="ISBN *" name="isbn" value={form.isbn} onChange={handleChange} placeholder="978..." />
-        <Field label="출판사 *" name="publisher" value={form.publisher} onChange={handleChange} placeholder="민음사" />
-        <Field label="쪽수" name="page_count" value={form.page_count} onChange={handleChange} placeholder="예: 450" />
-        <Field label="권수" name="volume_number" value={form.volume_number} onChange={handleChange} placeholder="1, 상, 하" />
-      </div>
-      <Field label="표지 이미지 URL" name="cover_url" value={form.cover_url} onChange={handleChange} placeholder="https://..." />
-      {form.cover_url && (
-        <div className="flex items-center gap-3 p-3 bg-stone-100 rounded-lg">
-          <img src={form.cover_url} alt="표지 미리보기" className="h-20 object-contain rounded shadow-sm" />
-          <span className="text-xs text-stone-500">표지 미리보기</span>
-        </div>
-      )}
-      <TextArea label="이 판본의 번역 문단" name="excerpt" value={form.excerpt} onChange={handleChange} placeholder="이 판본 번역자의 첫 문단을 입력하세요..." rows={5} />
-      <StatusDisplay status={status} />
-      <button type="submit" disabled={loading} className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white text-sm font-medium rounded-lg hover:bg-stone-700 disabled:opacity-50 transition-colors">
-        {loading ? <Loader2 size={15} className="animate-spin" /> : <PlusCircle size={15} />}판본 등록
-      </button>
+
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+              <Field label="ISBN" required name="isbn" value={form.isbn} onChange={handleChange} placeholder="978…" inputMode="numeric" />
+              <Field label="출판사" required name="publisher" value={form.publisher} onChange={handleChange} placeholder="민음사" />
+              <Field label="쪽수" name="page_count" value={form.page_count} onChange={handleChange} placeholder="450" inputMode="numeric" />
+              <Field label="권" name="volume_number" value={form.volume_number} onChange={handleChange} placeholder="1, 상, 하" hint="한 권짜리면 비워 둡니다." />
+            </div>
+            <Field label="표지 이미지 주소" type="url" name="cover_url" value={form.cover_url} onChange={handleChange} placeholder="https://" />
+            <TextArea label="이 판본의 첫 문단" name="excerpt" value={form.excerpt} onChange={handleChange} rows={5} hint="작품 화면의 ‘번역 비교’에 출판사 이름으로 나옵니다." />
+            <StatusDisplay status={status} />
+          </>
+        }
+        footer={
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg">
+            {loading && <Spinner className="border-paper/40 border-t-paper-raised" />}
+            판본 붙이기
+          </button>
+        }
+        aside={
+          <PreviewCard title="판본 미리보기">
+            <BookCover src={form.cover_url || null} alt="" title={selectedWork?.title ?? '작품'} author={selectedWork?.author} className="w-36" />
+            <p className="mt-4 font-serif text-[18px] font-bold leading-snug text-ink">{selectedWork?.title ?? '작품을 고르세요'}</p>
+            <p className="tnum mt-1 text-[13.5px] text-ink-muted">
+              {[form.publisher, form.volume_number && `${form.volume_number}권`, form.page_count && `${form.page_count}쪽`].filter(Boolean).join(' · ') || '출판사 · 권 · 쪽수'}
+            </p>
+          </PreviewCard>
+        }
+      />
     </form>
   );
-}
-
-// [M-1] 알라딘 검색 결과 타입 정의
-interface AladinBookResult {
-  isbn: string;
-  isbn13: string;
-  title: string;
-  author: string;
-  publisher: string;
-  cover: string;
 }
 
 function AuthorForm() {
@@ -516,50 +679,58 @@ function AuthorForm() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-    if (e.target instanceof HTMLTextAreaElement) {
-      e.target.style.height = 'auto';
-      e.target.style.height = `${e.target.scrollHeight}px`;
-    }
+    autoGrow(e);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) { setStatus({ type: 'error', text: '작가 이름은 필수입니다.' }); return; }
+    if (!form.name.trim()) { setStatus({ type: 'error', text: '작가 이름은 꼭 적어야 합니다.' }); return; }
     setLoading(true);
     setStatus(null);
     try {
       const awardArray = form.awards.split(',').map(s => s.trim()).filter(Boolean);
       const { error } = await supabase.from('authors').upsert({ ...form, awards: awardArray }, { onConflict: 'name' });
       if (error) throw error;
-      setStatus({ type: 'success', text: `"${form.name}" 작가 정보가 저장되었습니다.` });
+      setStatus({ type: 'success', text: `${form.name} 작가 정보를 저장했습니다.` });
       setForm({ name: '', birth_death: '', country: '', awards: '', bio: '', photo_url: '' });
+      refreshCatalog();
     } catch (err) {
-      setStatus({ type: 'error', text: err instanceof Error ? err.message : '등록 실패' });
+      setStatus({ type: 'error', text: err instanceof Error ? err.message : '저장하지 못했습니다.' });
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 pb-10">
-      <Field label="작가 이름 *" name="name" value={form.name} onChange={handleChange} placeholder="예: 표도르 도스토옙스키" />
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="생몰년도" name="birth_death" value={form.birth_death} onChange={handleChange} placeholder="예: 1821 — 1881" />
-        <Field label="국가" name="country" value={form.country} onChange={handleChange} placeholder="예: 러시아" />
-      </div>
-      <Field label="수상 내역 (쉼표로 구분)" name="awards" value={form.awards} onChange={handleChange} placeholder="예: 노벨문학상, 부커상" />
-      <Field label="작가 사진 URL" name="photo_url" value={form.photo_url} onChange={handleChange} placeholder="https://..." />
-      {form.photo_url && (
-        <div className="flex items-center gap-3 p-3 bg-stone-100 rounded-lg">
-          <img src={form.photo_url} alt="미리보기" className="h-20 w-16 object-cover rounded shadow-sm" />
-          <span className="text-xs text-stone-500">사진 미리보기</span>
-        </div>
-      )}
-      <TextArea label="작가 소개" name="bio" value={form.bio} onChange={handleChange} placeholder="작가의 생애나 문학적 특징을 입력하세요..." rows={4} />
-      <StatusDisplay status={status} />
-      <button type="submit" disabled={loading} className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white text-sm font-medium rounded-lg hover:bg-stone-700 disabled:opacity-50 transition-colors">
-        {loading ? <Loader2 size={15} className="animate-spin" /> : <PlusCircle size={15} />}작가 정보 저장
-      </button>
+    <form onSubmit={handleSubmit}>
+      <FormLayout
+        fields={
+          <>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="작가 이름" required name="name" value={form.name} onChange={handleChange} placeholder="표도르 도스토옙스키" hint="작품에 적은 작가 이름과 똑같이 적어야 연결됩니다." />
+              <Field label="생몰년" name="birth_death" value={form.birth_death} onChange={handleChange} placeholder="1821 — 1881" />
+              <Field label="나라" name="country" value={form.country} onChange={handleChange} placeholder="러시아" />
+              <Field label="수상" name="awards" value={form.awards} onChange={handleChange} placeholder="노벨문학상, 부커상" hint="쉼표로 나눕니다." />
+            </div>
+            <Field label="사진 주소" type="url" name="photo_url" value={form.photo_url} onChange={handleChange} placeholder="https://" />
+            <TextArea label="작가 소개" name="bio" value={form.bio} onChange={handleChange} rows={5} />
+            <StatusDisplay status={status} />
+          </>
+        }
+        footer={
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg">
+            {loading && <Spinner className="border-paper/40 border-t-paper-raised" />}
+            작가 정보 저장
+          </button>
+        }
+        aside={
+          <PreviewCard title="미리보기">
+            <Portrait src={form.photo_url || null} name={form.name || '작가'} className="aspect-[3/4] w-36" />
+            <p className="mt-4 font-serif text-[20px] font-bold text-ink">{form.name || '작가 이름'}</p>
+            <p className="tnum mt-1 text-[13.5px] text-ink-muted">{[form.birth_death, form.country].filter(Boolean).join(' · ') || '생몰년 · 나라'}</p>
+          </PreviewCard>
+        }
+      />
     </form>
   );
 }

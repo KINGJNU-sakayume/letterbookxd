@@ -1,6 +1,7 @@
-import { Heart, Trophy } from 'lucide-react';
 import { StarRating } from '../ui/StarRating';
+import { LikeButton } from '../ui/LikeButton';
 import { useLogStore } from '../../store/logStore';
+import { formatDate } from '../../utils/format';
 
 interface SetReviewPanelProps {
   editionSetId: string;
@@ -8,15 +9,11 @@ interface SetReviewPanelProps {
   publisher: string;
   title?: string;
   isSinglePublisher?: boolean;
+  canEdit?: boolean;
 }
 
-export function SetReviewPanel({
-  editionSetId,
-  workId,
-  publisher,
-  title,
-  isSinglePublisher,
-}: SetReviewPanelProps) {
+/** 여러 권짜리 판본을 모두 읽은 뒤 세트 전체에 남기는 별점 */
+export function SetReviewPanel({ editionSetId, workId, publisher, title, isSinglePublisher, canEdit = true }: SetReviewPanelProps) {
   const { getSetCompletionLog, upsertSetCompletionLog } = useLogStore();
   const log = getSetCompletionLog(editionSetId);
 
@@ -31,42 +28,21 @@ export function SetReviewPanel({
   }
 
   return (
-    <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-      <div className="flex items-center gap-2 mb-3">
-        <Trophy size={16} className="text-emerald-600" />
-        <span className="text-sm font-semibold text-emerald-800">
-          {/* [수정] 단일 출판사면 "작품명 완독", 아니면 "출판사 판본 완독"으로 분기 */}
-          {isSinglePublisher && title ? `${title} 완독 — 종합 평가` : `${publisher} 판본 완독 — 종합 평가`}
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-line bg-completed-light/50 px-4 py-4 sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="-rotate-[4deg] rounded-[3px] border-[1.5px] border-completed px-1.5 py-[3px] font-serif text-[13px] font-bold leading-none text-completed-dark">
+          전권 완독
         </span>
+        <div className="min-w-0">
+          <p className="truncate text-[14.5px] font-semibold text-ink">
+            {isSinglePublisher && title ? `${title} 전체` : `${publisher} 판 전체`}
+          </p>
+          <p className="text-[12.5px] text-ink-muted">{formatDate(log.createdAt)} · 세트 전체에 대한 평가</p>
+        </div>
       </div>
-      <p className="text-xs text-emerald-700 mb-4">
-        {/* [수정] 안내 문구도 상황에 맞게 자연스럽게 변경 */}
-        {isSinglePublisher
-          ? '이 작품의 모든 권을 읽었습니다. 전체적인 경험을 평가해 주세요.'
-          : '이 세트의 모든 권을 읽었습니다. 전체적인 판본 경험을 평가해 주세요.'}
-      </p>
-      <div className="flex items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-stone-600 font-medium">별점</span>
-          <StarRating rating={log.rating} onChange={handleRating} size="md" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-stone-600 font-medium">좋아요</span>
-          <button
-            onClick={toggleLiked}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              log.liked
-                ? 'bg-rose-100 text-rose-600 hover:bg-rose-200'
-                : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
-            }`}
-          >
-            <Heart
-              size={16}
-              className={log.liked ? 'fill-rose-500 text-rose-500' : 'text-stone-400'}
-            />
-            {log.liked ? '인생작' : '좋아요'}
-          </button>
-        </div>
+      <div className="ml-auto flex items-center gap-2">
+        <StarRating rating={log.rating} onChange={canEdit ? handleRating : undefined} readonly={!canEdit} size="md" label="세트 별점" />
+        <LikeButton liked={log.liked} onToggle={canEdit ? toggleLiked : undefined} />
       </div>
     </div>
   );

@@ -16,13 +16,13 @@ export function FlowchartEditorBookNode({ data, type, selected }: NodeProps<Edit
 
   return (
     <div
-      className={`relative ${isSide ? 'opacity-75' : ''} ${selected ? 'ring-2 ring-stone-500 ring-offset-1 rounded-md' : ''}`}
+      className={`relative ${isSide ? 'opacity-70' : ''} ${selected ? 'rounded-[3px] ring-2 ring-ink-soft ring-offset-2 ring-offset-paper' : ''}`}
       style={{ width: 110 }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
 
       {/* Cover image */}
-      <div className="relative aspect-[2/3] w-full rounded-md overflow-hidden shadow-md">
+      <div className="book-cover relative aspect-[2/3] w-full">
         {data.coverImageUrl ? (
           <img
             src={data.coverImageUrl as string}
@@ -30,29 +30,29 @@ export function FlowchartEditorBookNode({ data, type, selected }: NodeProps<Edit
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-stone-200 flex items-center justify-center">
-            <span className="text-stone-400 text-[10px] text-center px-1">{data.label as string}</span>
+          <div className="flex h-full w-full items-center justify-center bg-[#5b4f45] px-2">
+            <span className="text-center font-serif text-[11px] font-bold leading-snug text-[#f3ebdb]">{data.label as string}</span>
           </div>
         )}
 
         {/* Entry banner */}
         {isEntry && (
-          <div className="absolute bottom-0 left-0 right-0 bg-entry/90 text-white text-[9px] font-bold text-center py-1 tracking-wide">
-            ★ 입문 추천
+          <div className="absolute inset-x-0 bottom-0 z-[2] bg-seal/95 py-1 text-center text-[10px] font-bold tracking-wide text-paper-raised">
+            입문 추천
           </div>
         )}
       </div>
 
       {/* Title */}
-      <p className={`mt-1.5 text-[11px] font-medium text-center leading-tight line-clamp-2 px-0.5 ${
-        isEntry ? 'text-stone-900' : 'text-stone-700'
+      <p className={`mt-2 line-clamp-2 px-0.5 text-center text-[11.5px] font-medium leading-tight ${
+        isEntry ? 'text-ink' : 'text-ink-soft'
       }`}>
         {data.label as string}
       </p>
 
       {/* Year */}
       {data.publishedYear && (
-        <p className="text-[10px] text-stone-400 text-center mt-0.5">{data.publishedYear as number}</p>
+        <p className="tnum mt-0.5 text-center text-[10.5px] text-ink-faint">{data.publishedYear as number}</p>
       )}
 
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />

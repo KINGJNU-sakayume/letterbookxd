@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import type { FlowchartNode, FlowchartEdge, SetCompletionLog } from '../../types';
 
 interface FlowchartSidebarProps {
@@ -60,84 +62,80 @@ function buildOrderedList(nodes: FlowchartNode[], edges: FlowchartEdge[]): Order
   return result;
 }
 
-function hasDirectEdge(edges: FlowchartEdge[], sourceId: string, targetId: string): boolean {
-  return edges.some(e => e.source === sourceId && e.target === targetId);
-}
-
 function getEdgeBetween(edges: FlowchartEdge[], sourceId: string, targetId: string): FlowchartEdge | undefined {
   return edges.find(e => e.source === sourceId && e.target === targetId);
 }
 
+/** 작가의 추천 읽기 순서를 세로 줄기로 보여 준다 */
 export function FlowchartSidebar({ nodes, edges, setCompletionLogs, onExpand }: FlowchartSidebarProps) {
   if (nodes.length === 0) return null;
 
   const completedWorkIds = new Set(setCompletionLogs.map(l => l.workId));
   const ordered = buildOrderedList(nodes, edges);
+  const doneCount = ordered.filter(o => completedWorkIds.has(o.node.data.workId)).length;
 
   return (
-    <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-      <h3 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-4">
-        추천 읽기 순서
-      </h3>
+    <section aria-labelledby="reading-order-heading" className="panel p-5">
+      <div className="mb-1 flex items-baseline justify-between gap-3">
+        <h2 id="reading-order-heading" className="font-serif text-[19px] font-bold text-ink">
+          읽기 순서
+        </h2>
+        <button type="button" onClick={onExpand} className="shrink-0 text-[13px] text-ink-muted transition-colors hover:text-ink">
+          크게 보기
+        </button>
+      </div>
+      <p className="tnum mb-5 text-[12.5px] text-ink-muted">
+        {ordered.length}편 중 {doneCount}편 읽음
+      </p>
 
-      <div className="space-y-0">
+      <ol>
         {ordered.map(({ node, depth }, index) => {
           const isEntry = node.type === 'entry';
           const isSide = node.type === 'side';
           const isCompleted = completedWorkIds.has(node.data.workId);
-
-          // Find edge connecting previous node to this one
           const prevNode = index > 0 ? ordered[index - 1].node : null;
-          const showArrow = prevNode !== null && hasDirectEdge(edges, prevNode.id, node.id);
-          const connectingEdge = prevNode ? getEdgeBetween(edges, prevNode.id, node.id) : undefined;
-          const edgeLabel = connectingEdge?.label as string | undefined;
+          const edgeLabel = prevNode ? (getEdgeBetween(edges, prevNode.id, node.id)?.label as string | undefined) : undefined;
+          const isLast = index === ordered.length - 1;
 
           return (
-            <div key={node.id}>
-              {showArrow && (
-                <div className={`flex flex-col items-center py-0.5 ${depth > 0 ? `pl-${Math.min(depth * 4, 8)}` : ''}`}>
-                  <div className="text-stone-300 text-xs leading-none">↓</div>
-                  {edgeLabel && (
-                    <span className="text-[10px] italic text-stone-400 text-center leading-tight">{edgeLabel}</span>
-                  )}
-                </div>
+            <li key={node.id} className="relative flex gap-3" style={{ paddingLeft: Math.min(depth, 3) * 12 }}>
+              {!isLast && (
+                <span aria-hidden className="absolute bottom-0 top-5 w-px bg-line" style={{ left: Math.min(depth, 3) * 12 + 7.5 }} />
               )}
-
-              <div
-                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isEntry
-                    ? 'bg-[#8B1A1A] text-white'
-                    : isSide
-                    ? 'bg-stone-50 border border-stone-200 text-stone-400 ml-4'
-                    : 'bg-stone-100 border border-stone-200 text-stone-800'
+              <span
+                aria-hidden
+                className={`relative z-[1] mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-[1.5px] ${
+                  isCompleted
+                    ? 'border-completed bg-completed text-paper-raised'
+                    : isEntry
+                      ? 'border-seal bg-paper-raised'
+                      : isSide
+                        ? 'scale-75 border-line-strong bg-paper-raised'
+                        : 'border-ink-faint bg-paper-raised'
                 }`}
               >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {isEntry && (
-                    <span className="text-[10px] font-bold shrink-0 opacity-90">★ 입문</span>
-                  )}
-                  <span className="truncate text-[12px]">{node.data.label}</span>
-                </div>
-                {isCompleted && (
-                  <span
-                    className="shrink-0 text-[11px] font-bold"
-                    style={{ color: isEntry ? '#a7f3a0' : '#639922' }}
-                  >
-                    ✓
-                  </span>
-                )}
+                {isCompleted && <Check size={10} strokeWidth={3.5} />}
+              </span>
+              <div className={`min-w-0 flex-1 ${isLast ? '' : 'pb-4'}`}>
+                {edgeLabel && <p className="mb-0.5 text-[12px] italic text-ink-faint">{edgeLabel}</p>}
+                <Link
+                  to={`/book/${node.data.workId}`}
+                  className={`block truncate text-[14px] decoration-line-strong underline-offset-4 hover:underline ${
+                    isSide ? 'text-ink-muted' : 'font-medium text-ink'
+                  }`}
+                >
+                  {node.data.label}
+                </Link>
+                <p className="mt-0.5 flex gap-2 text-[12px]">
+                  {isEntry && <span className="font-medium text-seal">입문 추천</span>}
+                  {isSide && <span className="text-ink-faint">곁가지</span>}
+                  {isCompleted && <span className="text-completed-dark">완독</span>}
+                </p>
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
-
-      <button
-        onClick={onExpand}
-        className="mt-4 w-full text-center text-[12px] text-stone-500 hover:text-stone-800 font-medium transition-colors py-1.5 border border-stone-200 rounded-lg hover:border-stone-400 hover:bg-stone-50"
-      >
-        전체 보기 →
-      </button>
-    </div>
+      </ol>
+    </section>
   );
 }

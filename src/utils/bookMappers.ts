@@ -1,5 +1,5 @@
 /**
- * [M-6] BookDetailPage, SeriesPage에서 중복 정의되던 헬퍼 함수 공통화
+ * DB 행을 화면에서 쓰는 Work/EditionSet/Volume 모양으로 바꾸는 공통 함수
  */
 import type { Work, EditionSet, Volume } from '../types';
 import type { DbWork, DbEdition, EditionGroup } from '../services/db';

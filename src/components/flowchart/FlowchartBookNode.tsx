@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
+import { Check } from 'lucide-react';
 
 // Extended data shape enriched before passing to ReactFlow
 export interface FlowchartBookNodeData extends Record<string, unknown> {
@@ -26,53 +27,41 @@ export function FlowchartBookNode({ data, type }: NodeProps<FlowchartBookNode>) 
   return (
     <div
       onClick={handleClick}
-      className={`cursor-pointer group relative transition-transform hover:-translate-y-0.5 ${isSide ? 'opacity-75' : ''}`}
+      className={`group relative cursor-pointer transition-transform hover:-translate-y-0.5 ${isSide ? 'opacity-70' : ''}`}
       style={{ width: 110 }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
 
-      {/* Cover image */}
       <div
-        className="relative aspect-[2/3] w-full rounded-md overflow-hidden shadow-md"
-        style={data.isCompleted ? { outline: '2px solid #639922', outlineOffset: '2px' } : undefined}
+        className="book-cover relative aspect-[2/3] w-full"
+        style={data.isCompleted ? { outline: '2px solid #4d7a2e', outlineOffset: '3px' } : undefined}
       >
         {data.coverImageUrl ? (
-          <img
-            src={data.coverImageUrl as string}
-            alt={data.label as string}
-            className="w-full h-full object-cover"
-          />
+          <img src={data.coverImageUrl} alt={data.label} className="h-full w-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-stone-200 flex items-center justify-center">
-            <span className="text-stone-400 text-[10px] text-center px-1">{data.label as string}</span>
+          <div className="flex h-full w-full items-center justify-center bg-[#5b4f45] px-2">
+            <span className="text-center font-serif text-[11px] font-bold leading-snug text-[#f3ebdb]">{data.label}</span>
           </div>
         )}
 
-        {/* Entry banner */}
         {isEntry && (
-          <div className="absolute bottom-0 left-0 right-0 bg-entry/90 text-white text-[9px] font-bold text-center py-1 tracking-wide">
-            ★ 입문 추천
+          <div className="absolute inset-x-0 bottom-0 z-[2] bg-seal/95 py-1 text-center text-[10px] font-bold tracking-wide text-paper-raised">
+            입문 추천
           </div>
         )}
 
-        {/* Reading status dot */}
-        <div
-          className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm"
-          style={{ backgroundColor: data.isCompleted ? '#639922' : '#a8a29e' }}
-        />
+        {data.isCompleted && (
+          <div className="absolute right-1.5 top-1.5 z-[2] flex h-4 w-4 items-center justify-center rounded-full bg-completed text-paper-raised shadow-sm">
+            <Check size={10} strokeWidth={3.5} />
+          </div>
+        )}
       </div>
 
-      {/* Title */}
-      <p className={`mt-1.5 text-[11px] font-medium text-center leading-tight line-clamp-2 px-0.5 ${
-        isEntry ? 'text-stone-900' : 'text-stone-700'
-      }`}>
-        {data.label as string}
+      <p className={`mt-2 line-clamp-2 px-0.5 text-center text-[11.5px] font-medium leading-tight ${isEntry ? 'text-ink' : 'text-ink-soft'}`}>
+        {data.label}
       </p>
 
-      {/* Year */}
-      {data.publishedYear && (
-        <p className="text-[10px] text-stone-400 text-center mt-0.5">{data.publishedYear as number}</p>
-      )}
+      {data.publishedYear && <p className="tnum mt-0.5 text-center text-[10.5px] text-ink-faint">{data.publishedYear}</p>}
 
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
