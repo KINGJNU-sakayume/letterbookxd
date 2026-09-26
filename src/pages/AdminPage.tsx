@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, GitBranch } from 'lucide-react';
+import { PlusCircle, PenTool, BookOpen, Library, Search, Loader2, CheckCircle2, AlertCircle, Layers, GitBranch, Database, Pencil, Trash2, Save, X } from 'lucide-react';
 import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
 import { buildAladinFetchUrl } from '../services/api';
 import { supabase } from '../lib/supabase';
@@ -7,7 +7,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
 import type { DbWork } from '../services/db';
 
-type Tab = 'work' | 'edition' | 'author' | 'series' | 'flowchart';
+type Tab = 'manage' | 'work' | 'edition' | 'author' | 'series' | 'flowchart';
 
 interface StatusMsg {
   type: 'success' | 'error';
@@ -21,7 +21,7 @@ interface SeriesItem {
 }
 
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>('work');
+  const [tab, setTab] = useState<Tab>('manage');
 
   return (
     <main className="min-h-[calc(100vh-56px)] bg-stone-50">
@@ -31,6 +31,7 @@ export function AdminPage() {
           <p className="text-sm text-stone-500">작품, 판본, 작가 및 시리즈 데이터를 직접 등록합니다.</p>
         </div>
         <div className="flex gap-1 mb-6 border-b border-stone-200 overflow-x-auto hide-scrollbar">
+          <TabBtn active={tab === 'manage'} onClick={() => setTab('manage')} icon={<Database size={15} />} label="데이터 관리" />
           <TabBtn active={tab === 'work'} onClick={() => setTab('work')} icon={<BookOpen size={15} />} label="작품 추가" />
           <TabBtn active={tab === 'edition'} onClick={() => setTab('edition')} icon={<Library size={15} />} label="판본 추가" />
           <TabBtn active={tab === 'author'} onClick={() => setTab('author')} icon={<PenTool size={15} />} label="작가 추가" />
@@ -38,7 +39,8 @@ export function AdminPage() {
           <TabBtn active={tab === 'flowchart'} onClick={() => setTab('flowchart')} icon={<GitBranch size={15} />} label="플로우차트 편집" />
         </div>
         <div className={`bg-white rounded-xl border border-stone-200 shadow-sm ${tab === 'flowchart' ? 'p-0 overflow-hidden' : 'p-6'}`}>
-          {tab === 'work' ? <WorkForm />
+          {tab === 'manage' ? <ManageLibraryPanel />
+           : tab === 'work' ? <WorkForm />
            : tab === 'edition' ? <EditionForm />
            : tab === 'author' ? <AuthorForm />
            : tab === 'series' ? <SeriesForm />
@@ -46,6 +48,143 @@ export function AdminPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+interface ManageWork {
+  id: string;
+  title: string;
+  author: string;
+  genre: string | null;
+  description: string | null;
+  editions: { id: string }[];
+}
+
+function ManageLibraryPanel() {
+  const [works, setWorks] = useState<ManageWork[]>([]);
+  const [query, setQuery] = useState('');
+  const [editing, setEditing] = useState<ManageWork | null>(null);
+  const [draft, setDraft] = useState({ title: '', author: '', genre: '', description: '' });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<StatusMsg | null>(null);
+
+  async function reload() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('works')
+      .select('id,title,author,genre,description,editions(id)')
+      .order('title');
+    if (error) setStatus({ type: 'error', text: error.message });
+    else setWorks((data ?? []) as ManageWork[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { reload(); }, []);
+
+  function openEdit(work: ManageWork) {
+    setEditing(work);
+    setDraft({
+      title: work.title,
+      author: work.author,
+      genre: work.genre ?? '',
+      description: work.description ?? '',
+    });
+  }
+
+  async function saveEdit() {
+    if (!editing || !draft.title.trim() || !draft.author.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from('works').update({
+      title: draft.title.trim(),
+      author: draft.author.trim(),
+      genre: draft.genre.trim() || null,
+      description: draft.description.trim() || null,
+    }).eq('id', editing.id);
+    setSaving(false);
+    if (error) {
+      setStatus({ type: 'error', text: error.message });
+      return;
+    }
+    setEditing(null);
+    setStatus({ type: 'success', text: '작품 정보를 수정했습니다.' });
+    await reload();
+  }
+
+  async function deleteWork(work: ManageWork) {
+    if (!window.confirm(`"${work.title}" 작품과 연결된 판본/기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+    setSaving(true);
+    const { error: logsError } = await supabase.from('logs').delete().eq('work_id', work.id);
+    if (logsError) { setStatus({ type: 'error', text: logsError.message }); setSaving(false); return; }
+    const { error: editionsError } = await supabase.from('editions').delete().eq('work_id', work.id);
+    if (editionsError) { setStatus({ type: 'error', text: editionsError.message }); setSaving(false); return; }
+    const { error } = await supabase.from('works').delete().eq('id', work.id);
+    setSaving(false);
+    if (error) setStatus({ type: 'error', text: error.message });
+    else {
+      setStatus({ type: 'success', text: `"${work.title}"을 삭제했습니다.` });
+      await reload();
+    }
+  }
+
+  const filtered = works.filter(w =>
+    !query.trim() || `${w.title} ${w.author} ${w.genre ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold text-stone-900">작품 데이터 관리</h2>
+          <p className="text-xs text-stone-500 mt-1">등록된 작품을 검색하고 수정·삭제합니다.</p>
+        </div>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="제목·작가 검색"
+            className="pl-9 pr-3 py-2 rounded-lg border border-stone-300 text-sm outline-none focus:ring-2 focus:ring-stone-400" />
+        </div>
+      </div>
+      <StatusDisplay status={status} />
+      {loading ? (
+        <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stone-400" /></div>
+      ) : (
+        <div className="border border-stone-200 rounded-xl overflow-hidden">
+          <div className="max-h-[480px] overflow-y-auto divide-y divide-stone-100">
+            {filtered.map(work => (
+              <div key={work.id} className="p-3 flex items-center gap-3 bg-white hover:bg-stone-50">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-900 truncate">{work.title}</p>
+                  <p className="text-xs text-stone-500 truncate">{work.author} · 판본 {work.editions?.length ?? 0}개{work.genre ? ` · ${work.genre}` : ''}</p>
+                </div>
+                <button onClick={()=>openEdit(work)} className="p-2 rounded-lg border border-stone-200 text-stone-500 hover:text-stone-900" title="수정"><Pencil size={14}/></button>
+                <button onClick={()=>deleteWork(work)} disabled={saving} className="p-2 rounded-lg border border-stone-200 text-stone-400 hover:text-rose-600" title="삭제"><Trash2 size={14}/></button>
+              </div>
+            ))}
+            {filtered.length === 0 && <p className="text-sm text-stone-400 text-center py-10">검색 결과가 없습니다.</p>}
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-[70] bg-stone-900/50 flex items-center justify-center p-4" onClick={()=>setEditing(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-semibold text-stone-900">작품 수정</h3>
+              <button onClick={()=>setEditing(null)} className="text-stone-400"><X size={18}/></button>
+            </div>
+            <div className="space-y-4">
+              <Field label="제목 *" name="title" value={draft.title} onChange={e=>setDraft(d=>({...d,title:e.target.value}))} />
+              <Field label="작가 *" name="author" value={draft.author} onChange={e=>setDraft(d=>({...d,author:e.target.value}))} />
+              <Field label="장르" name="genre" value={draft.genre} onChange={e=>setDraft(d=>({...d,genre:e.target.value}))} />
+              <TextArea label="작품 소개" name="description" value={draft.description} onChange={e=>setDraft(d=>({...d,description:e.target.value}))} rows={5} />
+            </div>
+            <button onClick={saveEdit} disabled={saving} className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-stone-900 text-white text-sm font-medium disabled:opacity-50">
+              {saving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} 저장
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
