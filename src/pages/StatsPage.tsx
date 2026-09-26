@@ -16,7 +16,6 @@ const geoUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 const countryMapping = COUNTRY_MAPPING;
 
 const GENRE_COLORS = ['#378ADD', '#639922', '#e07b39', '#9333ea', '#db2777', '#0891b2'];
-const KOR_MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
 export function StatsPage() {
   const navigate = useNavigate();
