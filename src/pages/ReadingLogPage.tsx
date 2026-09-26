@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Star, Heart, Loader2, Trash2, Edit2, AlertCircle, X, Calendar, Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { parseEditionSetId, parseVolumeId } from '../utils/editionUtils';
+import { useLogStore } from '../store/logStore';
 
 const OWNER_ID = import.meta.env.VITE_OWNER_ID;
 
@@ -29,6 +30,7 @@ type SortOption = 'date' | 'rating' | 'author';
 
 export function ReadingLogPage() {
   const navigate = useNavigate();
+  const { deleteLogById, updateLogMetadata } = useLogStore();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -117,13 +119,8 @@ export function ReadingLogPage() {
     if (!deletingLogId) return;
     const targetLog = logs.find(l => l.id === deletingLogId);
     try {
-      await supabase.from('logs').delete().eq('id', deletingLogId);
-      if (targetLog?.log_type === 'volume' && targetLog.edition_set_id) {
-        await supabase.from('logs').delete()
-          .eq('user_id', OWNER_ID)
-          .eq('edition_set_id', targetLog.edition_set_id)
-          .eq('log_type', 'set_completion');
-      }
+      const ok = await deleteLogById(deletingLogId);
+      if (!ok) return;
       setLogs(prev => {
         const updated = prev.filter(l => l.id !== deletingLogId);
         if (targetLog?.log_type === 'volume' && targetLog.edition_set_id) {
@@ -148,15 +145,17 @@ export function ReadingLogPage() {
     if (!editingLog) return;
     setIsUpdating(true);
     try {
-      await supabase.from('logs').update({
+      const createdAt = new Date(editDate).toISOString();
+      const ok = await updateLogMetadata(editingLog.id, {
         rating: editRating,
         liked: editLiked,
-        created_at: new Date(editDate).toISOString(),
-      }).eq('id', editingLog.id);
+        createdAt,
+      });
+      if (!ok) return;
 
       setLogs(prev => prev.map(l =>
         l.id === editingLog.id
-          ? { ...l, rating: editRating, liked: editLiked, created_at: new Date(editDate).toISOString() }
+          ? { ...l, rating: editRating, liked: editLiked, created_at: createdAt }
           : l
       ));
       setEditingLog(null);
