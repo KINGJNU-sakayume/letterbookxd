@@ -211,7 +211,7 @@ letterbookxd/
 | **Purpose** | Owner-only data curation panel for adding/editing the catalogue |
 | **Key UI elements** | Tabbed forms: Add Work, Add Edition (with Aladin ISBN lookup), Add Author, Add Series |
 | **User interactions** | Fill forms, trigger Aladin API lookup by ISBN, submit to Supabase |
-| **Auth required** | No auth gate — relies on Supabase row-level security (RLS) and owner ID |
+| **Auth required** | Supabase 이메일/비밀번호 로그인 + `app_metadata.role = "admin"` claim |
 | **Data fetched** | Aladin API (via `/aladin-api` Vite proxy) for book metadata on ISBN lookup; writes to Supabase |
 
 ---
@@ -307,6 +307,29 @@ VITE_SUPABASE_ANON_KEY=your_anon_key
 ```
 
 All variables are prefixed with `VITE_` — Vite exposes them to the browser via `import.meta.env`.
+
+### Supabase 관리자 인증 설정
+
+관리자 화면은 매직 링크가 아니라 Supabase Auth의 **이메일/비밀번호 로그인**을 사용한다. 다음 설정은 Supabase Dashboard에서 프로젝트 소유자가 직접 수행해야 한다.
+
+1. **Authentication → Providers → Email**에서 Email 공급자를 활성화한다. 실서비스에서는 **Confirm email**도 활성화하고 실제로 메일을 받을 수 있는 관리자 이메일을 사용한다.
+2. **Authentication → Users → Add user**에서 관리자 사용자를 만든다. 개발 전용 계정이 필요하면 `test@test.com`을 사용할 수 있지만, 실서비스에는 사용하지 않는다. 비밀번호 관리자에서 생성한 길고 고유한 비밀번호를 설정하며 비밀번호를 저장소나 `VITE_` 환경 변수에 넣지 않는다.
+3. 이메일 확인을 완료한 다음, 서버 측 Admin API 또는 Dashboard의 SQL Editor처럼 service-role 권한이 있는 안전한 경로에서 관리자 claim을 부여한다. 예를 들어 SQL Editor에서는 다음 쿼리를 실행한다.
+
+   ```sql
+   update auth.users
+   set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
+     || '{"role":"admin"}'::jsonb
+   where email = 'test@test.com';
+   ```
+
+   실서비스 계정은 위 이메일을 실제 관리자 이메일로 바꾼다. `user_metadata`는 사용자가 변경할 수 있으므로 권한 판정에 사용하지 않는다. 기존 세션이 있다면 claim이 포함된 새 JWT를 받도록 로그아웃한 뒤 다시 로그인한다.
+4. **Authentication → URL Configuration**에서 아래 주소를 등록한다.
+   - Site URL: `https://kingjnu-sakayume.github.io/letterbookxd/` (실제 배포 도메인을 쓰는 경우 해당 값으로 교체)
+   - Redirect URLs: `http://localhost:5173/letterbookxd/#/admin`
+   - Redirect URLs: `https://kingjnu-sakayume.github.io/letterbookxd/#/admin`
+
+현재 비밀번호 로그인은 redirect URL을 사용하지 않지만, 이메일 확인 흐름과 향후 인증 링크가 올바른 관리자 경로로 돌아오도록 위 값을 유지한다. 매직 링크 로그인을 다시 도입한다면 관리자 로그인에서는 반드시 `signInWithOtp`의 `options.shouldCreateUser: false`를 설정해 존재하지 않는 이메일로 신규 사용자가 자동 생성되지 않게 한다.
 
 ---
 
@@ -428,7 +451,7 @@ The app is deployed at `/letterbookxd/`. React Router's `basename="/letterbookxd
 
 ### Known Limitations
 
-- **Authenticated ownership:** Log reads and writes use the signed-in Supabase user's UUID and RLS `auth.uid()`. Catalogue writes additionally require `app_metadata.role = "admin"`; `user_metadata` is never trusted for authorization. Grant that role (including for `test@test.com`) only through the Supabase Dashboard or Admin API, then have the user sign in again to refresh the JWT.
+- **Authenticated ownership:** Log reads and writes use the signed-in Supabase user's UUID and RLS `auth.uid()`. `/admin` requires an email/password session whose JWT has `app_metadata.role = "admin"`; the UI gate complements rather than replaces matching RLS policies. `user_metadata` is never trusted for authorization. Grant the role only through the Supabase Dashboard or Admin API, then have the user sign in again to refresh the JWT.
 - **No offline support:** All data is fetched from Supabase on load; no service worker or local cache beyond Zustand in-memory state.
 - **Aladin proxy is dev-only:** The `/aladin-api` proxy in `vite.config.ts` only works during development. The admin ISBN lookup will fail in production unless a separate CORS proxy is deployed.
 - **`docs/` is committed:** The build output lives in `/docs` and is version-controlled for GitHub Pages. Run `npm run build` before committing if deploying manually.
