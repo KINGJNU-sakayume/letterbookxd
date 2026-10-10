@@ -50,7 +50,7 @@ export function Tabs<T extends string>({ items, value, onChange, label, classNam
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(it.value)}
-            className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap pb-3 pt-1 font-medium transition-colors ${
+            className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap pb-3 pt-1 font-medium transition-colors coarse:pt-2.5 ${
               size === 'sm' ? 'text-[14px]' : 'text-[15px]'
             } ${active ? 'text-ink' : 'text-ink-muted hover:text-ink'}`}
           >

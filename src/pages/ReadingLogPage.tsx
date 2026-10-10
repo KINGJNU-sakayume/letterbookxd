@@ -26,6 +26,9 @@ const KIND_LABEL: Record<Kind, string> = {
   series: '시리즈 완주',
   reading: '읽는 중',
 };
+/** 도구 줄의 고르는 칸: 옆 필터가 없는 화면(lg 미만)에서는 같은 너비로 한 줄, 전화기에서는 두 칸씩 */
+const SELECT = 'field-select h-10 w-auto min-w-0 py-0 text-[14px] max-lg:flex-1 max-sm:min-w-[42%]';
+
 const SORT_LABEL: Record<SortOption, string> = { date: '날짜순', rating: '별점 높은순', author: '작가순' };
 
 interface Entry {
@@ -288,7 +291,7 @@ export function ReadingLogPage() {
 
           <section className="min-w-0" aria-label="기록 목록">
             <div className="mb-6 flex flex-wrap items-center gap-2.5">
-              <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft sm:max-w-xs">
+              <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft lg:max-w-xs">
                 <Search size={15} className="shrink-0 text-ink-faint" aria-hidden />
                 <input
                   type="search"
@@ -304,29 +307,32 @@ export function ReadingLogPage() {
                   </button>
                 )}
               </div>
-              <select value={year ?? ''} onChange={(e) => update({ year: e.target.value || null })} aria-label="연도" className="field-select h-10 w-auto py-0 text-[14px] lg:hidden">
-                <option value="">모든 연도</option>
-                {years.map(([y]) => <option key={y} value={y}>{y}년</option>)}
-              </select>
-              <select value={kind ?? ''} onChange={(e) => update({ kind: e.target.value || null })} aria-label="구분" className="field-select h-10 w-auto py-0 text-[14px] lg:hidden">
-                <option value="">모든 기록</option>
-                {(Object.keys(KIND_LABEL) as Kind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-              </select>
-              {authors.length > 1 && (
-                <select value={author} onChange={(e) => update({ author: e.target.value || null })} aria-label="작가" className="field-select h-10 w-auto max-w-[14rem] py-0 text-[14px]">
-                  <option value="">모든 작가</option>
-                  {authors.map((a) => <option key={a} value={a}>{a}</option>)}
+              {/* lg 미만에서는 고르는 칸을 찾기 줄 아래에 가지런히 놓는다. lg부터는 한 줄에 풀어 놓는다 */}
+              <div className="flex flex-wrap items-center gap-2.5 max-lg:order-last max-lg:basis-full lg:contents">
+                <select value={year ?? ''} onChange={(e) => update({ year: e.target.value || null })} aria-label="연도" className={`${SELECT} lg:hidden`}>
+                  <option value="">모든 연도</option>
+                  {years.map(([y]) => <option key={y} value={y}>{y}년</option>)}
                 </select>
-              )}
+                <select value={kind ?? ''} onChange={(e) => update({ kind: e.target.value || null })} aria-label="구분" className={`${SELECT} lg:hidden`}>
+                  <option value="">모든 기록</option>
+                  {(Object.keys(KIND_LABEL) as Kind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+                </select>
+                {authors.length > 1 && (
+                  <select value={author} onChange={(e) => update({ author: e.target.value || null })} aria-label="작가" className={`${SELECT} lg:max-w-[14rem]`}>
+                    <option value="">모든 작가</option>
+                    {authors.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
+                <select value={sort} onChange={(e) => update({ sort: e.target.value === 'date' ? null : e.target.value })} aria-label="정렬" className={`${SELECT} lg:order-last lg:ml-auto`}>
+                  {(Object.keys(SORT_LABEL) as SortOption[]).map((s) => <option key={s} value={s}>{SORT_LABEL[s]}</option>)}
+                </select>
+              </div>
               <p className="tnum text-[13.5px] text-ink-muted" aria-live="polite">{filtered.length}건</p>
               {hasFilters && (
                 <button type="button" onClick={() => update({ year: null, min: null, kind: null, author: null, q: null })} className="text-[13.5px] text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-ink">
                   필터 지우기
                 </button>
               )}
-              <select value={sort} onChange={(e) => update({ sort: e.target.value === 'date' ? null : e.target.value })} aria-label="정렬" className="field-select ml-auto h-10 w-auto py-0 text-[14px]">
-                {(Object.keys(SORT_LABEL) as SortOption[]).map((s) => <option key={s} value={s}>{SORT_LABEL[s]}</option>)}
-              </select>
             </div>
 
             {filtered.length === 0 ? (
@@ -391,10 +397,10 @@ export function ReadingLogPage() {
                           <td className="py-2.5 text-center">{e.liked && <Heart size={14} className="mx-auto fill-seal text-seal" aria-label="인생책" />}</td>
                           <td className="py-2.5 text-right">
                             <span className="inline-flex gap-0.5 text-ink-faint">
-                              <button type="button" onClick={() => setEditing(e)} className="btn-icon h-8 w-8" aria-label={`${e.title} 기록 고치기`}>
+                              <button type="button" onClick={() => setEditing(e)} className="btn-icon btn-icon-sm" aria-label={`${e.title} 기록 고치기`}>
                                 <Pencil size={14} />
                               </button>
-                              <button type="button" onClick={() => void remove(e)} className="btn-icon h-8 w-8 hover:text-seal" aria-label={`${e.title} 기록 지우기`}>
+                              <button type="button" onClick={() => void remove(e)} className="btn-icon btn-icon-sm hover:text-seal" aria-label={`${e.title} 기록 지우기`}>
                                 <Trash2 size={14} />
                               </button>
                             </span>
@@ -433,7 +439,7 @@ export function ReadingLogPage() {
                                 </span>
                               </span>
                             </Link>
-                            <button type="button" onClick={() => setEditing(e)} className="btn-icon h-9 w-9 text-ink-faint" aria-label={`${e.title} 기록 고치기`}>
+                            <button type="button" onClick={() => setEditing(e)} className="btn-icon text-ink-faint" aria-label={`${e.title} 기록 고치기`}>
                               <Pencil size={15} />
                             </button>
                           </li>

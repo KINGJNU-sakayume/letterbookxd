@@ -51,7 +51,7 @@ export function Navbar() {
       </a>
       <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">
         <div className="page-x flex h-16 items-center gap-6 lg:gap-10">
-          <Link to="/" className="group flex shrink-0 items-center gap-2.5" aria-label="책장 처음으로">
+          <Link to="/" className="group flex shrink-0 items-center gap-2.5 coarse:min-h-11" aria-label="책장 처음으로">
             <span className="seal-mark transition-transform duration-200 group-hover:-rotate-3">책</span>
             <span className="font-serif text-[21px] font-bold tracking-[-0.01em] text-ink">책장</span>
           </Link>

@@ -103,6 +103,9 @@ export function StatsPage() {
   }
 
   const ratedCount = stats.ratingDist.reduce((s, r) => s + r.count, 0);
+  // 맨 위 '완독'은 작품 수, 달별 그래프는 완독 기록 수다. 같은 작품을 다른 판본으로 또 읽으면 둘이 달라지므로 그 차이를 밝힌다.
+  const completionCount = stats.monthlyDist.reduce((s, m) => s + m.count, 0);
+  const rereadNote = completionCount > stats.totalWorks ? ` · 다른 판본으로 다시 읽은 책까지 ${completionCount}번` : '';
   const countryCounts = Object.fromEntries(
     Object.entries(stats.countryDataMap).map(([k, v]) => [k, v.works.length]),
   );
@@ -132,7 +135,7 @@ export function StatsPage() {
                     else next.set('year', String(y));
                     setParams(next, { replace: true });
                   }}
-                  className={`tnum h-8 rounded-[4px] px-3.5 text-[13.5px] font-medium transition-colors ${
+                  className={`tnum h-8 rounded-[4px] px-3.5 text-[13.5px] font-medium transition-colors coarse:h-[38px] coarse:px-4 ${
                     active ? 'bg-paper-raised text-ink shadow-[0_0_0_1px_rgb(29_27_23/0.1)]' : 'text-ink-muted hover:text-ink'
                   }`}
                 >
@@ -169,7 +172,7 @@ export function StatsPage() {
         <Card
           className="xl:col-span-8"
           title="달마다 완독한 책"
-          subtitle={year === 'all' ? '모든 해를 달별로 합친 수' : `${year}년`}
+          subtitle={`${year === 'all' ? '모든 해를 달별로 합친 수' : `${year}년`}${rereadNote}`}
           action={
             <button type="button" onClick={() => setShowTable((v) => !v)} className="btn btn-ghost btn-sm -mr-2" aria-pressed={showTable}>
               {showTable ? '그래프로 보기' : '표로 보기'}
@@ -224,7 +227,7 @@ export function StatsPage() {
                       type="button"
                       aria-pressed={active}
                       onClick={() => setCountry(active ? null : name)}
-                      className={`flex w-full items-center gap-2.5 rounded-[4px] px-2 py-1.5 text-left text-[13.5px] transition-colors ${
+                      className={`flex w-full items-center gap-2.5 rounded-[4px] px-2 py-1.5 text-left text-[13.5px] transition-colors coarse:py-3 ${
                         active ? 'bg-paper-sunken font-semibold text-ink' : 'text-ink-soft hover:bg-paper-sunken/70'
                       }`}
                     >

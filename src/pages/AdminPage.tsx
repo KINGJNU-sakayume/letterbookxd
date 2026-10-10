@@ -290,8 +290,8 @@ function ManageLibraryPanel() {
                   <td className="tnum px-4 py-2.5 text-right text-[14px] text-ink-soft">{work.editions?.length ?? 0}</td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="inline-flex gap-0.5">
-                      <button type="button" onClick={() => openEdit(work)} className="btn-icon h-8 w-8" aria-label={`${work.title} 고치기`}><Pencil size={14} /></button>
-                      <button type="button" onClick={() => void deleteWork(work)} disabled={saving} className="btn-icon h-8 w-8 hover:text-seal" aria-label={`${work.title} 지우기`}><Trash2 size={14} /></button>
+                      <button type="button" onClick={() => openEdit(work)} className="btn-icon btn-icon-sm" aria-label={`${work.title} 고치기`}><Pencil size={14} /></button>
+                      <button type="button" onClick={() => void deleteWork(work)} disabled={saving} className="btn-icon btn-icon-sm hover:text-seal" aria-label={`${work.title} 지우기`}><Trash2 size={14} /></button>
                     </span>
                   </td>
                 </tr>
