@@ -57,7 +57,12 @@
     @apply inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[5px] px-3.5 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45;
   }
   .btn-sm {
-    @apply h-8 px-3 text-[13px];
+    @apply h-8 px-3 text-[13px] coarse:px-3.5 coarse:text-[14px];
+  }
+  /* 손가락으로 누르는 기기에서는 높이 44px을 확보한다 */
+  .btn,
+  .btn-sm {
+    @apply coarse:h-11;
   }
   .btn-lg {
     @apply h-11 px-5 text-[15px];
@@ -75,7 +80,11 @@
     @apply bg-seal text-paper-raised hover:bg-seal-dark;
   }
   .btn-icon {
-    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[5px] text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:pointer-events-none disabled:opacity-45;
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[5px] text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:pointer-events-none disabled:opacity-45 coarse:h-11 coarse:w-11;
+  }
+  /* 표처럼 촘촘한 자리에 넣는 작은 아이콘 버튼 */
+  .btn-icon-sm {
+    @apply h-8 w-8 coarse:h-11 coarse:w-11;
   }
 
   .field {
@@ -96,7 +105,7 @@
   }
 
   .chip {
-    @apply inline-flex items-center gap-1 rounded-[4px] border border-line bg-paper-raised px-2 py-0.5 text-[12.5px] text-ink-soft;
+    @apply inline-flex items-center gap-1 rounded-[4px] border border-line bg-paper-raised px-2 py-0.5 text-[12.5px] text-ink-soft coarse:min-h-8 coarse:px-2.5;
   }
 
   .kbd {
@@ -122,6 +131,16 @@
     transition:
       transform 200ms ease-out,
       box-shadow 200ms ease-out;
+  }
+  /*
+   * 표지·초상 타일(둘러보기, 내 책장, 작가의 작품)의 키보드 초점.
+   * 표지가 4px 들리는 것만으로는 어디에 있는지 알기 어려워 타일 전체에 초점 테두리를 두른다.
+   */
+  .tile {
+    @apply block rounded-[3px];
+  }
+  .tile:focus-visible {
+    outline-offset: 5px;
   }
   .group:hover .book-cover.lift,
   .group:focus-visible .book-cover.lift {

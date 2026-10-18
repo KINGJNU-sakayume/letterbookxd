@@ -134,6 +134,38 @@ export function SeriesPage() {
 
   const tags = splitGenre(series.genre);
 
+  // 내 진행: 넓은 화면은 표지 아래, 좁은 화면은 제목과 소개 다음에 둔다 (작품 화면의 '내 기록'과 같은 순서)
+  const progress = signedIn && works.length > 0 ? (
+    <div className="mt-6 border-t border-line pt-4 max-lg:max-w-md">
+      <p className="text-[12.5px] font-medium text-ink-faint">내 진행</p>
+      <p className="mt-1.5 text-[14px] text-ink-soft">
+        <span className="tnum font-semibold text-ink">{completedCount}</span>
+        <span className="tnum text-ink-muted"> / {works.length}작품 완독</span>
+      </p>
+      <ProgressBar value={(completedCount / works.length) * 100} tone="completed" className="mt-2" label="시리즈 완독 비율" />
+
+      <div className="mt-5">
+        {isSeriesComplete ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="-rotate-[4deg] rounded-[3px] border-[1.5px] border-completed px-1.5 py-[3px] font-serif text-[12.5px] font-bold leading-none text-completed-dark">
+                완주
+              </span>
+              {seriesLog && <span className="tnum text-[13px] text-ink-soft">{formatDate(seriesLog.createdAt)}</span>}
+            </div>
+            <p className="mt-3 text-[12.5px] text-ink-muted">시리즈 전체 평가</p>
+            <div className="mt-1 flex items-center gap-2">
+              <StarRating rating={seriesLog?.rating ?? null} onChange={handleSeriesRating} size="md" label="시리즈 별점" />
+              <LikeButton liked={seriesLog?.liked ?? false} onToggle={toggleSeriesLiked} compact />
+            </div>
+          </>
+        ) : (
+          <p className="text-[12.5px] leading-relaxed text-ink-muted">모든 작품을 읽으면 시리즈 전체에 별점을 남길 수 있습니다.</p>
+        )}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <Page>
       <Breadcrumbs
@@ -154,36 +186,7 @@ export function SeriesPage() {
               <BookCover src={seriesCover} alt={`${series.title} 표지`} title={series.title} author={series.author} loading="eager" className="relative w-full" />
             </div>
 
-            {signedIn && works.length > 0 && (
-              <div className="mt-6 border-t border-line pt-4">
-                <p className="text-[12.5px] font-medium text-ink-faint">내 진행</p>
-                <p className="mt-1.5 text-[14px] text-ink-soft">
-                  <span className="tnum font-semibold text-ink">{completedCount}</span>
-                  <span className="tnum text-ink-muted"> / {works.length}작품 완독</span>
-                </p>
-                <ProgressBar value={(completedCount / works.length) * 100} tone="completed" className="mt-2" label="시리즈 완독 비율" />
-
-                <div className="mt-5">
-                  {isSeriesComplete ? (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <span className="-rotate-[4deg] rounded-[3px] border-[1.5px] border-completed px-1.5 py-[3px] font-serif text-[12.5px] font-bold leading-none text-completed-dark">
-                          완주
-                        </span>
-                        {seriesLog && <span className="tnum text-[13px] text-ink-soft">{formatDate(seriesLog.createdAt)}</span>}
-                      </div>
-                      <p className="mt-3 text-[12.5px] text-ink-muted">시리즈 전체 평가</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <StarRating rating={seriesLog?.rating ?? null} onChange={handleSeriesRating} size="md" label="시리즈 별점" />
-                        <LikeButton liked={seriesLog?.liked ?? false} onToggle={toggleSeriesLiked} compact />
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-[12.5px] leading-relaxed text-ink-muted">모든 작품을 읽으면 시리즈 전체에 별점을 남길 수 있습니다.</p>
-                  )}
-                </div>
-              </div>
-            )}
+            {progress && <div className="hidden lg:block">{progress}</div>}
           </div>
         </aside>
 
@@ -217,6 +220,8 @@ export function SeriesPage() {
               {series.description}
             </p>
           )}
+
+          {progress && <div className="lg:hidden">{progress}</div>}
 
           <section className="mt-12" aria-labelledby="series-works">
             <SectionHeading id="series-works" title="수록 작품" count={`${works.length}편`} />
@@ -270,10 +275,21 @@ export function SeriesPage() {
 
               return (
                 <div className="mt-8">
-                  <h3 className="mb-3 font-serif text-[19px] font-bold text-ink">
-                    {selectedWork.series_order != null && <span className="text-ink-muted">{selectedWork.series_order}부 </span>}
-                    {selectedWork.title}
-                  </h3>
+                  <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <h3 className="font-serif text-[19px] font-bold text-ink">
+                      {selectedWork.series_order != null && <span className="text-ink-muted">{selectedWork.series_order}부 </span>}
+                      {selectedWork.title}
+                    </h3>
+                    {/* 옆 칸(미리보기)이 없는 화면에서는 여기서 바로 작품 화면으로 간다 */}
+                    <Link to={`/book/${selectedWork.id}`} className="link-quiet text-[13.5px] text-ink-muted coarse:-my-3 coarse:py-3 xl:hidden">
+                      작품 화면으로
+                    </Link>
+                  </div>
+                  {selectedWork.description && (
+                    <p className="mb-4 line-clamp-3 max-w-[68ch] whitespace-pre-line font-serif text-[15px] leading-[1.8] text-ink-soft xl:hidden">
+                      {selectedWork.description}
+                    </p>
+                  )}
                   {editionGroups.length > 1 && (
                     <Tabs
                       label="출판사"
@@ -332,14 +348,14 @@ export function SeriesPage() {
           </section>
         </div>
 
-        {/* 고른 작품 미리보기 */}
+        {/* 고른 작품 미리보기: 옆 칸이 생기는 xl부터. 그보다 좁으면 권 목록 위에 소개와 링크만 둔다 */}
         {selectedWork && (
-          <aside className="min-w-0 lg:col-start-2 xl:col-start-3 xl:row-start-1" aria-label="고른 작품">
+          <aside className="hidden min-w-0 xl:col-start-3 xl:row-start-1 xl:block" aria-label="고른 작품">
             <div className="xl:sticky xl:top-24">
               <div className="panel p-5">
-                <div className="flex gap-4 xl:block">
-                  <BookCover src={selectedCover} alt={`${selectedWork.title} 표지`} title={selectedWork.title} author={selectedWork.author} className="w-24 shrink-0 xl:w-40" />
-                  <div className="min-w-0 xl:mt-4">
+                <div>
+                  <BookCover src={selectedCover} alt={`${selectedWork.title} 표지`} title={selectedWork.title} author={selectedWork.author} className="w-40 shrink-0" />
+                  <div className="mt-4 min-w-0">
                     <p className="text-[12.5px] font-medium text-ink-muted">
                       {selectedWork.series_order != null ? `${selectedWork.series_order}부` : '수록 작품'}
                       {selectedWork.published_year ? ` · ${selectedWork.published_year}` : ''}
@@ -353,7 +369,7 @@ export function SeriesPage() {
                   <p className="mt-3 line-clamp-6 whitespace-pre-line font-serif text-[15px] leading-[1.8] text-ink-soft">{selectedWork.description}</p>
                 )}
                 <Link to={`/book/${selectedWork.id}`} className="btn btn-secondary mt-5 w-full">
-                  작품 페이지로
+                  작품 화면으로
                 </Link>
               </div>
             </div>

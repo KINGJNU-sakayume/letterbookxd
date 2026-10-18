@@ -360,7 +360,7 @@ Tokens live in `tailwind.config.js`; shared component classes live in `src/index
 | Token | Value | Use |
 |-------|-------|-----|
 | `paper` / `paper-raised` / `paper-sunken` | `#f4f0e8` / `#fbf9f4` / `#ece6da` | Page, panels, wells |
-| `ink` / `ink-soft` / `ink-muted` / `ink-faint` | `#1d1b17` / `#3b3730` / `#6d665a` / `#8a8274` | Text (muted ≥ 4.5:1 on paper; faint is for non-essential text only) |
+| `ink` / `ink-soft` / `ink-muted` / `ink-faint` | `#1d1b17` / `#3b3730` / `#665f54` / `#726b5e` | Text. On `paper` / `paper-raised`: muted 5.5:1 / 6.0:1, faint 4.6:1 / 5.0:1. On `paper-sunken` muted is 5.1:1 but faint drops to 4.2:1, so use muted there |
 | `line` / `line-strong` / `line-soft` | `#dcd4c4` / `#c5bba7` / `#e7e1d5` | Hairlines and borders |
 | `seal` | `#a0312a` | Logo, 인생책 heart, destructive actions, focus ring |
 | `reading` | `#2e5d8a` | 읽는 중 |
@@ -369,6 +369,8 @@ Tokens live in `tailwind.config.js`; shared component classes live in `src/index
 
 - **Type:** `font-serif` (Gowun Batang) for page/book titles, section headings and reading text (descriptions, excerpts); `font-sans` (Pretendard) for everything else, including all numbers in figures and charts. Use `tnum` for numbers that align in columns.
 - **Layout:** no fixed max width. `page-x` gives responsive side padding (up to `3xl` = 1920px); grids use `repeat(auto-fill, minmax(…))` so wider screens get more columns; long text is limited to ~68ch inside wide columns.
+- **Touch:** the `coarse:` variant (`@media (pointer: coarse)`, defined in `tailwind.config.js`) grows controls to 44px on touch screens while mouse layouts stay compact. `btn`, `btn-sm`, `btn-icon`, `btn-icon-sm`, `chip`, `Tabs`, `StarRating` and `LikeButton` already do this; give any new one-off control a `coarse:` size too.
+- **Focus:** links that wrap a cover or portrait use the `tile` class so the seal-coloured focus ring sits around the whole tile. Do not add `outline-none` to links or buttons.
 - **Components first:** use `Page`/`PageHeader`/`SectionHeading`, `Tabs`, `Dialog`/`useConfirm`, `toast()`, `BookCover`, `StarRating`, `ReadingMark` rather than one-off markup. Do not use `window.confirm`/`alert`.
 - **Copy:** short, plain Korean. Use `josa()` from `src/lib/hangul.ts` when a particle follows dynamic text (`josa(title, '을', '를')`). Avoid emoji and decorative glyphs in the UI.
 - **Charts:** one hue per single-series chart, hairline grids, ≤24px bars with 4px rounded ends, values written as text or available in a table view; the map uses the validated 5-step moss ramp in `mapScale.ts`.
@@ -379,7 +381,7 @@ Tokens live in `tailwind.config.js`; shared component classes live in `src/index
 |-------|-------|-------|
 | `reading` | `reading` | `#2e5d8a` |
 | `completed` | `completed` | `#4d7a2e` |
-| `unread` | `ink-faint` | `#8a8274` |
+| `unread` | `ink-faint` | `#726b5e` |
 
 ### Base Path
 

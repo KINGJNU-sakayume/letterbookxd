@@ -130,10 +130,8 @@ export function AuthorPage() {
 
   const hasFlowchart = flowchart !== null && flowchart.nodes.length > 0;
   const displayName = author?.name ?? name;
-  const facts: [string, string][] = [
-    ['생몰', author?.birth_death ?? ''],
-    ['국가', author?.country ?? ''],
-  ].filter((f): f is [string, string] => !!f[1]);
+  const facts = [author?.birth_death, author?.country].filter((f): f is string => !!f);
+  const awards = author?.awards ?? [];
 
   return (
     <Page>
@@ -152,49 +150,53 @@ export function AuthorPage() {
             : 'xl:grid-cols-[264px_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1fr)]'
         }`}
       >
-        {/* 사진과 기본 정보 */}
-        <aside className="lg:row-span-2 xl:row-span-1" aria-label="작가 정보">
-          <div className="flex gap-5 lg:sticky lg:top-24 lg:block">
+        {/* 넓은 화면: 사진과 수상 내역. 생몰·국가는 이름 바로 아래 한 줄에 있으므로 여기서 되풀이하지 않는다 */}
+        <aside className="hidden lg:block" aria-label="작가 사진">
+          <div className="lg:sticky lg:top-24">
             <Portrait
               src={author?.photo_url}
               name={displayName}
-              className="aspect-[3/4] w-32 shrink-0 shadow-[0_0_0_1px_rgb(29_27_23/0.07),0_12px_20px_-14px_rgb(29_27_23/0.5)] sm:w-40 lg:w-full"
+              className="aspect-[3/4] w-full shadow-[0_0_0_1px_rgb(29_27_23/0.07),0_12px_20px_-14px_rgb(29_27_23/0.5)]"
             />
-            {(facts.length > 0 || (author?.awards?.length ?? 0) > 0) && (
-              <dl className="min-w-0 space-y-3 text-[13.5px] lg:mt-6 lg:border-t lg:border-line lg:pt-4">
-                {facts.map(([label, value]) => (
-                  <div key={label}>
-                    <dt className="text-[12.5px] text-ink-faint">{label}</dt>
-                    <dd className="tnum mt-0.5 text-ink-soft">{value}</dd>
-                  </div>
-                ))}
-                {author?.awards && author.awards.length > 0 && (
-                  <div>
-                    <dt className="text-[12.5px] text-ink-faint">수상</dt>
-                    <dd className="mt-1 flex flex-wrap gap-1.5">
-                      {author.awards.map((award) => (
-                        <span key={award} className="chip">{award}</span>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-              </dl>
+            {awards.length > 0 && (
+              <div className="mt-6 border-t border-line pt-4">
+                <p className="text-[12.5px] text-ink-faint">수상</p>
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {awards.map((award) => (
+                    <li key={award} className="chip">{award}</li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </aside>
 
         {/* 본문 */}
         <div className="min-w-0">
-          <header>
-            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.015em] text-ink sm:text-[44px] 2xl:text-[52px]">
-              {displayName}
-            </h1>
-            {(author?.birth_death || author?.country) && (
-              <p className="tnum mt-3 text-[17px] text-ink-muted">
-                {[author?.birth_death, author?.country].filter(Boolean).join(' · ')}
-              </p>
-            )}
+          {/* 좁은 화면: 사진 옆에 이름을 두어 첫 화면에서 누구의 화면인지 바로 보이게 한다 */}
+          <header className="flex items-center gap-4 sm:gap-6 lg:block">
+            <Portrait
+              src={author?.photo_url}
+              name={displayName}
+              className="aspect-[3/4] w-24 shrink-0 shadow-[0_0_0_1px_rgb(29_27_23/0.07),0_12px_20px_-14px_rgb(29_27_23/0.5)] sm:w-32 lg:hidden"
+            />
+            <div className="min-w-0">
+              <h1 className="text-balance font-serif text-[30px] font-bold leading-[1.15] tracking-[-0.015em] text-ink sm:text-[44px] lg:leading-[1.12] 2xl:text-[52px]">
+                {displayName}
+              </h1>
+              {facts.length > 0 && (
+                <p className="tnum mt-2 text-[15px] text-ink-muted sm:text-[17px] lg:mt-3">{facts.join(' · ')}</p>
+              )}
+            </div>
           </header>
+
+          {awards.length > 0 && (
+            <ul className="mt-5 flex flex-wrap gap-1.5 lg:hidden" aria-label="수상">
+              {awards.map((award) => (
+                <li key={award} className="chip">{award}</li>
+              ))}
+            </ul>
+          )}
 
           {author?.bio && (
             <p className="text-pretty mt-7 max-w-[68ch] whitespace-pre-line font-serif text-[17px] leading-[1.9] text-ink-soft">{author.bio}</p>
@@ -233,10 +235,10 @@ export function AuthorPage() {
                   const readingEdition = readingLog ? work.editions.find(e => `vol-${e.id}` === readingLog.volumeId) : undefined;
                   return (
                     <li key={work.id}>
-                      <Link to={`/book/${work.id}`} className="group block outline-none">
+                      <Link to={`/book/${work.id}`} className="tile group">
                         <BookCover src={work.display_cover} alt={work.title} title={work.title} author={displayName} className="lift w-full" />
                         <p className="tnum mt-3 text-[12.5px] text-ink-faint">{work.published_year || '연도 미상'}</p>
-                        <p className="mt-0.5 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+                        <p className="mt-0.5 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline group-focus-visible:underline">
                           {work.title}
                         </p>
                         {signedIn && state !== 'unread' && (

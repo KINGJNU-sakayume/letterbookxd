@@ -37,6 +37,12 @@ const SORTS: Record<View, { value: string; label: string }[]> = {
     { value: 'count', label: '작품 많은 순' },
   ],
 };
+/**
+ * 이어 읽기 카드는 한 줄만 보인다: sm은 2권, xl은 3권, 3xl은 4권.
+ * 구간이 겹치지 않게 나눠 적어, 만들어지는 CSS의 순서와 상관없이 맞게 동작한다.
+ */
+const READING_ROW =
+  'sm:max-xl:[&:nth-child(n+3)]:hidden xl:max-3xl:[&:nth-child(n+4)]:hidden 3xl:[&:nth-child(n+5)]:hidden';
 const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(136px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(148px,1fr))] sm:gap-x-6 2xl:grid-cols-[repeat(auto-fill,minmax(164px,1fr))] 2xl:gap-x-8';
 
 function countBy<T>(items: T[], keys: (item: T) => string[]) {
@@ -188,14 +194,19 @@ export function SearchPage() {
             title="이어 읽기"
             count={`${readingItems.length}권`}
             action={
-              <Link to="/bookshelf" className="text-[13.5px] text-ink-muted transition-colors hover:text-ink">
-                내 책장에서 보기
+              <Link to="/bookshelf?tab=reading" className="text-[13.5px] text-ink-muted transition-colors hover:text-ink">
+                내 책장에서 모두 보기
               </Link>
             }
           />
+          {/*
+            좁은 화면은 옆으로 넘기는 줄, 그 밖에는 한 줄에 들어가는 만큼(2·3·4권)만 보여 준다.
+            읽는 책이 많아도 둘러보기의 본문인 표지 목록이 첫 화면 밖으로 밀리지 않게 하려는 것이고,
+            나머지는 '내 책장에서 모두 보기'로 간다.
+          */}
           <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-3 3xl:grid-cols-4">
             {readingItems.slice(0, 8).map((it) => (
-              <div key={it.log.id} className="w-[86%] shrink-0 snap-start sm:w-auto">
+              <div key={it.log.id} className={`w-[86%] shrink-0 snap-start sm:w-auto ${READING_ROW}`}>
               <ReadingCard
                 workId={it.work.id}
                 title={it.work.title}
@@ -423,7 +434,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13.5px] transition-colors ${
+      className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13.5px] transition-colors coarse:h-10 coarse:px-4 coarse:text-[14px] ${
         active ? 'border-ink bg-ink text-paper-raised' : 'border-line bg-paper-raised text-ink-soft hover:border-line-strong'
       }`}
     >
@@ -437,7 +448,7 @@ function ActiveFilter({ label, onClear }: { label: string; onClear: () => void }
     <button
       type="button"
       onClick={onClear}
-      className="inline-flex h-7 items-center gap-1.5 rounded-[4px] bg-ink px-2.5 text-[13px] text-paper-raised transition-colors hover:bg-ink-soft"
+      className="inline-flex h-7 items-center gap-1.5 rounded-[4px] bg-ink px-2.5 text-[13px] text-paper-raised transition-colors hover:bg-ink-soft coarse:h-10 coarse:px-3.5 coarse:text-[14px]"
       aria-label={`${label} 필터 해제`}
     >
       {label}
@@ -448,10 +459,10 @@ function ActiveFilter({ label, onClear }: { label: string; onClear: () => void }
 
 function WorkTile({ work, status }: { work: CatalogWork; status?: WorkStatus }) {
   return (
-    <Link to={`/book/${work.id}`} className="group block outline-none">
+    <Link to={`/book/${work.id}`} className="tile group">
       <BookCover src={work.cover} alt={work.title} title={work.title} author={work.author} className="lift w-full" />
       <div className="mt-3">
-        <p className="line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+        <p className="line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline group-focus-visible:underline">
           {work.title}
         </p>
         <p className="mt-0.5 truncate text-[13px] text-ink-muted">
@@ -469,7 +480,7 @@ function WorkTile({ work, status }: { work: CatalogWork; status?: WorkStatus }) 
 function SeriesTile({ series, done }: { series: CatalogSeries; done: number | null }) {
   const total = series.workIds.length;
   return (
-    <Link to={`/series/${series.id}`} className="group block outline-none">
+    <Link to={`/series/${series.id}`} className="tile group">
       <div className="relative">
         {/* 여러 권이 겹친 느낌의 뒷장 */}
         <span aria-hidden className="absolute inset-0 translate-x-[6px] translate-y-[-6px] rounded-[3px] bg-paper-deep shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
@@ -477,7 +488,7 @@ function SeriesTile({ series, done }: { series: CatalogSeries; done: number | nu
         <BookCover src={series.cover} alt={series.title} title={series.title} author={series.author} className="lift relative w-full" />
       </div>
       <div className="mt-3">
-        <p className="line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+        <p className="line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline group-focus-visible:underline">
           {series.title}
         </p>
         <p className="mt-0.5 truncate text-[13px] text-ink-muted">
@@ -498,13 +509,13 @@ function SeriesTile({ series, done }: { series: CatalogSeries; done: number | nu
 
 function AuthorTile({ author, read }: { author: CatalogAuthor; read: number | null }) {
   return (
-    <Link to={`/author/${encodeURIComponent(author.name)}`} className="group block outline-none">
+    <Link to={`/author/${encodeURIComponent(author.name)}`} className="tile group">
       <Portrait
         src={author.photo_url}
         name={author.name}
-        className="aspect-[3/4] w-full shadow-[0_0_0_1px_rgb(29_27_23/0.06)] transition-transform duration-200 group-hover:-translate-y-1"
+        className="aspect-[3/4] w-full shadow-[0_0_0_1px_rgb(29_27_23/0.06)] transition-transform duration-200 group-hover:-translate-y-1 group-focus-visible:-translate-y-1"
       />
-      <p className="mt-3 line-clamp-1 font-serif text-[16px] font-bold text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+      <p className="mt-3 line-clamp-1 font-serif text-[16px] font-bold text-ink decoration-line-strong underline-offset-4 group-hover:underline group-focus-visible:underline">
         {author.name}
       </p>
       <p className="mt-0.5 truncate text-[13px] text-ink-muted">

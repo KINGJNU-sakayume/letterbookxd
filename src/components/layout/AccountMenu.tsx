@@ -45,7 +45,7 @@ export function AccountMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="계정 메뉴"
-        className="flex h-9 items-center gap-1 rounded-full pl-0.5 pr-1.5 text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink"
+        className="flex h-9 items-center gap-1 rounded-full pl-0.5 pr-1.5 text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink coarse:h-11 coarse:pl-1.5"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-[13px] font-semibold uppercase text-paper-raised">
           {email.charAt(0) || '나'}

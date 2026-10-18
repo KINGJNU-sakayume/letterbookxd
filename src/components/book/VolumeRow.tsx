@@ -110,9 +110,10 @@ export function VolumeRow({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* 좁은 화면: 읽기 상태 세 칸을 한 줄 가득 펴고, 진행률·별점은 그 아래 줄에 둔다 */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:w-full">
           {isReading && (
-            <div className="flex w-36 items-center gap-2" title={currentPage ? `${currentPage}쪽까지 읽음` : undefined}>
+            <div className="flex w-36 items-center gap-2 max-sm:order-last max-sm:w-full" title={currentPage ? `${currentPage}쪽까지 읽음` : undefined}>
               {progress !== null ? (
                 <>
                   <ProgressBar value={progress} className="flex-1" label={`${label ?? volume.title} 읽은 비율`} />
@@ -124,14 +125,14 @@ export function VolumeRow({
             </div>
           )}
           {isCompleted && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 max-sm:order-last max-sm:w-full max-sm:justify-between">
               <StarRating rating={rating} onChange={canEdit ? handleRating : undefined} readonly={!canEdit} size="sm" label={`${label ?? volume.title} 별점`} />
               <LikeButton liked={liked} onToggle={canEdit ? handleLiked : undefined} compact />
             </div>
           )}
 
           {canEdit ? (
-            <div role="group" aria-label="읽기 상태" className="flex items-center gap-0.5 rounded-[6px] bg-paper-sunken p-[3px]">
+            <div role="group" aria-label="읽기 상태" className="flex items-center gap-0.5 rounded-[6px] bg-paper-sunken p-[3px] max-sm:w-full">
               {(['unread', 'reading', 'completed'] as ReadingState[]).map((state) => {
                 const active = readingState === state;
                 return (
@@ -140,7 +141,7 @@ export function VolumeRow({
                     type="button"
                     onClick={() => void setReadingState(state)}
                     aria-pressed={active}
-                    className={`h-7 rounded-[4px] px-2.5 text-[12.5px] font-medium transition-colors ${
+                    className={`h-7 rounded-[4px] px-2.5 text-[12.5px] font-medium transition-colors max-sm:flex-1 coarse:h-[38px] coarse:px-3.5 coarse:text-[14px] ${
                       active ? STATE_STYLE[state] : 'text-ink-muted hover:text-ink'
                     }`}
                   >
@@ -220,7 +221,7 @@ function PageForm({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           aria-invalid={invalid}
-          className={`field tnum h-8 w-24 py-0 text-[14px] ${invalid ? 'border-seal focus:border-seal focus:ring-seal' : ''}`}
+          className={`field tnum h-8 w-24 py-0 text-[14px] coarse:h-11 coarse:text-[16px] ${invalid ? 'border-seal focus:border-seal focus:ring-seal' : ''}`}
         />
         <span className="tnum text-[13px] text-ink-muted">{totalPages ? `/ ${totalPages}쪽` : '쪽'}</span>
       </div>

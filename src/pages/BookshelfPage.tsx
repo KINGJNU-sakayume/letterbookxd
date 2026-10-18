@@ -184,10 +184,9 @@ export function BookshelfPage() {
         />
       ) : (
         <>
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 lg:mb-10">
-            <Tabs
+          <Tabs
               label="책장 보기"
-              className="min-w-0 flex-1"
+              className="mb-8 lg:mb-10"
               value={tab}
               onChange={(t) => update({ tab: t === 'all' ? null : t })}
               items={[
@@ -197,21 +196,6 @@ export function BookshelfPage() {
                 { value: 'incomplete_series', label: '이어 읽을 시리즈', count: incompleteSeries.length },
               ]}
             />
-            {showCompleted && completions.length > 0 && (
-              <select
-                value={sort}
-                onChange={(e) => update({ sort: e.target.value === 'recent' ? null : e.target.value })}
-                aria-label="완독 정렬"
-                className="field-select h-10 w-auto py-0 text-[14px]"
-              >
-                {(Object.keys(SORT_LABEL) as SortOption[]).map((s) => (
-                  <option key={s} value={s}>
-                    {SORT_LABEL[s]}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
 
           {showReading && (readingItems.length > 0 || tab === 'reading') && (
             <Shelf title="읽는 중" count={`${readingItems.length}권`}>
@@ -257,7 +241,27 @@ export function BookshelfPage() {
           )}
 
           {showCompleted && (completions.length > 0 || tab === 'completed') && (
-            <Shelf title="완독" count={`${completions.length}권`}>
+            <Shelf
+              title="완독"
+              count={`${completions.length}권`}
+              action={
+                // 정렬은 완독 칸에만 적용되므로 그 제목 옆에 둔다
+                completions.length > 1 && (
+                  <select
+                    value={sort}
+                    onChange={(e) => update({ sort: e.target.value === 'recent' ? null : e.target.value })}
+                    aria-label="완독 정렬"
+                    className="field-select h-9 w-auto py-0 text-[13.5px] coarse:h-10"
+                  >
+                    {(Object.keys(SORT_LABEL) as SortOption[]).map((s) => (
+                      <option key={s} value={s}>
+                        {SORT_LABEL[s]}
+                      </option>
+                    ))}
+                  </select>
+                )
+              }
+            >
               {completions.length === 0 ? (
                 <p className="text-[14.5px] text-ink-muted">아직 완독한 책이 없습니다.</p>
               ) : (
@@ -303,10 +307,10 @@ function HeaderFigure({ label, value, unit }: { label: string; value: number; un
   );
 }
 
-function Shelf({ title, count, children }: { title: string; count: string; children: ReactNode }) {
+function Shelf({ title, count, action, children }: { title: string; count: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="mb-14">
-      <SectionHeading title={title} count={count} />
+      <SectionHeading title={title} count={count} action={action || undefined} />
       {children}
     </section>
   );
@@ -314,9 +318,9 @@ function Shelf({ title, count, children }: { title: string; count: string; child
 
 function CompletedTile({ item }: { item: Completion }) {
   return (
-    <Link to={`/book/${item.work.id}`} className="group block outline-none">
+    <Link to={`/book/${item.work.id}`} className="tile group">
       <BookCover src={item.cover} alt={item.work.title} title={item.work.title} author={item.work.author} className="lift w-full" />
-      <p className="mt-2.5 line-clamp-1 text-[14px] font-semibold text-ink decoration-line-strong underline-offset-4 group-hover:underline">
+      <p className="mt-2.5 line-clamp-1 text-[14px] font-semibold text-ink decoration-line-strong underline-offset-4 group-hover:underline group-focus-visible:underline">
         {item.work.title}
       </p>
       <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">

@@ -1,3 +1,5 @@
+import plugin from 'tailwindcss/plugin';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -31,8 +33,9 @@ export default {
         ink: {
           DEFAULT: '#1d1b17',
           soft: '#3b3730',
-          muted: '#6d665a',
-          faint: '#8a8274',
+          // 작은 글자에도 쓰이므로 둘 다 종이 바탕에서 4.5:1을 넘긴다 (muted 5.6:1, faint 4.6:1)
+          muted: '#665f54',
+          faint: '#726b5e',
         },
         line: {
           DEFAULT: '#dcd4c4',
@@ -68,5 +71,10 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // 손가락으로 누르는 기기: 버튼·별점처럼 작은 조작부의 누르는 면적을 넓힐 때 쓴다 (coarse:h-11)
+    plugin(({ addVariant }) => {
+      addVariant('coarse', '@media (pointer: coarse)');
+    }),
+  ],
 };
