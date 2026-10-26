@@ -303,7 +303,7 @@ function Card({ title, subtitle, action, className = '', children }: { title: st
           <h2 className="font-serif text-[22px] font-bold leading-tight tracking-[-0.03em] text-ink">{title}</h2>
           {subtitle && <p className="mt-1 text-[13px] text-ink-muted">{subtitle}</p>}
         </div>
-        {action}
+        {action && <div className="ml-auto">{action}</div>}
       </header>
       {children}
     </section>

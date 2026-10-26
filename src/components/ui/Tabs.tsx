@@ -38,7 +38,7 @@ export function Tabs<T extends string>({ items, value, onChange, label, classNam
       role="tablist"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className={`hide-scrollbar flex items-end gap-6 overflow-x-auto border-b border-line ${className}`}
+      className={`hide-scrollbar flex items-end gap-4 overflow-x-auto border-b border-line sm:gap-6 ${className}`}
     >
       {items.map((it) => {
         const active = it.value === value;
