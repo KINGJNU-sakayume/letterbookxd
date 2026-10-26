@@ -1,4 +1,4 @@
-import { Check, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { StarRating } from './StarRating';
 import type { ReadingState } from '../../utils/readingState';
 
@@ -10,21 +10,19 @@ interface ReadingMarkProps {
   className?: string;
 }
 
-/** 표지 아래에 붙는 한 줄짜리 읽기 상태 */
+/** 표지 아래에 붙는 읽기 상태 태그 */
 export function ReadingMark({ state, percent, rating, liked, className = '' }: ReadingMarkProps) {
   if (state === 'unread') return null;
   if (state === 'reading') {
     return (
-      <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-reading ${className}`}>
-        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-reading" />
+      <span className={`tag tag-in ${className}`}>
         읽는 중{percent != null && <span className="tnum">{percent}%</span>}
       </span>
     );
   }
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-completed-dark ${className}`}>
-      <Check aria-hidden size={12} strokeWidth={3} />
-      완독
+    <span className={`inline-flex flex-wrap items-center gap-1.5 ${className}`}>
+      <span className="tag tag-on">완독</span>
       {rating ? <StarRating rating={rating} size="xs" readonly /> : null}
       {liked && <Heart size={11} className="fill-ink text-ink" aria-label="인생책" />}
     </span>

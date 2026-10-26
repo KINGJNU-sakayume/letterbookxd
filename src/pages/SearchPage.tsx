@@ -9,6 +9,7 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { Tabs } from '../components/ui/Tabs';
 import { CoverGridSkeleton, EmptyState, ErrorState } from '../components/ui/States';
 import { ReadingCard } from '../components/book/ReadingCard';
+import { Figure, Figures } from '../components/ui/Figure';
 import { useCatalogStore, type CatalogAuthor, type CatalogSeries, type CatalogWork } from '../store/catalogStore';
 import { useLogStore } from '../store/logStore';
 import { useAuthStore } from '../store/authStore';
@@ -38,11 +39,11 @@ const SORTS: Record<View, { value: string; label: string }[]> = {
   ],
 };
 /**
- * 이어 읽기 카드는 한 줄만 보인다: sm은 2권, xl은 3권, 3xl은 4권.
+ * 이어 읽기 원장은 한 줄만 보인다: 좁은 화면은 세 줄, sm은 2권, xl은 3권, 3xl은 4권.
  * 구간이 겹치지 않게 나눠 적어, 만들어지는 CSS의 순서와 상관없이 맞게 동작한다.
  */
 const READING_ROW =
-  'sm:max-xl:[&:nth-child(n+3)]:hidden xl:max-3xl:[&:nth-child(n+4)]:hidden 3xl:[&:nth-child(n+5)]:hidden';
+  'max-sm:[&:nth-child(n+4)]:hidden sm:max-xl:[&:nth-child(n+3)]:hidden xl:max-3xl:[&:nth-child(n+4)]:hidden 3xl:[&:nth-child(n+5)]:hidden';
 const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(136px,1fr))] gap-x-5 gap-y-10 sm:grid-cols-[repeat(auto-fill,minmax(148px,1fr))] sm:gap-x-6 2xl:grid-cols-[repeat(auto-fill,minmax(164px,1fr))] 2xl:gap-x-8';
 
 function countBy<T>(items: T[], keys: (item: T) => string[]) {
@@ -176,13 +177,14 @@ export function SearchPage() {
     <Page>
       <PageHeader
         title="둘러보기"
-        description={
-          status === 'ready' ? (
-            <span className="tnum">
-              작품 {works.length} · 시리즈 {series.length} · 작가 {authors.length}
-            </span>
-          ) : (
-            '서가에 있는 책을 둘러봅니다'
+        description="서가에 있는 책을 둘러봅니다"
+        actions={
+          status === 'ready' && (
+            <Figures>
+              <Figure label="작품" value={works.length} unit="편" />
+              <Figure label="시리즈" value={series.length} unit="개" />
+              <Figure label="작가" value={authors.length} unit="명" />
+            </Figures>
           )
         }
       />
@@ -204,9 +206,9 @@ export function SearchPage() {
             읽는 책이 많아도 둘러보기의 본문인 표지 목록이 첫 화면 밖으로 밀리지 않게 하려는 것이고,
             나머지는 '내 책장에서 모두 보기'로 간다.
           */}
-          <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-3 3xl:grid-cols-4">
+          <ul className="-mt-5 grid sm:grid-cols-2 sm:gap-x-8 xl:grid-cols-3 3xl:grid-cols-4">
             {readingItems.slice(0, 8).map((it) => (
-              <div key={it.log.id} className={`w-[86%] shrink-0 snap-start sm:w-auto ${READING_ROW}`}>
+              <li key={it.log.id} className={`border-b border-line ${READING_ROW}`}>
               <ReadingCard
                 workId={it.work.id}
                 title={it.work.title}
@@ -217,9 +219,9 @@ export function SearchPage() {
                 currentPage={it.log.currentPage}
                 totalPages={it.edition?.page_count ?? null}
               />
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       )}
 
@@ -421,7 +423,7 @@ function FilterOption({ active, count, onClick, children }: { active: boolean; c
         active ? 'font-semibold text-ink' : 'text-ink-muted hover:text-ink'
       }`}
     >
-      <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full ${active ? 'bg-ink' : 'bg-transparent group-hover:bg-line-strong'}`} />
+      <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full ${active ? 'bg-reading' : 'bg-transparent group-hover:bg-line-strong'}`} />
       <span className="min-w-0 truncate">{children}</span>
       {count !== undefined && <span className="tnum shrink-0 text-[12.5px] font-normal text-ink-faint">{count}</span>}
     </button>
@@ -448,7 +450,7 @@ function ActiveFilter({ label, onClear }: { label: string; onClear: () => void }
     <button
       type="button"
       onClick={onClear}
-      className="inline-flex h-7 items-center gap-1.5 rounded-[4px] bg-ink px-2.5 text-[13px] text-paper-raised transition-colors hover:bg-ink-soft coarse:h-10 coarse:px-3.5 coarse:text-[14px]"
+      className="inline-flex h-7 items-center gap-1.5 rounded-full bg-ink px-3 text-[13px] font-semibold text-paper transition-colors hover:bg-ink-soft coarse:h-10 coarse:px-3.5 coarse:text-[14px]"
       aria-label={`${label} 필터 해제`}
     >
       {label}
@@ -467,7 +469,7 @@ function WorkTile({ work, status }: { work: CatalogWork; status?: WorkStatus }) 
         </p>
         <p className="mt-0.5 truncate text-[13px] text-ink-muted">
           {work.author}
-          {work.published_year ? <span className="tnum"> · {work.published_year}</span> : null}
+          {work.published_year ? <span className="tnum ml-2">{work.published_year}</span> : null}
         </p>
         {status && status.state !== 'unread' && (
           <ReadingMark className="mt-1.5" state={status.state} percent={status.percent} rating={status.rating} liked={status.liked} />
@@ -492,12 +494,12 @@ function SeriesTile({ series, done }: { series: CatalogSeries; done: number | nu
           {series.title}
         </p>
         <p className="mt-0.5 truncate text-[13px] text-ink-muted">
-          {series.author} · <span className="tnum">{total}부작</span>
+          {series.author}<span className="tnum ml-2">{total}부작</span>
         </p>
         {done !== null && done > 0 && total > 0 && (
           <div className="mt-2 flex items-center gap-2">
             <ProgressBar value={(done / total) * 100} tone="completed" className="flex-1" label={`${series.title} 완독 비율`} />
-            <span className="tnum text-[12px] text-completed-dark">
+            <span className="tnum text-[12px] font-semibold text-ink">
               {done}/{total}
             </span>
           </div>
@@ -519,8 +521,8 @@ function AuthorTile({ author, read }: { author: CatalogAuthor; read: number | nu
         {author.name}
       </p>
       <p className="mt-0.5 truncate text-[13px] text-ink-muted">
-        {[author.country, `작품 ${author.workCount}편`].filter(Boolean).join(' · ')}
-        {read ? <span className="text-completed-dark"> · {read}편 완독</span> : null}
+        {[author.country, `작품 ${author.workCount}편`].filter(Boolean).join(', ')}
+        {read ? <span className="ml-2 font-semibold text-ink">{read}편 완독</span> : null}
       </p>
     </Link>
   );

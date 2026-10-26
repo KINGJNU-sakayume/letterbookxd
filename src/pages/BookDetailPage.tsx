@@ -211,22 +211,19 @@ export function BookDetailPage() {
         {/* 본문 */}
         <div className="min-w-0">
           <header>
-            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[44px] 2xl:text-[52px]">
+            <h1 className="text-balance font-serif text-[36px] font-bold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[48px] 2xl:text-[56px]">
               {dbWork.title}
             </h1>
-            <p className="mt-3 text-[17px] text-ink-soft">
-              <Link to={`/author/${encodeURIComponent(dbWork.author)}`} className="link-quiet font-medium">
+            <p className="mt-4 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[17px] text-ink-soft">
+              <Link to={`/author/${encodeURIComponent(dbWork.author)}`} className="link-quiet">
                 {dbWork.author}
               </Link>
-              {dbWork.published_year ? <span className="tnum text-ink-muted"> · {dbWork.published_year}년</span> : null}
+              {dbWork.published_year ? <span className="tnum text-ink-muted">{dbWork.published_year}년</span> : null}
               {series && (
-                <>
-                  <span className="text-ink-muted"> · </span>
-                  <Link to={`/series/${series.id}`} className="link-quiet text-ink-muted">
-                    {series.title}
-                    {dbWork.series_order != null ? ` ${dbWork.series_order}부` : ''}
-                  </Link>
-                </>
+                <Link to={`/series/${series.id}`} className="link-quiet font-normal text-ink-muted">
+                  {series.title}
+                  {dbWork.series_order != null ? ` ${dbWork.series_order}부` : ''}
+                </Link>
               )}
             </p>
             {(tags.length > 0 || (dbWork.lists?.length ?? 0) > 0) && (
@@ -251,7 +248,7 @@ export function BookDetailPage() {
             </div>
           )}
 
-          <p className="text-pretty mt-7 max-w-[68ch] whitespace-pre-line font-serif text-[17px] leading-[1.9] text-ink-soft">
+          <p className="text-pretty mt-8 max-w-[68ch] whitespace-pre-line text-[17px] leading-[1.8] text-ink-soft">
             {dbWork.description || '등록된 작품 소개가 없습니다.'}
           </p>
 
@@ -259,11 +256,11 @@ export function BookDetailPage() {
             <SectionHeading
               id="editions-heading"
               title="판본"
-              count={`${editionGroups.length}개 출판사 · ${dbEditions.length}권`}
+              count={`${editionGroups.length}개 출판사, ${dbEditions.length}권`}
             />
 
             {editionGroups.length === 0 && (
-              <p className="border-y border-line py-8 text-[14.5px] text-ink-muted">아직 등록된 판본이 없습니다.</p>
+              <p className="well px-6 py-8 text-[14.5px] text-ink-muted">아직 등록된 판본이 없습니다.</p>
             )}
 
             {hasMultiplePublishers && (
@@ -293,18 +290,12 @@ export function BookDetailPage() {
               const totalPages = selectedGroup.editions.reduce((sum, e) => sum + (e.page_count || 0), 0);
 
               return (
-                <div className={`panel overflow-hidden ${hasMultiplePublishers ? 'mt-4' : ''}`}>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-soft bg-paper px-4 py-3 text-[13px] text-ink-muted sm:px-5">
-                    <span className="font-medium text-ink-soft">{selectedGroup.publisher}</span>
-                    <span className="tnum">
-                      {isSingle ? '한 권' : `${volCount}권 구성`}
-                      {totalPages > 0 && ` · ${totalPages.toLocaleString()}쪽`}
-                    </span>
-                    {setComplete && (
-                      <span className="inline-flex items-center gap-1 font-medium text-completed-dark">
-                        <Check size={13} strokeWidth={3} aria-hidden /> 완독
-                      </span>
-                    )}
+                <div className={`border-b border-line ${hasMultiplePublishers ? '' : '-mt-5'}`}>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line py-3 text-[13px] text-ink-muted">
+                    <span className="font-semibold text-ink">{selectedGroup.publisher}</span>
+                    <span className="tnum">{isSingle ? '한 권' : `${volCount}권 구성`}</span>
+                    {totalPages > 0 && <span className="tnum">{totalPages.toLocaleString()}쪽</span>}
+                    {setComplete && <span className="tag tag-on">완독</span>}
                     {admin && firstEditionId && hasMultiplePublishers && (
                       <button
                         type="button"
@@ -319,7 +310,7 @@ export function BookDetailPage() {
                       </button>
                     )}
                   </div>
-                  <ul className="divide-y divide-line-soft">
+                  <ul className="divide-y divide-line">
                     {selectedGroup.editions.map((edition) => (
                       <VolumeRow
                         key={edition.id}
@@ -345,7 +336,7 @@ export function BookDetailPage() {
                     />
                   )}
                   {!signedIn && (
-                    <p className="border-t border-line-soft px-4 py-3 text-[13px] text-ink-muted sm:px-5">
+                    <p className="border-t border-line py-3 text-[13px] text-ink-muted">
                       <Link to="/login" state={{ from: `/book/${dbWork.id}` }} className="link-quiet font-medium text-ink-soft">
                         로그인
                       </Link>
@@ -383,13 +374,11 @@ function MyRecord({ record }: { record: MyRecordData }) {
   }
   return (
     <div className="mt-6 space-y-4 border-t border-line pt-4">
-      <p className="text-[12.5px] font-medium text-ink-faint">내 기록</p>
+      <p className="text-[13px] font-semibold text-ink">내 기록</p>
       {completions.map((c) => (
         <div key={c.log.id}>
           <div className="flex items-center gap-2">
-            <span className="-rotate-[4deg] rounded-[3px] border-[1.5px] border-completed px-1.5 py-[3px] font-serif text-[12.5px] font-bold leading-none text-completed-dark">
-              완독
-            </span>
+            <span className="tag tag-on">완독</span>
             <span className="tnum text-[13px] text-ink-soft">{formatDate(c.log.createdAt)}</span>
           </div>
           <p className="mt-1.5 text-[12.5px] text-ink-muted">{c.publisher} 판</p>
@@ -405,12 +394,12 @@ function MyRecord({ record }: { record: MyRecordData }) {
         const pct = progressPercent(r.log.currentPage, r.edition?.page_count);
         return (
           <div key={r.log.id}>
-            <p className="text-[13px] font-medium text-reading">
-              읽는 중{r.edition ? ` · ${r.edition.publisher} ${volumeLabel(r.edition.volume_number)}` : ''}
+            <p className="flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
+              <span className="tag tag-in">읽는 중{pct !== null && <span className="tnum">{pct}%</span>}</span>
+              {r.edition && <span>{`${r.edition.publisher} ${volumeLabel(r.edition.volume_number)}`}</span>}
             </p>
-            <p className="tnum mt-0.5 text-[12.5px] text-ink-muted">
+            <p className="tnum mt-1 text-[12.5px] text-ink-muted">
               {r.log.currentPage ? `${r.log.currentPage}${r.edition?.page_count ? ` / ${r.edition.page_count}` : ''}쪽` : '쪽수 미입력'}
-              {pct !== null && ` · ${pct}%`}
             </p>
           </div>
         );
@@ -446,7 +435,7 @@ function RelatedWorks({ title, items, currentId, moreLink }: { title: string; it
   return (
     <section aria-labelledby="related-heading">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="related-heading" className="font-serif text-[19px] font-bold text-ink">
+        <h2 id="related-heading" className="font-serif text-[19px] font-bold tracking-[-0.03em] text-ink">
           {title}
         </h2>
         {moreLink && (
@@ -455,7 +444,7 @@ function RelatedWorks({ title, items, currentId, moreLink }: { title: string; it
           </Link>
         )}
       </div>
-      <ul className="divide-y divide-line-soft border-y border-line">
+      <ul className="divide-y divide-line border-y border-ink">
         {items.map((w) => {
           const current = w.id === currentId;
           const status = statuses.get(w.id);
@@ -469,7 +458,7 @@ function RelatedWorks({ title, items, currentId, moreLink }: { title: string; it
                 <BookCover src={w.cover} alt="" title={w.title} className="w-9 shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate text-[14px] font-medium ${current ? 'text-ink-muted' : 'text-ink group-hover:underline'} decoration-line-strong underline-offset-4`}>
-                    {w.series_order != null && w.series_id ? `${w.series_order}부 · ` : ''}
+                    {w.series_order != null && w.series_id ? `${w.series_order}부 ` : ''}
                     {w.title}
                   </span>
                   <span className="mt-0.5 flex items-center gap-2 text-[12.5px] text-ink-muted">

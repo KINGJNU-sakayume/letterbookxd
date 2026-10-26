@@ -64,14 +64,14 @@ export function Navbar() {
                   key={item.section}
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
-                  className={`relative flex items-center px-3 text-[15px] font-medium transition-colors ${
+                  className={`relative flex items-center px-3 text-[15px] font-semibold transition-colors ${
                     active ? 'text-ink' : 'text-ink-muted hover:text-ink'
                   }`}
                 >
                   {item.label}
                   <span
                     aria-hidden
-                    className={`absolute inset-x-3 -bottom-px h-[2px] rounded-full transition-colors ${active ? 'bg-ink' : 'bg-transparent'}`}
+                    className={`absolute inset-x-3 -bottom-px h-[2px] transition-colors ${active ? 'bg-reading' : 'bg-transparent'}`}
                   />
                 </Link>
               );
@@ -98,11 +98,11 @@ export function Navbar() {
                 key={item.section}
                 to={item.to}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-medium transition-colors ${
+                className={`relative flex flex-col items-center gap-1 pb-2 pt-2.5 text-[12px] font-semibold transition-colors ${
                   active ? 'text-ink' : 'text-ink-faint'
                 }`}
               >
-                <span aria-hidden className={`absolute inset-x-6 top-0 h-[2px] rounded-full ${active ? 'bg-ink' : 'bg-transparent'}`} />
+                <span aria-hidden className={`absolute inset-x-6 top-0 h-[2px] ${active ? 'bg-reading' : 'bg-transparent'}`} />
                 <Icon size={20} strokeWidth={active ? 2.1 : 1.7} aria-hidden />
                 {item.short}
               </Link>

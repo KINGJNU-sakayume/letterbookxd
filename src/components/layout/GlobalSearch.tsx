@@ -49,7 +49,7 @@ function useSearchResults(query: string): SearchResult[] {
         key: `w-${w.id}`,
         to: `/book/${w.id}`,
         title: w.title,
-        sub: [w.author, w.published_year].filter(Boolean).join(' · '),
+        sub: [w.author, w.published_year].filter(Boolean).join(', '),
         image: w.cover,
       }));
     const seriesHits = pick(series, (s) => best(s.title, s.author), (s) => s.title)
@@ -59,7 +59,7 @@ function useSearchResults(query: string): SearchResult[] {
         key: `s-${s.id}`,
         to: `/series/${s.id}`,
         title: s.title,
-        sub: `${s.author} · ${s.workIds.length}부작`,
+        sub: `${s.author}, ${s.workIds.length}부작`,
         image: s.cover,
       }));
     const authorHits = pick(authors, (a) => matchRank(a.name, query), (a) => a.name)
@@ -69,7 +69,7 @@ function useSearchResults(query: string): SearchResult[] {
         key: `a-${a.id}`,
         to: `/author/${encodeURIComponent(a.name)}`,
         title: a.name,
-        sub: [a.country, `작품 ${a.workCount}편`].filter(Boolean).join(' · '),
+        sub: [a.country, `작품 ${a.workCount}편`].filter(Boolean).join(', '),
         image: a.photo_url,
       }));
     return [...workHits, ...seriesHits, ...authorHits];

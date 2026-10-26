@@ -16,42 +16,44 @@ interface ReadingCardProps {
   action?: ReactNode;
 }
 
-/** 읽는 중인 한 권: 표지, 판본, 쪽수 진행 */
+/** 읽는 중인 한 권: 원장의 한 줄. 표지, 판본, 그리고 오른쪽에 쪽수 진행 */
 export function ReadingCard({ workId, title, author, cover, publisher, volume, currentPage, totalPages, action }: ReadingCardProps) {
   const pct = progressPercent(currentPage, totalPages);
+  const edition = [publisher, volume].filter(Boolean).join(' ');
   return (
-    <article className="panel flex h-full gap-4 p-4 transition-colors hover:border-line-strong">
-      <Link to={`/book/${workId}`} className="shrink-0" tabIndex={-1} aria-hidden>
-        <BookCover src={cover} alt="" title={title} author={author} className="w-[60px]" />
+    <article className="grid h-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 py-4">
+      <Link to={`/book/${workId}`} tabIndex={-1} aria-hidden>
+        <BookCover src={cover} alt="" title={title} author={author} className="w-[44px]" />
       </Link>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="min-w-0">
         <Link
           to={`/book/${workId}`}
-          className="line-clamp-1 font-serif text-[18px] font-bold leading-snug text-ink decoration-line-strong underline-offset-4 hover:underline"
+          className="line-clamp-1 text-[16px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 hover:underline"
         >
           {title}
         </Link>
-        <p className="mt-0.5 truncate text-[13px] text-ink-muted">{[author, publisher, volume].filter(Boolean).join(' · ')}</p>
-        <div className="mt-auto pt-3">
-          {pct !== null ? (
-            <>
-              <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[12.5px]">
-                <span className="tnum text-ink-muted">
-                  {currentPage} / {totalPages}쪽
-                </span>
-                <span className="tnum font-semibold text-reading">{pct}%</span>
-              </div>
-              <ProgressBar value={pct} label={`${title} 읽은 비율`} />
-            </>
-          ) : (
-            <p className="text-[12.5px] text-ink-muted">
-              {currentPage ? `${currentPage}쪽까지 읽음` : '아직 쪽수를 적지 않았습니다'}
-            </p>
-          )}
-          {action && <div className="mt-3 sm:hidden">{action}</div>}
-        </div>
+        <p className="mt-0.5 flex min-w-0 gap-x-3 text-[13px] text-ink-muted">
+          <span className="shrink-0">{author}</span>
+          {edition && <span className="truncate">{edition}</span>}
+        </p>
+        {pct !== null ? (
+          <ProgressBar value={pct} label={`${title} 읽은 비율`} className="mt-2.5 max-w-[22rem]" />
+        ) : (
+          <p className="mt-1.5 text-[12.5px] text-ink-muted">{currentPage ? `${currentPage}쪽까지 읽음` : '아직 쪽수를 적지 않았습니다'}</p>
+        )}
       </div>
-      {action && <div className="hidden shrink-0 self-center sm:block">{action}</div>}
+      <div className="flex flex-col items-end gap-2 self-start text-right">
+        {pct !== null && (
+          <p className="leading-none">
+            <span className="tnum block font-serif text-[22px] font-bold tracking-[-0.03em] text-reading">{pct}%</span>
+            <span className="tnum mt-1 block text-[12px] text-ink-muted">
+              {currentPage} / {totalPages}쪽
+            </span>
+          </p>
+        )}
+        {action && <div className="hidden sm:block">{action}</div>}
+      </div>
+      {action && <div className="col-span-3 sm:hidden">{action}</div>}
     </article>
   );
 }

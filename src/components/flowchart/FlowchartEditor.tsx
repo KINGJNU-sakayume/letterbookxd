@@ -292,7 +292,7 @@ export function FlowchartEditor() {
                     <p className="line-clamp-1 font-medium">{work.title}</p>
                     <p className="mt-0.5 text-[11.5px] text-ink-faint">
                       {work.published_year ? `${work.published_year}년` : ''}
-                      {onCanvas && `${work.published_year ? ' · ' : ''}캔버스에 있음`}
+                      {onCanvas && `${work.published_year ? ', ' : ''}캔버스에 있음`}
                     </p>
                   </div>
                 );

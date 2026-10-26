@@ -8,6 +8,7 @@ import { LikeButton } from '../components/ui/LikeButton';
 import { Dialog } from '../components/ui/Dialog';
 import { useConfirm } from '../components/ui/confirm';
 import { EmptyState, PageLoader } from '../components/ui/States';
+import { Figure, Figures } from '../components/ui/Figure';
 import { useLogStore } from '../store/logStore';
 import { useAuthStore } from '../store/authStore';
 import { useCatalogStore } from '../store/catalogStore';
@@ -218,7 +219,6 @@ export function ReadingLogPage() {
       <Page>
         <PageHeader title="독서 기록" />
         <EmptyState
-          className="border-t-0 pt-2"
           title="로그인하면 독서 기록이 보입니다"
           description="완독한 날짜와 별점이 달력처럼 쌓입니다."
           action={<Link to="/login" state={{ from: '/reading-log' }} className="btn btn-primary">로그인</Link>}
@@ -235,17 +235,16 @@ export function ReadingLogPage() {
     <Page>
       <PageHeader
         title="독서 기록"
-        description={
-          <span className="tnum">
-            완독 기록 {completedCount}건
-            {years.length > 0 && ` · ${years[years.length - 1][0]}년부터`}
-          </span>
+        actions={
+          <Figures>
+            <Figure label="완독 기록" value={completedCount} unit="건" />
+            {years.length > 0 && <Figure label="기록을 시작한 해" value={years[years.length - 1][0]} unit="년" />}
+          </Figures>
         }
       />
 
       {entries.length === 0 ? (
         <EmptyState
-          className="border-t-0 pt-2"
           title="아직 남긴 기록이 없습니다"
           description="작품 화면에서 권마다 ‘완독’을 누르면 그날 날짜로 기록이 쌓입니다."
           action={<Link to="/" className="btn btn-primary">둘러보기</Link>}
@@ -342,7 +341,7 @@ export function ReadingLogPage() {
                 {/* 넓은 화면: 월별 일지 표 */}
                 <table className="hidden w-full border-collapse md:table">
                   <thead>
-                    <tr className="border-b border-line text-left text-[12.5px] font-medium text-ink-faint">
+                    <tr className="border-b border-ink text-left text-[13px] font-semibold text-ink-muted">
                       {sort === 'date' && <th scope="col" className="w-[104px] pb-2.5 font-medium">월</th>}
                       <th scope="col" className="w-16 pb-2.5 pl-4 font-medium">{sort === 'date' ? '일' : '날짜'}</th>
                       <th scope="col" className="pb-2.5 font-medium">작품</th>
@@ -356,19 +355,19 @@ export function ReadingLogPage() {
                   {months.map((m) => (
                     <tbody key={m.key} className="border-b border-line">
                       {m.entries.map((e, i) => (
-                        <tr key={e.id} className="group border-t border-line-soft transition-colors first:border-t-0 hover:bg-paper-raised/80">
+                        <tr key={e.id} className="group border-t border-line transition-colors first:border-t-0 hover:bg-paper-sunken">
                           {sort === 'date' && i === 0 && (
-                            <td rowSpan={m.entries.length} className="border-r border-line-soft pr-4 align-top">
+                            <td rowSpan={m.entries.length} className="border-r border-line pr-4 align-top">
                               <div className="sticky top-24 pb-3 pt-3.5">
-                                <p className="font-serif text-[28px] font-bold leading-none text-ink">{m.month}월</p>
-                                <p className="tnum mt-1.5 text-[12.5px] text-ink-muted">{m.year} · {m.entries.length}건</p>
+                                <p className="font-serif text-[30px] font-bold leading-none tracking-[-0.035em] text-ink">{m.month}월</p>
+                                <p className="tnum mt-1.5 text-[12.5px] text-ink-muted">{m.year}년, {m.entries.length}건</p>
                               </div>
                             </td>
                           )}
                           <td className="py-2.5 pl-4 align-middle">
                             {sort === 'date' ? (
                               <span className="block leading-none">
-                                <span className="tnum font-serif text-[21px] font-bold text-ink-soft">{e.date.getDate()}</span>
+                                <span className="tnum font-serif text-[21px] font-bold tracking-[-0.03em] text-ink">{e.date.getDate()}</span>
                                 <span className="mt-1 block text-[11.5px] text-ink-faint">{WEEKDAYS[e.date.getDay()]}요일</span>
                               </span>
                             ) : (
@@ -384,13 +383,13 @@ export function ReadingLogPage() {
                                 <span className="block truncate text-[15px] font-semibold text-ink decoration-line-strong underline-offset-4 hover:underline">{e.title}</span>
                                 <span className="block truncate text-[12.5px] text-ink-muted">
                                   {e.author}
-                                  <span className="xl:hidden">{e.publisher ? ` · ${e.publisher}` : ''}{e.volume ? ` · ${e.volume}` : ''}</span>
+                                  <span className="xl:hidden">{e.publisher ? `, ${e.publisher}` : ''}{e.volume ? ` ${e.volume}` : ''}</span>
                                 </span>
                               </span>
                             </Link>
                           </td>
                           <td className="hidden py-2.5 pr-4 text-[13.5px] text-ink-muted xl:table-cell">
-                            {[e.publisher, e.volume].filter(Boolean).join(' · ') || '—'}
+                            {[e.publisher, e.volume].filter(Boolean).join(' ')}
                           </td>
                           <td className="py-2.5 pr-4"><KindTag entry={e} /></td>
                           <td className="py-2.5 pr-4">{e.kind === 'reading' ? <span className="text-[12.5px] text-ink-faint">없음</span> : <StarRating rating={e.rating} size="sm" readonly />}</td>
@@ -416,16 +415,16 @@ export function ReadingLogPage() {
                   {months.map((m) => (
                     <section key={m.key}>
                       {sort === 'date' && (
-                        <h2 className="mb-2 flex items-baseline gap-2 border-b border-line pb-2">
-                          <span className="font-serif text-[22px] font-bold text-ink">{m.month}월</span>
-                          <span className="tnum text-[12.5px] text-ink-muted">{m.year} · {m.entries.length}건</span>
+                        <h2 className="mb-0 flex items-baseline gap-2 border-b border-ink pb-2">
+                          <span className="font-serif text-[24px] font-bold tracking-[-0.035em] text-ink">{m.month}월</span>
+                          <span className="tnum text-[12.5px] text-ink-muted">{m.year}년, {m.entries.length}건</span>
                         </h2>
                       )}
-                      <ul className="divide-y divide-line-soft">
+                      <ul className="divide-y divide-line">
                         {m.entries.map((e) => (
                           <li key={e.id} className="flex items-center gap-3 py-3">
                             <span className="w-9 shrink-0 text-center leading-none">
-                              <span className="tnum font-serif text-[18px] font-bold text-ink-soft">{e.date.getDate()}</span>
+                              <span className="tnum font-serif text-[18px] font-bold tracking-[-0.03em] text-ink">{e.date.getDate()}</span>
                               <span className="mt-1 block text-[11px] text-ink-faint">{sort === 'date' ? WEEKDAYS[e.date.getDay()] : `${e.date.getMonth() + 1}월`}</span>
                             </span>
                             <Link to={e.to} className="flex min-w-0 flex-1 items-center gap-3">
@@ -490,7 +489,7 @@ function FilterItem({ active, count, onClick, children }: { active: boolean; cou
         active ? 'font-semibold text-ink' : 'text-ink-muted hover:text-ink'
       }`}
     >
-      <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full ${active ? 'bg-ink' : 'bg-transparent group-hover:bg-line-strong'}`} />
+      <span aria-hidden className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full ${active ? 'bg-reading' : 'bg-transparent group-hover:bg-line-strong'}`} />
       <span className="min-w-0 truncate">{children}</span>
       {count !== undefined && <span className="tnum shrink-0 text-[12.5px] font-normal text-ink-faint">{count}</span>}
     </button>
@@ -499,19 +498,13 @@ function FilterItem({ active, count, onClick, children }: { active: boolean; cou
 
 function KindTag({ entry }: { entry: Entry }) {
   if (entry.kind === 'reading') {
-    return <span className="text-[12.5px] font-medium text-reading">읽는 중</span>;
+    return <span className="tag tag-in">읽는 중</span>;
   }
   if (entry.kind === 'volume') {
-    return <span className="whitespace-nowrap text-[12.5px] font-medium text-completed-dark">{entry.volume ? `${entry.volume} 완독` : '완독'}</span>;
+    return <span className="tag tag-on">{entry.volume ? `${entry.volume} 완독` : '완독'}</span>;
   }
   return (
-    <span
-      className={`inline-block -rotate-[3deg] whitespace-nowrap rounded-[3px] border-[1.5px] px-1.5 py-[3px] font-serif text-[12px] font-bold leading-none ${
-        entry.kind === 'set' ? 'border-completed text-completed-dark' : 'border-ink-soft text-ink-soft'
-      }`}
-    >
-      {KIND_LABEL[entry.kind]}
-    </span>
+    <span className={`tag ${entry.kind === 'set' ? 'tag-on' : 'tag-out'}`}>{KIND_LABEL[entry.kind]}</span>
   );
 }
 
@@ -552,9 +545,9 @@ function EditForm({ entry, onClose, onSave, onDelete }: EditDialogProps & { entr
       <div className="flex items-center gap-4">
         <BookCover src={entry.cover} alt="" title={entry.title} className="w-14 shrink-0" />
         <div className="min-w-0">
-          <p className="truncate font-serif text-[18px] font-bold text-ink">{entry.title}</p>
+          <p className="truncate font-serif text-[18px] font-bold tracking-[-0.03em] text-ink">{entry.title}</p>
           <p className="truncate text-[13px] text-ink-muted">
-            {[entry.author, entry.publisher, entry.volume].filter(Boolean).join(' · ')}
+            {[entry.author, [entry.publisher, entry.volume].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
           </p>
           <p className="mt-1"><KindTag entry={entry} /></p>
         </div>

@@ -54,7 +54,7 @@ export function MonthlyChart({ data, unit = '권' }: MonthlyChartProps) {
                   className="group relative flex h-full flex-1 items-end justify-center outline-none"
                 >
                   <span
-                    className={`relative block w-[min(24px,56%)] rounded-t-[4px] transition-colors ${on ? 'bg-completed-dark' : 'bg-completed'}`}
+                    className={`relative block w-[min(24px,56%)] rounded-t-[4px] transition-colors ${on ? 'bg-reading' : 'bg-completed'}`}
                     style={{ height: `${h}%` }}
                   >
                     {isMax && !on && (

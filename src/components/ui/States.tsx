@@ -29,8 +29,8 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description, action, className = '' }: EmptyStateProps) {
   return (
-    <div className={`border-y border-line py-12 ${className}`}>
-      <p className="font-serif text-[22px] font-bold text-ink">{title}</p>
+    <div className={`well px-6 py-10 sm:px-8 ${className}`}>
+      <p className="font-serif text-[22px] font-bold tracking-[-0.03em] text-ink">{title}</p>
       {description && <div className="mt-2 max-w-xl text-[15px] leading-relaxed text-ink-muted">{description}</div>}
       {action && <div className="mt-6 flex flex-wrap gap-2">{action}</div>}
     </div>

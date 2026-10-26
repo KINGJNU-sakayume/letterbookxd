@@ -96,16 +96,16 @@ export function VolumeRow({
   const progress = progressPercent(currentPage, totalPages);
 
   return (
-    <li className="px-4 py-3.5 sm:px-5">
+    <li className="py-3.5">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
         <div className="flex min-w-0 flex-1 basis-56 items-center gap-3.5">
           {!isSingleVolume && (
-            <span className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-[4px] border border-line bg-paper px-1.5 font-serif text-[15px] font-bold text-ink-soft">
+            <span className="tnum flex h-9 min-w-9 shrink-0 items-center justify-center font-serif text-[22px] font-bold tracking-[-0.03em] text-ink">
               {volumeMark || volume.volumeNumber}
             </span>
           )}
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-medium text-ink">{label ?? volume.title}</p>
+            <p className="truncate text-[15px] font-semibold text-ink">{label ?? volume.title}</p>
             {totalPages ? <p className="tnum text-[12.5px] text-ink-muted">{totalPages.toLocaleString()}쪽</p> : null}
           </div>
         </div>
@@ -117,7 +117,7 @@ export function VolumeRow({
               {progress !== null ? (
                 <>
                   <ProgressBar value={progress} className="flex-1" label={`${label ?? volume.title} 읽은 비율`} />
-                  <span className="tnum w-9 text-right text-[12.5px] font-semibold text-reading">{progress}%</span>
+                  <span className="tnum w-10 text-right text-[13px] font-bold text-reading">{progress}%</span>
                 </>
               ) : (
                 <span className="text-[12.5px] text-ink-muted">쪽수 미입력</span>
@@ -152,7 +152,7 @@ export function VolumeRow({
             </div>
           ) : (
             readingState !== 'unread' && (
-              <span className={`text-[12.5px] font-medium ${isReading ? 'text-reading' : 'text-completed-dark'}`}>
+              <span className={`tag ${isReading ? 'tag-in' : 'tag-on'}`}>
                 {READING_STATE_LABEL[readingState]}
               </span>
             )
@@ -206,9 +206,9 @@ function PageForm({
   return (
     <form
       onSubmit={save}
-      className="animate-fade-in mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-control border border-reading-border/70 bg-reading-light/60 px-3 py-2.5"
+      className="animate-fade-in well mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
     >
-      <label htmlFor={`page-${volumeId}`} className="text-[13px] font-medium text-reading-dark">
+      <label htmlFor={`page-${volumeId}`} className="text-[13px] font-semibold text-ink">
         지금 읽는 쪽
       </label>
       <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ function PageForm({
         <span className="tnum text-[13px] text-ink-muted">{totalPages ? `/ ${totalPages}쪽` : '쪽'}</span>
       </div>
       {invalid && <span className="text-[12.5px] text-seal">{totalPages ? `0~${totalPages} 사이로 적어 주세요` : '0 이상으로 적어 주세요'}</span>}
-      <button type="submit" disabled={saving || value === '' || invalid} className="btn btn-sm ml-auto bg-reading text-paper-raised hover:bg-reading-dark">
+      <button type="submit" disabled={saving || value === '' || invalid} className="btn btn-primary btn-sm ml-auto">
         {saving ? '저장 중' : '기록'}
       </button>
     </form>

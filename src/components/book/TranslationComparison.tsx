@@ -15,7 +15,7 @@ export function TranslationComparison({ translations, highlightKey }: Translatio
         <h2 id="translations-heading" className="font-serif text-[19px] font-bold text-ink">
           번역 비교
         </h2>
-        <span className="text-[12.5px] text-ink-muted">첫 문단 · {translations.length}종</span>
+        <span className="text-[12.5px] text-ink-muted">첫 문단, {translations.length}종</span>
       </div>
       <ol className="divide-y divide-line-soft">
         {translations.map((t) => {

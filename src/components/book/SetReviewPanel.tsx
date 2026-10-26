@@ -37,7 +37,7 @@ export function SetReviewPanel({ editionSetId, workId, publisher, title, isSingl
           <p className="truncate text-[14.5px] font-semibold text-ink">
             {isSinglePublisher && title ? `${title} 전체` : `${publisher} 판 전체`}
           </p>
-          <p className="text-[12.5px] text-ink-muted">{formatDate(log.createdAt)} · 세트 전체에 대한 평가</p>
+          <p className="text-[12.5px] text-ink-muted">{formatDate(log.createdAt)}, 세트 전체에 대한 평가</p>
         </div>
       </div>
       <div className="ml-auto flex items-center gap-2">

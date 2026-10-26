@@ -1,6 +1,29 @@
 [
  {
   "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "ink",
+  "axes": "light/grotesk-sans/chromatic-teal",
+  "nav": "kept, teal current mark",
+  "footer": "none",
+  "signature": "the reading ledger: ruled rows of books in progress with page figures",
+  "sections": [
+   "page head with figures",
+   "ledger rows",
+   "ruled section heads",
+   "state tags",
+   "empty states in wells"
+  ],
+  "waived": [
+   "22"
+  ],
+  "prompt": "personal reading diary and library tracker for Korean books",
+  "date": "2026-10-26"
+ },
+ {
+  "mode": "redesign",
   "depth": "restyle",
   "scope": "app",
   "shape": "app screen",

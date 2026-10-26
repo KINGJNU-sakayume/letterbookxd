@@ -1,7 +1,9 @@
-/* Hallmark · shape: app screen · genre: editorial · theme: Ink (deal 3/3, seed personal-reading-diary-library-17bd·7dd30ef7·2026-10-26·r0) · redesign: restyle
- * nav: kept (top bar, five destinations) · signature: kept (the reading ledger and the volume rows) · states: loading, empty, error, full · ink: paper
+/* Hallmark · shape: app screen · genre: editorial · theme: Ink (deal 3/3, seed personal-reading-diary-library-17bd·7dd30ef7·2026-10-26·r0) · redesign: full
+ * nav: kept (top bar, five destinations, the current one underlined in teal) · signature: the reading ledger, ruled rows of books in progress with their page figures · states: loading, empty, error, full · ink: paper
  * axes: light/grotesk-sans/chromatic-teal · posture: restrained · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P3 H3 E4 S4 R3 V4 · weakest: H (hierarchy), page heads kept at their old sizes because restyle keeps the layout */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R3 V4 · weakest: R (range), the cover grids stay grids because the covers are the material */
+/* Hallmark · dismissed 54 · SectionHeading renders the h2 that carries the section's aria-labelledby id; the linter reads the component name */
+/* Hallmark · dismissed 28a · the author portrait sits in a grid below the page head and filters, never the largest first paint */
 /* Hallmark · answered: book covers take --radius-cover (4px), not the theme's 12px photo radius: a 32px cover thumbnail at 12px reads as a pill */
 @import './styles/tokens.css';
 @import './styles/base.css' layer(base);
@@ -159,6 +161,33 @@
   /* 태그는 상태만 싣는다 */
   .chip {
     @apply inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2.5 py-0.5 text-[12.5px] font-semibold text-ink-soft coarse:min-h-8 coarse:px-3;
+  }
+
+  /* 상태 태그: 읽는 중은 옅은 청록, 다 읽음은 먹, 그 밖은 테두리만 */
+  .tag {
+    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-paper-deep px-2 py-0.5 text-[12px] font-semibold leading-[1.35] text-ink-soft;
+  }
+  .tag-in {
+    @apply bg-reading-light text-reading-dark;
+  }
+  .tag-on {
+    @apply bg-ink text-paper;
+  }
+  .tag-out {
+    @apply bg-transparent text-ink-muted ring-1 ring-inset ring-line-strong;
+  }
+
+  /* 줄친 목록: 먹 선 하나로 열고 머리카락 선으로 나눈다 */
+  .ruled {
+    @apply border-t border-ink;
+  }
+  .ruled > * {
+    @apply border-b border-line;
+  }
+
+  /* 쉬는 면: 옅은 회색과 머리카락 선 */
+  .well {
+    @apply rounded-card border border-line bg-paper-sunken;
   }
 
   .kbd {

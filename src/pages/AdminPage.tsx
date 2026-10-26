@@ -286,7 +286,7 @@ function ManageLibraryPanel() {
                     <Link to={`/book/${work.id}`} className="block truncate text-[14.5px] font-semibold text-ink decoration-line-strong underline-offset-4 hover:underline">{work.title}</Link>
                   </td>
                   <td className="px-4 py-2.5 text-[14px] text-ink-soft">{work.author}</td>
-                  <td className="hidden max-w-[16rem] truncate px-4 py-2.5 text-[13px] text-ink-muted xl:table-cell">{work.genre || '—'}</td>
+                  <td className="hidden max-w-[16rem] truncate px-4 py-2.5 text-[13px] text-ink-muted xl:table-cell">{work.genre || '없음'}</td>
                   <td className="tnum px-4 py-2.5 text-right text-[14px] text-ink-soft">{work.editions?.length ?? 0}</td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="inline-flex gap-0.5">
@@ -602,7 +602,7 @@ function EditionForm() {
             ) : (
               <SelectField label="작품" name="work_id" value={form.work_id} onChange={handleChange}>
                 <option value="">판본을 붙일 작품을 고르세요</option>
-                {sortedWorks.map((w) => <option key={w.id} value={w.id}>{w.title} — {w.author}</option>)}
+                {sortedWorks.map((w) => <option key={w.id} value={w.id}>{w.title}, {w.author}</option>)}
               </SelectField>
             )}
 
@@ -631,7 +631,7 @@ function EditionForm() {
                         <BookCover src={book.cover} alt="" title={book.title} className="w-9 shrink-0" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[14px] font-semibold text-ink">{book.title}</span>
-                          <span className="block truncate text-[12.5px] text-ink-muted">{book.author} · {book.publisher}</span>
+                          <span className="block truncate text-[12.5px] text-ink-muted">{book.author}, {book.publisher}</span>
                         </span>
                         <span className="tnum hidden shrink-0 text-[12px] text-ink-faint sm:inline">{book.isbn13 || book.isbn}</span>
                       </button>
@@ -663,7 +663,7 @@ function EditionForm() {
             <BookCover src={form.cover_url || null} alt="" title={selectedWork?.title ?? '작품'} author={selectedWork?.author} className="w-36" />
             <p className="mt-4 font-serif text-[18px] font-bold leading-snug text-ink">{selectedWork?.title ?? '작품을 고르세요'}</p>
             <p className="tnum mt-1 text-[13.5px] text-ink-muted">
-              {[form.publisher, form.volume_number && `${form.volume_number}권`, form.page_count && `${form.page_count}쪽`].filter(Boolean).join(' · ') || '출판사 · 권 · 쪽수'}
+              {[form.publisher, form.volume_number && `${form.volume_number}권`, form.page_count && `${form.page_count}쪽`].filter(Boolean).join(', ') || '출판사, 권, 쪽수'}
             </p>
           </PreviewCard>
         }
@@ -727,7 +727,7 @@ function AuthorForm() {
           <PreviewCard title="미리보기">
             <Portrait src={form.photo_url || null} name={form.name || '작가'} className="aspect-[3/4] w-36" />
             <p className="mt-4 font-serif text-[20px] font-bold text-ink">{form.name || '작가 이름'}</p>
-            <p className="tnum mt-1 text-[13.5px] text-ink-muted">{[form.birth_death, form.country].filter(Boolean).join(' · ') || '생몰년 · 나라'}</p>
+            <p className="tnum mt-1 text-[13.5px] text-ink-muted">{[form.birth_death, form.country].filter(Boolean).join(', ') || '생몰년, 나라'}</p>
           </PreviewCard>
         }
       />

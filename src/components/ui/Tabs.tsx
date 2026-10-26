@@ -61,7 +61,7 @@ export function Tabs<T extends string>({ items, value, onChange, label, classNam
             {it.adornment}
             <span
               aria-hidden
-              className={`absolute inset-x-0 -bottom-px h-[2px] transition-colors ${active ? 'bg-ink' : 'bg-transparent'}`}
+              className={`absolute inset-x-0 -bottom-px h-[2px] transition-colors ${active ? 'bg-reading' : 'bg-transparent'}`}
             />
           </button>
         );

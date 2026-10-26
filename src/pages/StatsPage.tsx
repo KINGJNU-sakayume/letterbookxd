@@ -15,8 +15,8 @@ import { useAuthStore } from '../store/authStore';
 import { useCatalogStore } from '../store/catalogStore';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
-const OCHRE = '#b27d17';
-const INK_MUTED = '#8a8274';
+const OCHRE = 'var(--color-ink)';
+const INK_MUTED = 'var(--color-map-3)';
 
 export function StatsPage() {
   useDocumentTitle('독서 통계');
@@ -69,7 +69,6 @@ export function StatsPage() {
       <Page>
         <PageHeader title="독서 통계" />
         <EmptyState
-          className="border-t-0 pt-2"
           title="로그인하면 통계가 보입니다"
           description="완독한 책이 쌓이면 달마다 읽은 양, 별점, 많이 읽은 작가와 나라를 정리해 보여 줍니다."
           action={<Link to="/login" state={{ from: '/stats' }} className="btn btn-primary">로그인</Link>}
@@ -83,7 +82,7 @@ export function StatsPage() {
     return (
       <Page>
         <PageHeader title="독서 통계" />
-        <ErrorState className="border-t-0 pt-2" onRetry={() => void reload()} />
+        <ErrorState onRetry={() => void reload()} />
       </Page>
     );
   }
@@ -93,7 +92,6 @@ export function StatsPage() {
       <Page>
         <PageHeader title="독서 통계" />
         <EmptyState
-          className="border-t-0 pt-2"
           title="아직 완독한 책이 없습니다"
           description="한 권을 끝까지 읽고 ‘완독’으로 표시하면 여기서부터 통계가 쌓입니다."
           action={<Link to="/" className="btn btn-primary">둘러보기</Link>}
@@ -105,7 +103,7 @@ export function StatsPage() {
   const ratedCount = stats.ratingDist.reduce((s, r) => s + r.count, 0);
   // 맨 위 '완독'은 작품 수, 달별 그래프는 완독 기록 수다. 같은 작품을 다른 판본으로 또 읽으면 둘이 달라지므로 그 차이를 밝힌다.
   const completionCount = stats.monthlyDist.reduce((s, m) => s + m.count, 0);
-  const rereadNote = completionCount > stats.totalWorks ? ` · 다른 판본으로 다시 읽은 책까지 ${completionCount}번` : '';
+  const rereadNote = completionCount > stats.totalWorks ? `, 다른 판본으로 다시 읽은 책까지 ${completionCount}번` : '';
   const countryCounts = Object.fromEntries(
     Object.entries(stats.countryDataMap).map(([k, v]) => [k, v.works.length]),
   );
@@ -136,7 +134,7 @@ export function StatsPage() {
                     setParams(next, { replace: true });
                   }}
                   className={`tnum h-8 rounded-[4px] px-3.5 text-[13.5px] font-medium transition-colors coarse:h-[38px] coarse:px-4 ${
-                    active ? 'bg-paper-raised text-ink shadow-[0_0_0_1px_rgb(29_27_23/0.1)]' : 'text-ink-muted hover:text-ink'
+                    active ? 'bg-paper-raised text-ink ring-1 ring-inset ring-line-strong' : 'text-ink-muted hover:text-ink'
                   }`}
                 >
                   {y === 'all' ? '전체' : `${y}`}
@@ -148,7 +146,7 @@ export function StatsPage() {
       />
 
       {/* 핵심 숫자 */}
-      <dl className="mb-10 grid grid-cols-2 gap-x-6 border-b border-line sm:grid-cols-3 xl:grid-cols-6">
+      <dl className="well mb-12 grid grid-cols-2 gap-x-6 px-5 sm:grid-cols-3 sm:px-6 xl:grid-cols-6">
         <StatFigure
           hero
           label="완독"
@@ -157,7 +155,7 @@ export function StatsPage() {
           sub={year === 'all' ? `한 해 평균 ${stats.annualAvg.toFixed(1)}권` : `${year}년 한 해`}
         />
         <StatFigure label="읽은 쪽수" value={stats.totalPages.toLocaleString()} unit="쪽" sub={`한 권에 평균 ${stats.avgPagesPerBook.toLocaleString()}쪽`} />
-        <StatFigure label="평균 별점" value={ratedCount ? stats.avgRating : '—'} unit={ratedCount ? '점' : undefined} sub={`별점을 남긴 책 ${ratedCount}권`} />
+        <StatFigure label="평균 별점" value={ratedCount ? stats.avgRating : '없음'} unit={ratedCount ? '점' : undefined} sub={`별점을 남긴 책 ${ratedCount}권`} />
         <StatFigure label="인생책" value={stats.lifeBookCount} unit="권" sub="하트를 누른 책" />
         <StatFigure
           label="시리즈 완주"
@@ -168,7 +166,7 @@ export function StatsPage() {
         <StatFigure label="노벨 연구소 100선" value={stats.challenge.read} unit={`/ ${stats.challenge.total}`} sub={`${stats.challenge.percent}% 읽음`} />
       </dl>
 
-      <div className="grid gap-6 xl:grid-cols-12 2xl:gap-8">
+      <div className="grid gap-x-10 gap-y-14 xl:grid-cols-12 2xl:gap-x-14">
         <Card
           className="xl:col-span-8"
           title="달마다 완독한 책"
@@ -245,9 +243,10 @@ export function StatsPage() {
             </ol>
           </div>
           {selectedCountry && (
-            <div className="animate-fade-in mt-6 border-t border-line-soft pt-5">
-              <p className="mb-3 text-[13.5px] font-medium text-ink">
-                {selectedCountry === '미분류' ? '나라 정보 없음' : selectedCountry} · <span className="tnum">{stats.countryDataMap[selectedCountry].works.length}권</span>
+            <div className="animate-fade-in mt-6 border-t border-line pt-5">
+              <p className="mb-3 text-[14px] font-semibold text-ink">
+                {selectedCountry === '미분류' ? '나라 정보 없음' : selectedCountry}
+                <span className="tnum ml-2 font-normal text-ink-muted">{stats.countryDataMap[selectedCountry].works.length}권</span>
               </p>
               <ul className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-3">
                 {stats.countryDataMap[selectedCountry].works.map((w) => (
@@ -265,9 +264,9 @@ export function StatsPage() {
 
         <Card className="xl:col-span-4" title="노벨 연구소 선정 100선" subtitle="서가에 이 목록으로 등록된 작품 기준">
           <div className="flex items-baseline gap-1.5">
-            <span className="text-[34px] font-semibold leading-none tracking-[-0.02em] text-ink">{stats.challenge.read}</span>
+            <span className="tnum font-serif text-[40px] font-bold leading-none tracking-[-0.035em] text-ink">{stats.challenge.read}</span>
             <span className="tnum text-[15px] text-ink-muted">/ {stats.challenge.total}권</span>
-            <span className="tnum ml-auto text-[14px] font-semibold text-completed-dark">{stats.challenge.percent}%</span>
+            <span className="tnum ml-auto text-[15px] font-bold text-ink">{stats.challenge.percent}%</span>
           </div>
           <ProgressBar value={stats.challenge.percent} tone="completed" className="mt-3 h-2" label="100선 읽은 비율" />
           {stats.nobelBestBooks.length > 0 && (
@@ -276,7 +275,7 @@ export function StatsPage() {
                 const read = stats.readWorkIds.has(w.id);
                 return (
                   <li key={w.id}>
-                    <Link to={`/book/${w.id}`} title={`${w.title}${read ? ' · 읽음' : ''}`} className="group block">
+                    <Link to={`/book/${w.id}`} title={`${w.title}${read ? ', 읽음' : ''}`} className="group block">
                       <BookCover
                         src={w.displayCover}
                         alt={w.title}
@@ -298,10 +297,10 @@ export function StatsPage() {
 
 function Card({ title, subtitle, action, className = '', children }: { title: string; subtitle?: string; action?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section className={`panel flex min-w-0 flex-col p-5 sm:p-6 ${className}`}>
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+    <section className={`flex min-w-0 flex-col ${className}`}>
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-ink pb-2.5">
         <div className="min-w-0">
-          <h2 className="font-serif text-[19px] font-bold text-ink">{title}</h2>
+          <h2 className="font-serif text-[22px] font-bold leading-tight tracking-[-0.03em] text-ink">{title}</h2>
           {subtitle && <p className="mt-1 text-[13px] text-ink-muted">{subtitle}</p>}
         </div>
         {action}

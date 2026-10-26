@@ -193,10 +193,11 @@ export function SeriesPage() {
         {/* 본문 */}
         <div className="min-w-0">
           <header>
-            <p className="mb-2 text-[13px] font-medium text-ink-muted">
-              시리즈 · <span className="tnum">{works.length}부작</span>
+            <p className="mb-3 flex gap-2 text-[13px] text-ink-muted">
+              <span className="tag tag-out">시리즈</span>
+              <span className="tnum self-center">{works.length}부작</span>
             </p>
-            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[44px] 2xl:text-[52px]">
+            <h1 className="text-balance font-serif text-[36px] font-bold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[48px] 2xl:text-[56px]">
               {series.title}
             </h1>
             <p className="mt-3 text-[17px] text-ink-soft">
@@ -229,7 +230,7 @@ export function SeriesPage() {
             {works.length === 0 ? (
               <p className="border-y border-line py-8 text-[14.5px] text-ink-muted">아직 이 시리즈에 등록된 작품이 없습니다.</p>
             ) : (
-              <ol className="divide-y divide-line-soft border-y border-line">
+              <ol className="divide-y divide-line border-y border-ink">
                 {works.map((work, index) => {
                   const state = workReadingState(work.id, volumeLogs, setCompletionLogs);
                   const best = state === 'completed' ? bestCompletion(work.id, volumeLogs, setCompletionLogs) : null;
@@ -242,7 +243,7 @@ export function SeriesPage() {
                         onClick={() => setSelectedWorkId(work.id)}
                         aria-pressed={active}
                         className={`group relative flex w-full items-center gap-4 py-3 pl-4 pr-3 text-left transition-colors ${
-                          active ? 'bg-paper-raised' : 'hover:bg-paper-raised/60'
+                          active ? 'bg-paper-sunken' : 'hover:bg-paper-sunken/60'
                         }`}
                       >
                         <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${active ? 'bg-ink' : 'bg-transparent'}`} />
@@ -300,15 +301,13 @@ export function SeriesPage() {
                       items={editionGroups.map(g => ({ value: g.publisher, label: g.publisher, count: g.editions.length }))}
                     />
                   )}
-                  <div className="panel overflow-hidden">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line-soft bg-paper px-4 py-3 text-[13px] text-ink-muted sm:px-5">
-                      <span className="font-medium text-ink-soft">{selectedGroup.publisher}</span>
-                      <span className="tnum">
-                        {isSingle ? '한 권' : `${volCount}권 구성`}
-                        {totalPages > 0 && ` · ${totalPages.toLocaleString()}쪽`}
-                      </span>
+                  <div className="border-y border-ink">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line py-3 text-[13px] text-ink-muted">
+                      <span className="font-semibold text-ink">{selectedGroup.publisher}</span>
+                      <span className="tnum">{isSingle ? '한 권' : `${volCount}권 구성`}</span>
+                      {totalPages > 0 && <span className="tnum">{totalPages.toLocaleString()}쪽</span>}
                     </div>
-                    <ul className="divide-y divide-line-soft">
+                    <ul className="divide-y divide-line">
                       {selectedGroup.editions.map(edition => (
                         <VolumeRow
                           key={edition.id}
@@ -334,7 +333,7 @@ export function SeriesPage() {
                       />
                     )}
                     {!signedIn && (
-                      <p className="border-t border-line-soft px-4 py-3 text-[13px] text-ink-muted sm:px-5">
+                      <p className="border-t border-line py-3 text-[13px] text-ink-muted">
                         <Link to="/login" state={{ from: `/series/${series.id}` }} className="link-quiet font-medium text-ink-soft">
                           로그인
                         </Link>
@@ -358,7 +357,7 @@ export function SeriesPage() {
                   <div className="mt-4 min-w-0">
                     <p className="text-[12.5px] font-medium text-ink-muted">
                       {selectedWork.series_order != null ? `${selectedWork.series_order}부` : '수록 작품'}
-                      {selectedWork.published_year ? ` · ${selectedWork.published_year}` : ''}
+                      {selectedWork.published_year ? <span className="tnum ml-2">{selectedWork.published_year}</span> : null}
                     </p>
                     <Link to={`/book/${selectedWork.id}`} className="mt-1 block font-serif text-[21px] font-bold leading-snug text-ink decoration-line-strong underline-offset-4 hover:underline">
                       {selectedWork.title}

@@ -8,6 +8,7 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { Tabs } from '../components/ui/Tabs';
 import { EmptyState, ErrorState, PageLoader } from '../components/ui/States';
 import { ReadingCard } from '../components/book/ReadingCard';
+import { Figure, Figures } from '../components/ui/Figure';
 import { ProgressDialog } from '../components/book/ProgressDialog';
 import { useLogStore } from '../store/logStore';
 import { useAuthStore } from '../store/authStore';
@@ -134,7 +135,6 @@ export function BookshelfPage() {
       <Page>
         <PageHeader title="내 책장" />
         <EmptyState
-          className="border-t-0 pt-2"
           title="로그인하면 내 책장이 보입니다"
           description="읽는 중인 책과 완독한 책, 이어 읽을 시리즈가 여기에 모입니다."
           action={
@@ -161,19 +161,18 @@ export function BookshelfPage() {
       <PageHeader
         title="내 책장"
         actions={
-          <dl className="flex gap-7 sm:gap-10">
-            <HeaderFigure label="완독" value={completions.length} unit="권" />
-            <HeaderFigure label={`${thisYear}년 완독`} value={thisYearCount} unit="권" />
-            <HeaderFigure label="읽는 중" value={readingItems.length} unit="권" />
-          </dl>
+          <Figures>
+            <Figure label="완독" value={completions.length} unit="권" />
+            <Figure label={`${thisYear}년 완독`} value={thisYearCount} unit="권" />
+            <Figure label="읽는 중" value={readingItems.length} unit="권" />
+          </Figures>
         }
       />
 
       {status === 'error' ? (
-        <ErrorState className="border-t-0 pt-2" onRetry={() => void reload()} />
+        <ErrorState onRetry={() => void reload()} />
       ) : nothingAtAll ? (
         <EmptyState
-          className="border-t-0 pt-2"
           title="아직 기록한 책이 없습니다"
           description="둘러보기에서 책을 골라 권마다 ‘읽는 중’이나 ‘완독’으로 표시하면 이곳에 꽂힙니다."
           action={
@@ -202,8 +201,9 @@ export function BookshelfPage() {
               {readingItems.length === 0 ? (
                 <p className="text-[14.5px] text-ink-muted">지금 읽는 책이 없습니다.</p>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4">
+                <ul className="-mt-5 grid md:grid-cols-2 md:gap-x-8 2xl:grid-cols-3">
                   {readingItems.map((it) => (
+                    <li key={it.log.id} className="border-b border-line">
                     <ReadingCard
                       key={it.log.id}
                       workId={it.work.id}
@@ -220,8 +220,9 @@ export function BookshelfPage() {
                         </button>
                       }
                     />
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </Shelf>
           )}
@@ -231,11 +232,13 @@ export function BookshelfPage() {
               {incompleteSeries.length === 0 ? (
                 <p className="text-[14.5px] text-ink-muted">중간까지 읽은 시리즈가 없습니다.</p>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4">
+                <ul className="-mt-5 grid md:grid-cols-2 md:gap-x-8 2xl:grid-cols-3">
                   {incompleteSeries.map((p) => (
-                    <SeriesCard key={p.series.id} progress={p} />
+                    <li key={p.series.id} className="border-b border-line">
+                      <SeriesCard progress={p} />
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </Shelf>
           )}
@@ -269,9 +272,9 @@ export function BookshelfPage() {
                   {groups.map((g) => (
                     <div key={g.key}>
                       {g.label && (
-                        <h3 className="mb-4 flex items-baseline gap-2 font-serif text-[17px] font-bold text-ink-soft">
+                        <h3 className="mb-4 flex items-baseline gap-2 font-serif text-[18px] font-bold tracking-[-0.03em] text-ink">
                           {g.label}
-                          <span className="tnum font-sans text-[12.5px] font-normal text-ink-faint">{g.items.length}권</span>
+                          <span className="tnum font-sans text-[13px] font-normal tracking-normal text-ink-muted">{g.items.length}권</span>
                         </h3>
                       )}
                       <ul className={COVER_GRID}>
@@ -295,18 +298,6 @@ export function BookshelfPage() {
   );
 }
 
-function HeaderFigure({ label, value, unit }: { label: string; value: number; unit: string }) {
-  return (
-    <div>
-      <dt className="text-[12.5px] text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] text-ink">
-        {value}
-        <span className="ml-0.5 text-[14px] font-medium tracking-normal text-ink-muted">{unit}</span>
-      </dd>
-    </div>
-  );
-}
-
 function Shelf({ title, count, action, children }: { title: string; count: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="mb-14">
@@ -324,7 +315,8 @@ function CompletedTile({ item }: { item: Completion }) {
         {item.work.title}
       </p>
       <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
-        {item.publisher} · <span className="tnum">{formatDate(item.createdAt)}</span>
+        {item.publisher}
+        <span className="tnum ml-2">{formatDate(item.createdAt)}</span>
       </p>
       {(item.rating || item.liked) && (
         <div className="mt-1 flex items-center gap-1.5">
@@ -339,25 +331,24 @@ function CompletedTile({ item }: { item: Completion }) {
 function SeriesCard({ progress }: { progress: SeriesProgress }) {
   const { series, done, total, covers, next } = progress;
   return (
-    <Link to={`/series/${series.id}`} className="panel group flex items-center gap-5 p-4 transition-colors hover:border-line-strong">
-      <div className="relative h-[92px] w-[104px] shrink-0" aria-hidden>
+    <Link to={`/series/${series.id}`} className="group grid grid-cols-[76px_minmax(0,1fr)_auto] items-center gap-x-4 py-4">
+      <div className="relative h-[66px] w-[76px]" aria-hidden>
         {covers.slice(0, 3).map((src, i) => (
-          <div key={i} className="absolute top-0 w-[60px]" style={{ left: i * 20, zIndex: 3 - i, transform: `translateY(${i * 3}px)` }}>
+          <div key={i} className="absolute top-0 w-[44px]" style={{ left: i * 16, zIndex: 3 - i }}>
             <BookCover src={src} alt="" title={series.title} className="w-full" />
           </div>
         ))}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-serif text-[18px] font-bold text-ink decoration-line-strong underline-offset-4 group-hover:underline">{series.title}</p>
+      <div className="min-w-0">
+        <p className="truncate text-[16px] font-semibold text-ink decoration-line-strong underline-offset-4 group-hover:underline">{series.title}</p>
         <p className="truncate text-[13px] text-ink-muted">{series.author}</p>
-        <div className="mt-3 flex items-center gap-3">
-          <ProgressBar value={(done / total) * 100} tone="completed" className="flex-1" label={`${series.title} 완독 비율`} />
-          <span className="tnum shrink-0 text-[12.5px] font-medium text-completed-dark">
-            {done}/{total}
-          </span>
-        </div>
-        {next && <p className="mt-1.5 truncate text-[12.5px] text-ink-muted">다음 차례 · {next.title}</p>}
+        <ProgressBar value={(done / total) * 100} tone="completed" className="mt-2.5 max-w-[22rem]" label={`${series.title} 완독 비율`} />
+        {next && <p className="mt-1.5 truncate text-[12.5px] text-ink-muted">다음 차례: {next.title}</p>}
       </div>
+      <p className="tnum self-start font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-ink">
+        {done}
+        <span className="font-sans text-[13px] font-semibold tracking-normal text-ink-muted">/{total}</span>
+      </p>
     </Link>
   );
 }

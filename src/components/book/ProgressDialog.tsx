@@ -20,7 +20,7 @@ export function ProgressDialog({ item, onClose }: ProgressDialogProps) {
       open={item !== null}
       onClose={onClose}
       title={item ? `${item.work.title}${item.volume ? ` ${item.volume}` : ''}` : ''}
-      description={item ? `${item.publisher} 판 · 지금 읽고 있는 쪽을 적어 두세요.` : undefined}
+      description={item ? `${item.publisher} 판. 지금 읽고 있는 쪽을 적어 두세요.` : undefined}
     >
       {item && <ProgressForm key={item.log.id} item={item} onClose={onClose} />}
     </Dialog>

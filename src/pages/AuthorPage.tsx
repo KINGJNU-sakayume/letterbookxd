@@ -181,11 +181,15 @@ export function AuthorPage() {
               className="aspect-[3/4] w-24 shrink-0 ring-1 ring-inset ring-line sm:w-32 lg:hidden"
             />
             <div className="min-w-0">
-              <h1 className="text-balance font-serif text-[30px] font-bold leading-[1.15] tracking-[-0.03em] text-ink sm:text-[44px] lg:leading-[1.12] 2xl:text-[52px]">
+              <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[48px] 2xl:text-[56px]">
                 {displayName}
               </h1>
               {facts.length > 0 && (
-                <p className="tnum mt-2 text-[15px] text-ink-muted sm:text-[17px] lg:mt-3">{facts.join(' · ')}</p>
+                <p className="tnum mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[15px] text-ink-muted sm:text-[17px] lg:mt-4">
+                  {facts.map((f) => (
+                    <span key={f}>{f}</span>
+                  ))}
+                </p>
               )}
             </div>
           </header>
@@ -199,13 +203,13 @@ export function AuthorPage() {
           )}
 
           {author?.bio && (
-            <p className="text-pretty mt-7 max-w-[68ch] whitespace-pre-line font-serif text-[17px] leading-[1.9] text-ink-soft">{author.bio}</p>
+            <p className="text-pretty mt-8 max-w-[68ch] whitespace-pre-line text-[17px] leading-[1.8] text-ink-soft">{author.bio}</p>
           )}
 
           {signedIn && works.length > 0 && (
-            <dl className="mt-9 grid max-w-2xl grid-cols-3 divide-x divide-line border-y border-line">
+            <dl className="well mt-9 grid max-w-2xl grid-cols-3 divide-x divide-line px-1 sm:px-2">
               <Figure label="읽은 작품" value={personal.readCount} suffix={`/ ${works.length}`} />
-              <Figure label="평균 별점" value={personal.avg ?? '—'} />
+              <Figure label="평균 별점" value={personal.avg ?? '없음'} />
               <Figure label="인생책" value={personal.lifeBooks.length} suffix="권" />
             </dl>
           )}
@@ -223,9 +227,9 @@ export function AuthorPage() {
           )}
 
           <section className="mt-12" aria-labelledby="author-works">
-            <SectionHeading id="author-works" title="작품" count={`${works.length}편 · 발표순`} />
+            <SectionHeading id="author-works" title="작품" count={`${works.length}편, 발표순`} />
             {works.length === 0 ? (
-              <p className="border-y border-line py-8 text-[14.5px] text-ink-muted">아직 등록된 작품이 없습니다.</p>
+              <p className="well px-6 py-8 text-[14.5px] text-ink-muted">아직 등록된 작품이 없습니다.</p>
             ) : (
               <ul className="grid grid-cols-[repeat(auto-fill,minmax(128px,1fr))] gap-x-5 gap-y-9 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:gap-x-6">
                 {works.map((work) => {
@@ -289,11 +293,11 @@ export function AuthorPage() {
 
 function Figure({ label, value, suffix }: { label: string; value: string | number; suffix?: string }) {
   return (
-    <div className="px-4 py-4 first:pl-0 sm:px-6 sm:first:pl-0">
-      <dt className="text-[12.5px] text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] text-ink">
+    <div className="px-4 py-4 sm:px-6">
+      <dt className="text-[13px] text-ink-muted">{label}</dt>
+      <dd className="tnum mt-1.5 font-serif text-[30px] font-bold leading-none tracking-[-0.035em] text-ink">
         {value}
-        {suffix && <span className="tnum ml-1 text-[14px] font-medium tracking-normal text-ink-muted">{suffix}</span>}
+        {suffix && <span className="tnum ml-1 font-sans text-[14px] font-semibold tracking-normal text-ink-muted">{suffix}</span>}
       </dd>
     </div>
   );

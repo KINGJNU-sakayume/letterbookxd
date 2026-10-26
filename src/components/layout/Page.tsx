@@ -21,11 +21,11 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, kicker, description, actions, children, className = '' }: PageHeaderProps) {
   return (
-    <header className={`mb-8 border-b border-line pb-6 lg:mb-10 ${className}`}>
-      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5">
+    <header className={`mb-8 pb-2 lg:mb-10 ${className}`}>
+      <div className="flex flex-wrap items-end justify-between gap-x-12 gap-y-6">
         <div className="min-w-0">
-          {kicker && <div className="mb-2 text-[13px] font-medium text-ink-muted">{kicker}</div>}
-          <h1 className="text-balance font-serif text-[32px] font-bold leading-[1.15] tracking-[-0.03em] text-ink sm:text-[40px]">
+          {kicker && <div className="mb-2 text-[13px] text-ink-muted">{kicker}</div>}
+          <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.02] tracking-[-0.035em] text-ink sm:text-[46px]">
             {title}
           </h1>
           {description && <div className="mt-3 text-[15px] text-ink-muted">{description}</div>}
@@ -45,16 +45,15 @@ interface SectionHeadingProps {
   className?: string;
 }
 
-/** 세리프 제목 + 오른쪽으로 이어지는 가는 선 */
+/** 굵은 제목 아래로 먹 선 하나: 그 아래 목록이 이 선에서 시작한다 */
 export function SectionHeading({ title, count, action, id, className = '' }: SectionHeadingProps) {
   return (
-    <div className={`mb-5 flex items-center gap-3 ${className}`}>
-      <h2 id={id} className="shrink-0 font-serif text-[21px] font-bold tracking-[-0.03em] text-ink">
+    <div className={`mb-5 flex items-end gap-3 border-b border-ink pb-2.5 ${className}`}>
+      <h2 id={id} className="min-w-0 font-serif text-[22px] font-bold leading-tight tracking-[-0.03em] text-ink">
         {title}
       </h2>
-      {count !== undefined && <span className="tnum shrink-0 text-[13px] text-ink-muted">{count}</span>}
-      <span aria-hidden className="h-px min-w-6 flex-1 bg-line" />
-      {action && <div className="shrink-0">{action}</div>}
+      {count !== undefined && <span className="tnum shrink-0 pb-0.5 text-[13px] text-ink-muted">{count}</span>}
+      {action && <div className="ml-auto shrink-0">{action}</div>}
     </div>
   );
 }
