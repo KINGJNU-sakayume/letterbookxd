@@ -1,6 +1,6 @@
-/** 한 색상(이끼색)의 순차 단계. 밝을수록 적다. dataviz 검증: 단조 명도, 인접 ΔL ≥ 0.06, 밝은 끝 2:1 이상. */
-export const MAP_RAMP = ['#9dbb78', '#7fa257', '#638a3d', '#4a6f28', '#35551a'];
-export const NO_DATA = '#e3dccd';
+/** 먹 한 가지의 순차 단계(tokens: --color-map-1..5). 밝을수록 적다: 단조 명도, 인접 ΔL 0.12, 밝은 끝도 종이와 구별된다. */
+export const MAP_RAMP = ['var(--color-map-1)', 'var(--color-map-2)', 'var(--color-map-3)', 'var(--color-map-4)', 'var(--color-map-5)'];
+export const NO_DATA = 'var(--color-map-empty)';
 
 export function rampColor(count: number, max: number): string {
   if (count <= 0) return NO_DATA;

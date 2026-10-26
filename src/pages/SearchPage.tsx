@@ -307,7 +307,7 @@ export function SearchPage() {
           </div>
 
           <div className="mb-7 mt-5 flex flex-wrap items-center gap-3 lg:mt-0">
-            <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft sm:max-w-sm">
+            <div className="flex h-10 min-w-0 flex-1 items-center gap-2 field-shell sm:max-w-sm">
               <Search size={15} className="shrink-0 text-ink-faint" aria-hidden />
               <input
                 type="search"
@@ -405,7 +405,7 @@ export function SearchPage() {
 function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h2 className="mb-2.5 text-[12.5px] font-medium tracking-[0.02em] text-ink-faint">{title}</h2>
+      <h2 className="mb-2.5 text-[12.5px] font-semibold text-ink-muted">{title}</h2>
       <div className="flex flex-col items-start">{children}</div>
     </div>
   );
@@ -483,8 +483,8 @@ function SeriesTile({ series, done }: { series: CatalogSeries; done: number | nu
     <Link to={`/series/${series.id}`} className="tile group">
       <div className="relative">
         {/* 여러 권이 겹친 느낌의 뒷장 */}
-        <span aria-hidden className="absolute inset-0 translate-x-[6px] translate-y-[-6px] rounded-[3px] bg-paper-deep shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
-        <span aria-hidden className="absolute inset-0 translate-x-[3px] translate-y-[-3px] rounded-[3px] bg-line shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
+        <span aria-hidden className="absolute inset-0 translate-x-[6px] translate-y-[-6px] rounded-[3px] bg-paper-deep ring-1 ring-inset ring-line" />
+        <span aria-hidden className="absolute inset-0 translate-x-[3px] translate-y-[-3px] rounded-[3px] bg-line ring-1 ring-inset ring-line" />
         <BookCover src={series.cover} alt={series.title} title={series.title} author={series.author} className="lift relative w-full" />
       </div>
       <div className="mt-3">
@@ -513,7 +513,7 @@ function AuthorTile({ author, read }: { author: CatalogAuthor; read: number | nu
       <Portrait
         src={author.photo_url}
         name={author.name}
-        className="aspect-[3/4] w-full shadow-[0_0_0_1px_rgb(29_27_23/0.06)] transition-transform duration-200 group-hover:-translate-y-1 group-focus-visible:-translate-y-1"
+        className="aspect-[3/4] w-full ring-1 ring-inset ring-line transition-transform duration-200 group-hover:-translate-y-1 group-focus-visible:-translate-y-1"
       />
       <p className="mt-3 line-clamp-1 font-serif text-[16px] font-bold text-ink decoration-line-strong underline-offset-4 group-hover:underline group-focus-visible:underline">
         {author.name}

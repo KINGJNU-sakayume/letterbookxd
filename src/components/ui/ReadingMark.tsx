@@ -26,7 +26,7 @@ export function ReadingMark({ state, percent, rating, liked, className = '' }: R
       <Check aria-hidden size={12} strokeWidth={3} />
       완독
       {rating ? <StarRating rating={rating} size="xs" readonly /> : null}
-      {liked && <Heart size={11} className="fill-seal text-seal" aria-label="인생책" />}
+      {liked && <Heart size={11} className="fill-ink text-ink" aria-label="인생책" />}
     </span>
   );
 }

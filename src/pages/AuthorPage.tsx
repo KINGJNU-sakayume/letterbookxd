@@ -156,7 +156,7 @@ export function AuthorPage() {
             <Portrait
               src={author?.photo_url}
               name={displayName}
-              className="aspect-[3/4] w-full shadow-[0_0_0_1px_rgb(29_27_23/0.07),0_12px_20px_-14px_rgb(29_27_23/0.5)]"
+              className="aspect-[3/4] w-full ring-1 ring-inset ring-line"
             />
             {awards.length > 0 && (
               <div className="mt-6 border-t border-line pt-4">
@@ -178,10 +178,10 @@ export function AuthorPage() {
             <Portrait
               src={author?.photo_url}
               name={displayName}
-              className="aspect-[3/4] w-24 shrink-0 shadow-[0_0_0_1px_rgb(29_27_23/0.07),0_12px_20px_-14px_rgb(29_27_23/0.5)] sm:w-32 lg:hidden"
+              className="aspect-[3/4] w-24 shrink-0 ring-1 ring-inset ring-line sm:w-32 lg:hidden"
             />
             <div className="min-w-0">
-              <h1 className="text-balance font-serif text-[30px] font-bold leading-[1.15] tracking-[-0.015em] text-ink sm:text-[44px] lg:leading-[1.12] 2xl:text-[52px]">
+              <h1 className="text-balance font-serif text-[30px] font-bold leading-[1.15] tracking-[-0.03em] text-ink sm:text-[44px] lg:leading-[1.12] 2xl:text-[52px]">
                 {displayName}
               </h1>
               {facts.length > 0 && (
@@ -212,7 +212,7 @@ export function AuthorPage() {
 
           {signedIn && personal.lifeBooks.length > 0 && (
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-              <span className="text-[12.5px] font-medium text-seal">인생책</span>
+              <span className="text-[12.5px] font-semibold text-ink">인생책</span>
               {personal.lifeBooks.map((w) => (
                 <Link key={w.id} to={`/book/${w.id}`} className="group flex items-center gap-2.5">
                   <BookCover src={w.display_cover} alt="" title={w.title} className="w-8" />

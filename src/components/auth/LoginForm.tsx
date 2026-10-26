@@ -76,7 +76,7 @@ export function LoginForm({ title, description, onSuccess }: LoginFormProps) {
       </div>
 
       {message && (
-        <p role="alert" className="mt-4 rounded-[5px] border border-seal/25 bg-seal-soft px-3 py-2.5 text-[13.5px] leading-relaxed text-seal-dark">
+        <p role="alert" className="mt-4 rounded-control border border-seal/25 bg-seal-soft px-3 py-2.5 text-[13.5px] leading-relaxed text-seal-dark">
           {message}
         </p>
       )}

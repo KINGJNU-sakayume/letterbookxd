@@ -181,8 +181,8 @@ export function SeriesPage() {
         <aside className="lg:row-span-2 xl:row-span-1" aria-label="시리즈 진행">
           <div className="lg:sticky lg:top-24">
             <div className="relative mx-auto w-40 sm:w-48 lg:w-full">
-              <span aria-hidden className="absolute inset-0 translate-x-[8px] translate-y-[-8px] rounded-[3px] bg-paper-deep shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
-              <span aria-hidden className="absolute inset-0 translate-x-[4px] translate-y-[-4px] rounded-[3px] bg-line shadow-[0_0_0_1px_rgb(29_27_23/0.06)]" />
+              <span aria-hidden className="absolute inset-0 translate-x-[8px] translate-y-[-8px] rounded-[3px] bg-paper-deep ring-1 ring-inset ring-line" />
+              <span aria-hidden className="absolute inset-0 translate-x-[4px] translate-y-[-4px] rounded-[3px] bg-line ring-1 ring-inset ring-line" />
               <BookCover src={seriesCover} alt={`${series.title} 표지`} title={series.title} author={series.author} loading="eager" className="relative w-full" />
             </div>
 
@@ -196,7 +196,7 @@ export function SeriesPage() {
             <p className="mb-2 text-[13px] font-medium text-ink-muted">
               시리즈 · <span className="tnum">{works.length}부작</span>
             </p>
-            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.015em] text-ink sm:text-[44px] 2xl:text-[52px]">
+            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[44px] 2xl:text-[52px]">
               {series.title}
             </h1>
             <p className="mt-3 text-[17px] text-ink-soft">

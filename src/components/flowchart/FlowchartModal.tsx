@@ -58,7 +58,7 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, title =
   );
 
   const styledEdges = useMemo(
-    () => edges.map(e => ({ ...e, style: { stroke: '#a39a89', strokeWidth: 1.5 }, labelStyle: { fontSize: 11, fill: '#6d665a' } })),
+    () => edges.map(e => ({ ...e, style: { stroke: 'var(--color-field-edge)', strokeWidth: 1.5 }, labelStyle: { fontSize: 11, fill: 'var(--color-muted)' } })),
     [edges]
   );
 
@@ -123,7 +123,7 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, title =
             elementsSelectable={false}
           >
             <Controls showInteractive={false} />
-            <Background color="#ddd5c6" gap={22} size={1} />
+            <Background color="var(--color-rule)" gap={22} size={1} />
           </ReactFlow>
         </div>
 
@@ -132,7 +132,7 @@ export function FlowchartModal({ nodes, edges, setCompletionLogs, works, title =
             <span className="h-3 w-3 rounded-full bg-completed" aria-hidden /> 읽은 책 (초록 테두리)
           </span>
           <span className="flex items-center gap-2">
-            <span className="rounded-[3px] bg-seal px-1.5 py-0.5 text-[10.5px] font-bold text-paper-raised">입문 추천</span>
+            <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-paper">입문 추천</span>
             처음 읽기 좋은 책
           </span>
           <span className="flex items-center gap-2">

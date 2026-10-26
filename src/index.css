@@ -1,10 +1,40 @@
+/* Hallmark · shape: app screen · genre: editorial · theme: Ink (deal 3/3, seed personal-reading-diary-library-17bd·7dd30ef7·2026-10-26·r0) · redesign: restyle
+ * nav: kept (top bar, five destinations) · signature: kept (the reading ledger and the volume rows) · states: loading, empty, error, full · ink: paper
+ * axes: light/grotesk-sans/chromatic-teal · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P3 H3 E4 S4 R3 V4 · weakest: H (hierarchy), page heads kept at their old sizes because restyle keeps the layout */
+/* Hallmark · answered: book covers take --radius-cover (4px), not the theme's 12px photo radius: a 32px cover thumbnail at 12px reads as a pill */
+@import './styles/tokens.css';
+@import './styles/base.css' layer(base);
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /* 이 앱에만 있는 토큰: 테마 블록에 없는 역할(흐린 글자, 입력칸 테두리, 오류, 표지) */
   :root {
-    color-scheme: light;
+    --color-faint: oklch(50% 0 0);
+    --color-rule-strong: oklch(80% 0.004 100);
+    --color-field-edge: oklch(60% 0 0);
+    --color-accent-edge: oklch(84% 0.06 190);
+    --color-error-ink: oklch(42% 0.16 27);
+    --color-error-soft: oklch(95.5% 0.025 27);
+    --color-cover: oklch(30% 0 0);
+    --color-cover-ink: oklch(96% 0.003 100);
+    --color-shade: oklch(16% 0 0 / 0.5);
+    --color-cloth-1: oklch(27% 0 0);
+    --color-cloth-2: oklch(33% 0 0);
+    --color-cloth-3: oklch(22% 0 0);
+    --color-cloth-4: oklch(38% 0 0);
+    --color-map-1: oklch(86% 0 0);
+    --color-map-2: oklch(74% 0 0);
+    --color-map-3: oklch(62% 0 0);
+    --color-map-4: oklch(48% 0 0);
+    --color-map-5: oklch(34% 0 0);
+    --color-map-empty: var(--color-paper-3);
+    --shadow-pop: 0 24px 48px oklch(20% 0 0 / 0.2);
+    --radius-control: 10px;
+    --radius-cover: 4px;
   }
 
   html {
@@ -14,21 +44,20 @@
   }
 
   body {
-    @apply bg-paper font-sans text-ink antialiased;
-    letter-spacing: -0.005em;
+    @apply bg-paper font-sans text-ink-soft antialiased;
     word-break: keep-all;
     overflow-wrap: break-word;
     text-rendering: optimizeLegibility;
   }
 
-  ::selection {
-    background: #ead6bd;
-    color: theme('colors.ink.DEFAULT');
+  h1,
+  h2,
+  h3 {
+    @apply text-ink;
   }
 
   :focus-visible {
-    outline: 2px solid theme('colors.seal.DEFAULT');
-    outline-offset: 2px;
+    transition: none;
   }
 
   input[type='number']::-webkit-outer-spin-button,
@@ -48,13 +77,13 @@
     @apply w-full px-4 sm:px-6 lg:px-10 2xl:px-14 3xl:px-20;
   }
 
+  /* 로고: 먹으로 찍은 네모 한 칸 */
   .seal-mark {
-    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] bg-seal font-serif text-[17px] font-bold leading-none text-paper-raised;
-    box-shadow: inset 0 0 0 2px rgb(251 249 244 / 0.28);
+    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-ink font-serif text-[16px] font-bold leading-none text-paper;
   }
 
   .btn {
-    @apply inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[5px] px-3.5 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45;
+    @apply inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-3.5 text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-55;
   }
   .btn-sm {
     @apply h-8 px-3 text-[13px] coarse:px-3.5 coarse:text-[14px];
@@ -68,76 +97,93 @@
     @apply h-11 px-5 text-[15px];
   }
   .btn-primary {
-    @apply bg-ink text-paper-raised hover:bg-ink-soft;
+    @apply border-ink bg-ink text-paper hover:border-ink-soft hover:bg-ink-soft active:bg-ink;
   }
   .btn-secondary {
-    @apply border border-line-strong bg-paper-raised text-ink hover:border-ink-muted hover:bg-white;
+    @apply border-line bg-paper-sunken text-ink hover:border-line-strong hover:bg-paper-deep active:bg-paper-sunken;
   }
   .btn-ghost {
-    @apply text-ink-muted hover:bg-paper-sunken hover:text-ink;
+    @apply text-ink-muted hover:bg-paper-sunken hover:text-ink active:bg-paper-deep;
   }
   .btn-danger {
-    @apply bg-seal text-paper-raised hover:bg-seal-dark;
+    @apply border-seal bg-seal text-paper hover:border-seal-dark hover:bg-seal-dark;
   }
   .btn-icon {
-    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[5px] text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink disabled:pointer-events-none disabled:opacity-45 coarse:h-11 coarse:w-11;
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink active:bg-paper-deep disabled:pointer-events-none disabled:opacity-55 coarse:h-11 coarse:w-11;
   }
   /* 표처럼 촘촘한 자리에 넣는 작은 아이콘 버튼 */
   .btn-icon-sm {
     @apply h-8 w-8 coarse:h-11 coarse:w-11;
   }
 
+  /* 입력칸 테두리는 바탕과 3:1 이상, 초점은 테두리를 바꾸지 않고 안쪽 외곽선으로 */
   .field {
-    @apply block w-full rounded-[5px] border border-line-strong bg-paper-raised px-3 py-2.5 text-[15px] text-ink transition-colors placeholder:text-ink-faint hover:border-ink-faint focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:cursor-not-allowed disabled:bg-paper-sunken disabled:text-ink-faint;
+    @apply block w-full rounded-control border bg-paper px-3 py-2.5 text-[15px] text-ink transition-colors placeholder:text-ink-faint hover:border-ink-muted disabled:cursor-not-allowed disabled:bg-paper-sunken disabled:text-ink-faint disabled:opacity-55;
+    border-color: var(--color-field-edge);
+  }
+  .field:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: -1px;
+  }
+  /* 아이콘을 품은 검색칸: 감싼 상자가 입력칸 테두리를 진다 */
+  .field-shell {
+    @apply rounded-control border bg-paper px-3 transition-colors hover:border-ink-muted;
+    border-color: var(--color-field-edge);
+  }
+  .field-shell:focus-within {
+    outline: 2px solid var(--color-focus);
+    outline-offset: -1px;
   }
   .field-select {
     @apply field appearance-none pr-9;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236d665a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
+    background-color: var(--color-paper);
+    background-image: linear-gradient(45deg, transparent 50%, var(--color-muted) 50%),
+      linear-gradient(135deg, var(--color-muted) 50%, transparent 50%);
+    background-position:
+      right 1.05rem center,
+      right 0.75rem center;
+    background-size:
+      5px 5px,
+      5px 5px;
     background-repeat: no-repeat;
   }
   .field-label {
-    @apply mb-1.5 block text-[13px] font-medium text-ink-soft;
+    @apply mb-1.5 block text-[13px] font-semibold text-ink;
   }
 
+  /* 쉬는 면은 평평하다: 옅은 회색 바탕과 머리카락 선, 그림자 없음 */
   .panel {
-    @apply rounded-md border border-line bg-paper-raised;
+    @apply rounded-card border border-line bg-paper-sunken;
   }
 
+  /* 태그는 상태만 싣는다 */
   .chip {
-    @apply inline-flex items-center gap-1 rounded-[4px] border border-line bg-paper-raised px-2 py-0.5 text-[12.5px] text-ink-soft coarse:min-h-8 coarse:px-2.5;
+    @apply inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2.5 py-0.5 text-[12.5px] font-semibold text-ink-soft coarse:min-h-8 coarse:px-3;
   }
 
   .kbd {
-    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] border border-line-strong bg-paper-raised px-1 font-sans text-[11px] font-medium text-ink-muted;
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-line-strong bg-paper px-1 font-sans text-[11px] font-semibold text-ink-muted;
   }
 
   .link-quiet {
-    @apply underline decoration-line-strong decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink;
+    @apply font-semibold underline decoration-line-strong decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-reading;
   }
 
-  /* 표지: 책등 음영과 종이 위 그림자 */
+  /* 표지: 머리카락 선 하나, 쉬는 동안 그림자 없음 */
   .book-cover {
-    @apply relative overflow-hidden bg-paper-deep;
-    border-radius: 2px 3px 3px 2px;
+    @apply relative overflow-hidden rounded-cover bg-paper-deep;
     container-type: inline-size;
     isolation: isolate;
-    box-shadow:
-      0 0 0 1px rgb(29 27 23 / 0.07),
-      0 1px 2px rgb(29 27 23 / 0.1),
-      0 12px 20px -14px rgb(29 27 23 / 0.55);
-  }
-  .book-cover {
-    transition:
-      transform 200ms ease-out,
-      box-shadow 200ms ease-out;
+    outline: 1px solid var(--color-rule);
+    outline-offset: -1px;
+    transition: transform var(--dur-short) var(--ease-out);
   }
   /*
    * 표지·초상 타일(둘러보기, 내 책장, 작가의 작품)의 키보드 초점.
    * 표지가 4px 들리는 것만으로는 어디에 있는지 알기 어려워 타일 전체에 초점 테두리를 두른다.
    */
   .tile {
-    @apply block rounded-[3px];
+    @apply block rounded-cover;
   }
   .tile:focus-visible {
     outline-offset: 5px;
@@ -145,37 +191,18 @@
   .group:hover .book-cover.lift,
   .group:focus-visible .book-cover.lift {
     transform: translateY(-4px);
-    box-shadow:
-      0 0 0 1px rgb(29 27 23 / 0.07),
-      0 2px 4px rgb(29 27 23 / 0.1),
-      0 22px 30px -18px rgb(29 27 23 / 0.6);
-  }
-  .book-cover::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    background:
-      linear-gradient(
-        90deg,
-        rgb(0 0 0 / 0.18) 0%,
-        rgb(255 255 255 / 0.14) 1.4%,
-        rgb(0 0 0 / 0.06) 3%,
-        rgb(0 0 0 / 0) 7%
-      ),
-      linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(0 0 0 / 0.05));
   }
 
   .cover-fallback {
-    @apply absolute inset-0 flex flex-col;
-    padding: 13cqw 11cqw 11cqw 15cqw;
-    color: #f3ebdb;
+    @apply absolute inset-0 flex flex-col bg-[var(--color-cover)];
+    padding: 13cqw 11cqw 11cqw 13cqw;
+    color: var(--color-cover-ink);
   }
   .cover-fallback-title {
     @apply font-serif font-bold;
     font-size: clamp(7px, 11.5cqw, 26px);
-    line-height: 1.32;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
     word-break: keep-all;
     overflow-wrap: anywhere;
   }
@@ -194,7 +221,7 @@
   }
   .cover-fallback-band {
     position: absolute;
-    left: 15cqw;
+    left: 13cqw;
     right: 11cqw;
     bottom: 11cqw;
     height: 1px;
@@ -231,13 +258,13 @@
   }
 
   .animate-fade-in {
-    animation: fade-in 180ms ease-out both;
+    animation: fade-in var(--dur-micro) var(--ease-out) both;
   }
   .animate-rise {
-    animation: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: rise var(--dur-short) var(--ease-out) both;
   }
   .animate-drop {
-    animation: drop 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: drop var(--dur-micro) var(--ease-out) both;
   }
 
   @keyframes fade-in {
@@ -251,7 +278,7 @@
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(10px) scale(0.985);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -268,28 +295,17 @@
       transform: none;
     }
   }
-  @keyframes shimmer {
+  /* 불러오는 중: 움직이지 않는 옅은 면, 숨쉬듯 투명도만 바뀐다 */
+  @keyframes breathe {
     from {
-      background-position: 100% 0;
+      opacity: 1;
     }
     to {
-      background-position: -100% 0;
+      opacity: 0.55;
     }
   }
   .skeleton {
-    background: linear-gradient(90deg, #e9e3d7 0%, #f1ece2 40%, #e9e3d7 80%);
-    background-size: 200% 100%;
-    animation: shimmer 1.6s linear infinite;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    background: var(--color-paper-3);
+    animation: breathe var(--dur-long) var(--ease-in-out) infinite alternate;
   }
 }

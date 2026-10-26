@@ -1,5 +1,8 @@
 import plugin from 'tailwindcss/plugin';
 
+// 색은 모두 src/styles/tokens.css 의 토큰에서 온다. bg-paper/90 같은 투명도 표기도 쓸 수 있게 color-mix로 감싼다.
+const token = (name) => `color-mix(in oklch, var(--color-${name}) calc(<alpha-value> * 100%), transparent)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -9,65 +12,64 @@ export default {
         '3xl': '1920px',
       },
       fontFamily: {
-        sans: [
-          '"Pretendard Variable"',
-          'Pretendard',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          'system-ui',
-          '"Apple SD Gothic Neo"',
-          '"Noto Sans KR"',
-          '"Malgun Gothic"',
-          'sans-serif',
-        ],
-        serif: ['"Gowun Batang"', '"Noto Serif KR"', '"Nanum Myeongjo"', 'Georgia', 'serif'],
+        sans: ['var(--font-body)'],
+        // 예전 이름을 그대로 두어 제목에 쓰던 font-serif 가 표시용 글꼴을 가리킨다
+        serif: ['var(--font-display)'],
+        mono: ['var(--font-outlier)'],
       },
       colors: {
-        // 종이와 잉크: 페이지 바탕, 올린 면, 눌린 면
+        // 흰 종이: 페이지 바탕, 올린 면, 눌린 면
         paper: {
-          DEFAULT: '#f4f0e8',
-          raised: '#fbf9f4',
-          sunken: '#ece6da',
-          deep: '#e3dccd',
+          DEFAULT: token('paper'),
+          raised: token('paper'),
+          sunken: token('paper-2'),
+          deep: token('paper-3'),
         },
+        // 색이 없는 먹
         ink: {
-          DEFAULT: '#1d1b17',
-          soft: '#3b3730',
-          // 작은 글자에도 쓰이므로 둘 다 종이 바탕에서 4.5:1을 넘긴다 (muted 5.6:1, faint 4.6:1)
-          muted: '#665f54',
-          faint: '#726b5e',
+          DEFAULT: token('ink'),
+          soft: token('ink-2'),
+          muted: token('muted'),
+          faint: token('faint'),
         },
         line: {
-          DEFAULT: '#dcd4c4',
-          strong: '#c5bba7',
-          soft: '#e7e1d5',
+          DEFAULT: token('rule'),
+          strong: token('rule-strong'),
+          soft: token('rule-2'),
         },
-        // 장서인(인주) 빨강 — 로고, 인생책, 강조
+        // 오류와 지우기에만 쓰는 빨강
         seal: {
-          DEFAULT: '#a0312a',
-          dark: '#82251f',
-          soft: '#f5e6e0',
+          DEFAULT: token('error'),
+          dark: token('error-ink'),
+          soft: token('error-soft'),
         },
+        // 청록 하나: 읽는 중
         reading: {
-          DEFAULT: '#2e5d8a',
-          light: '#e5edf4',
-          border: '#bccfe1',
-          dark: '#244b70',
+          DEFAULT: token('accent'),
+          light: token('accent-soft'),
+          border: token('accent-edge'),
+          dark: token('accent-soft-ink'),
         },
+        // 다 읽음은 먹으로
         completed: {
-          DEFAULT: '#4d7a2e',
-          light: '#e8efdf',
-          border: '#c6d7b0',
-          dark: '#3b5f22',
+          DEFAULT: token('ink'),
+          light: token('paper-3'),
+          border: token('rule-strong'),
+          dark: token('ink'),
         },
-        star: '#b27d17',
+        star: token('ink'),
         entry: {
-          DEFAULT: '#a0312a',
+          DEFAULT: token('ink'),
         },
       },
       boxShadow: {
-        lift: '0 1px 2px rgb(29 27 23 / 0.06), 0 12px 32px -12px rgb(29 27 23 / 0.28)',
-        pop: '0 2px 6px rgb(29 27 23 / 0.08), 0 24px 48px -16px rgb(29 27 23 / 0.35)',
+        lift: 'var(--shadow-card)',
+        pop: 'var(--shadow-pop)',
+      },
+      borderRadius: {
+        control: 'var(--radius-control)',
+        card: 'var(--radius-card)',
+        cover: 'var(--radius-cover)',
       },
     },
   },

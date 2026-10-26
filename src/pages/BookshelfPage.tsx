@@ -329,7 +329,7 @@ function CompletedTile({ item }: { item: Completion }) {
       {(item.rating || item.liked) && (
         <div className="mt-1 flex items-center gap-1.5">
           <StarRating rating={item.rating} size="xs" readonly showEmpty={false} />
-          {item.liked && <Heart size={11} className="fill-seal text-seal" aria-label="인생책" />}
+          {item.liked && <Heart size={11} className="fill-ink text-ink" aria-label="인생책" />}
         </div>
       )}
     </Link>

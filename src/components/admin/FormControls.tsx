@@ -94,7 +94,7 @@ export function StatusDisplay({ status }: { status: StatusMsg | null }) {
   return (
     <div
       role={status.type === 'error' ? 'alert' : 'status'}
-      className={`flex items-start gap-2 rounded-[5px] border px-3.5 py-2.5 text-[14px] ${
+      className={`flex items-start gap-2 rounded-control border px-3.5 py-2.5 text-[14px] ${
         status.type === 'success'
           ? 'border-completed-border bg-completed-light text-completed-dark'
           : 'border-seal/25 bg-seal-soft text-seal-dark'

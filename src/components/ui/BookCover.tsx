@@ -11,8 +11,8 @@ interface BookCoverProps {
   loading?: 'lazy' | 'eager';
 }
 
-// 표지가 없는 책은 제목에 따라 천 장정 색 하나를 고정으로 받는다
-const CLOTH = ['#6e2b24', '#2f4a5e', '#3e5a3c', '#7a5a2c', '#4a4257', '#5b4f45', '#294a4b', '#6b3f2a'];
+// 표지가 없는 책은 제목에 따라 천 장정 먹색 하나를 고정으로 받는다 (tokens: --color-cloth-1..4)
+const CLOTH = ['var(--color-cloth-1)', 'var(--color-cloth-2)', 'var(--color-cloth-3)', 'var(--color-cloth-4)'];
 
 function clothColor(seed: string): string {
   let h = 0;

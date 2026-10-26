@@ -25,7 +25,7 @@ export function PageHeader({ title, kicker, description, actions, children, clas
       <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5">
         <div className="min-w-0">
           {kicker && <div className="mb-2 text-[13px] font-medium text-ink-muted">{kicker}</div>}
-          <h1 className="text-balance font-serif text-[32px] font-bold leading-[1.15] tracking-[-0.01em] text-ink sm:text-[40px]">
+          <h1 className="text-balance font-serif text-[32px] font-bold leading-[1.15] tracking-[-0.03em] text-ink sm:text-[40px]">
             {title}
           </h1>
           {description && <div className="mt-3 text-[15px] text-ink-muted">{description}</div>}
@@ -49,7 +49,7 @@ interface SectionHeadingProps {
 export function SectionHeading({ title, count, action, id, className = '' }: SectionHeadingProps) {
   return (
     <div className={`mb-5 flex items-center gap-3 ${className}`}>
-      <h2 id={id} className="shrink-0 font-serif text-[21px] font-bold tracking-[-0.01em] text-ink">
+      <h2 id={id} className="shrink-0 font-serif text-[21px] font-bold tracking-[-0.03em] text-ink">
         {title}
       </h2>
       {count !== undefined && <span className="tnum shrink-0 text-[13px] text-ink-muted">{count}</span>}

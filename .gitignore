@@ -23,3 +23,8 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Hallmark working files (screenshots, records)
+.hallmark/*
+!.hallmark/log.json
+!.hallmark/design.md

@@ -240,7 +240,7 @@ export function FlowchartEditor() {
         </div>
 
         {status && (
-          <div className={`flex w-full items-center gap-1.5 rounded-[5px] border px-3 py-1 text-[13.5px] sm:w-auto ${
+          <div className={`flex w-full items-center gap-1.5 rounded-control border px-3 py-1 text-[13.5px] sm:w-auto ${
             status.type === 'success'
               ? 'border-completed-border bg-completed-light text-completed-dark'
               : 'border-seal/25 bg-seal-soft text-seal-dark'
@@ -283,7 +283,7 @@ export function FlowchartEditor() {
                       e.dataTransfer.setData('label', work.title);
                       e.dataTransfer.effectAllowed = 'move';
                     }}
-                    className={`select-none rounded-[5px] border px-2.5 py-2 text-[13px] transition-colors ${
+                    className={`select-none rounded-control border px-2.5 py-2 text-[13px] transition-colors ${
                       onCanvas
                         ? 'cursor-default border-line-soft bg-paper-sunken text-ink-faint'
                         : 'cursor-grab border-line bg-paper-raised text-ink-soft hover:border-line-strong active:cursor-grabbing'
@@ -326,7 +326,7 @@ export function FlowchartEditor() {
             deleteKeyCode="Delete"
           >
             <Controls />
-            <Background color="#ddd5c6" gap={22} size={1} />
+            <Background color="var(--color-rule)" gap={22} size={1} />
           </ReactFlow>
 
           {/* Context menu */}
@@ -355,10 +355,10 @@ export function FlowchartEditor() {
 
       {/* Usage hint */}
       <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line bg-paper px-4 py-2.5 text-[12px] text-ink-muted">
-        <span>책을 오른쪽 클릭 — 입문·본줄기·곁가지 바꾸기</span>
-        <span>아래쪽 가장자리에서 끌기 — 다음 책과 잇기</span>
-        <span>선택 후 <kbd className="kbd">Delete</kbd> — 지우기</span>
-        <span>선을 두 번 클릭 — 설명 붙이기</span>
+        <span>책을 오른쪽 클릭: 입문, 본줄기, 곁가지 바꾸기</span>
+        <span>아래쪽 가장자리에서 끌기: 다음 책과 잇기</span>
+        <span>선택 후 <kbd className="kbd">Delete</kbd>: 지우기</span>
+        <span>선을 두 번 클릭: 설명 붙이기</span>
       </div>
     </div>
   );

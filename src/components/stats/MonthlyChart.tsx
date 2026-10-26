@@ -63,7 +63,7 @@ export function MonthlyChart({ data, unit = '권' }: MonthlyChartProps) {
                   </span>
                   {on && (
                     <span
-                      className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[5px] bg-ink px-2.5 py-1.5 text-left shadow-lift"
+                      className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-control bg-ink px-2.5 py-1.5 text-left shadow-lift"
                       style={{ bottom: `calc(${h}% + 8px)` }}
                     >
                       <span className="tnum block text-[14px] font-semibold leading-tight text-paper-raised">
@@ -73,7 +73,7 @@ export function MonthlyChart({ data, unit = '권' }: MonthlyChartProps) {
                       <span className="block text-[11.5px] leading-tight text-paper-deep">{d.month}</span>
                     </span>
                   )}
-                  <span aria-hidden className="absolute inset-0 rounded-sm group-focus-visible:ring-2 group-focus-visible:ring-seal" />
+                  <span aria-hidden className="absolute inset-0 rounded-sm group-focus-visible:ring-2 group-focus-visible:ring-reading" />
                 </button>
               );
             })}

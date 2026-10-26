@@ -120,7 +120,7 @@ export function StatsPage() {
         title="독서 통계"
         description={`${periodLabel} 완독 기준`}
         actions={
-          <div role="group" aria-label="기간" className="flex flex-wrap items-center gap-0.5 rounded-[6px] bg-paper-sunken p-[3px]">
+          <div role="group" aria-label="기간" className="flex flex-wrap items-center gap-0.5 rounded-control bg-paper-sunken p-[3px]">
             {(['all', ...allYears] as YearFilter[]).map((y) => {
               const active = y === year;
               return (
@@ -234,7 +234,7 @@ export function StatsPage() {
                       <span
                         aria-hidden
                         className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-                        style={{ backgroundColor: name === '미분류' ? 'transparent' : rampColor(count, mapMax), boxShadow: name === '미분류' ? 'inset 0 0 0 1px #c5bba7' : undefined }}
+                        style={{ backgroundColor: name === '미분류' ? 'transparent' : rampColor(count, mapMax), boxShadow: name === '미분류' ? 'inset 0 0 0 1px var(--color-rule-strong)' : undefined }}
                       />
                       <span className="min-w-0 flex-1 truncate">{name === '미분류' ? '나라 정보 없음' : name}</span>
                       <span className="tnum text-ink-muted">{count}권</span>

@@ -82,7 +82,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, range[0])}
-      <mark className="rounded-[2px] bg-[#f0dfc2] px-px text-ink">{text.slice(range[0], range[1])}</mark>
+      <mark className="rounded-[2px] bg-reading-light px-px text-reading-dark">{text.slice(range[0], range[1])}</mark>
       {text.slice(range[1])}
     </>
   );
@@ -224,7 +224,7 @@ function InlineSearch() {
 
   return (
     <div ref={boxRef} className="relative">
-      <div className="flex h-10 w-64 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft hover:border-line-strong xl:w-80 2xl:w-96">
+      <div className="flex h-10 w-64 items-center gap-2 field-shell xl:w-80 2xl:w-96">
         <Search size={16} className="shrink-0 text-ink-faint" aria-hidden />
         <input
           ref={inputRef}

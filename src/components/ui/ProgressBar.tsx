@@ -19,7 +19,7 @@ export function ProgressBar({ value, tone = 'reading', label, className = '' }: 
       aria-label={label}
       className={`h-1.5 overflow-hidden rounded-full ${TRACK[tone]} ${className}`}
     >
-      <div className={`h-full rounded-full transition-[width] duration-500 ${FILL[tone]}`} style={{ width: `${pct}%` }} />
+      <div className={`h-full w-full origin-left rounded-full transition-transform duration-500 ${FILL[tone]}`} style={{ transform: `scaleX(${pct / 100})` }} />
     </div>
   );
 }

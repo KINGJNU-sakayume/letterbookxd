@@ -34,18 +34,18 @@ export function FlowchartBookNode({ data, type }: NodeProps<FlowchartBookNode>) 
 
       <div
         className="book-cover relative aspect-[2/3] w-full"
-        style={data.isCompleted ? { outline: '2px solid #4d7a2e', outlineOffset: '3px' } : undefined}
+        style={data.isCompleted ? { outline: '2px solid var(--color-ink)', outlineOffset: '3px' } : undefined}
       >
         {data.coverImageUrl ? (
           <img src={data.coverImageUrl} alt={data.label} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-[#5b4f45] px-2">
-            <span className="text-center font-serif text-[11px] font-bold leading-snug text-[#f3ebdb]">{data.label}</span>
+          <div className="flex h-full w-full items-center justify-center bg-[var(--color-cover)] px-2">
+            <span className="text-center font-serif text-[11px] font-bold leading-snug text-[var(--color-cover-ink)]">{data.label}</span>
           </div>
         )}
 
         {isEntry && (
-          <div className="absolute inset-x-0 bottom-0 z-[2] bg-seal/95 py-1 text-center text-[10px] font-bold tracking-wide text-paper-raised">
+          <div className="absolute inset-x-0 bottom-0 z-[2] bg-ink/95 py-1 text-center text-[11px] font-semibold text-paper">
             입문 추천
           </div>
         )}

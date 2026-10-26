@@ -1,0 +1,18 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "restyle",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "ink",
+  "axes": "light/grotesk-sans/chromatic-teal",
+  "nav": "kept",
+  "footer": "none",
+  "signature": "kept: the reading ledger and volume rows",
+  "waived": [
+   "22"
+  ],
+  "prompt": "personal reading diary and library tracker for Korean books",
+  "date": "2026-10-26"
+ }
+]

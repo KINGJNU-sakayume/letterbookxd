@@ -22,8 +22,8 @@ interface VolumeRowProps {
 }
 
 const STATE_STYLE: Record<ReadingState, string> = {
-  unread: 'bg-paper-raised text-ink shadow-[0_0_0_1px_rgb(29_27_23/0.1)]',
-  reading: 'bg-reading text-paper-raised',
+  unread: 'bg-paper-raised text-ink ring-1 ring-inset ring-line-strong',
+  reading: 'bg-reading-light text-reading-dark',
   completed: 'bg-completed text-paper-raised',
 };
 
@@ -132,7 +132,7 @@ export function VolumeRow({
           )}
 
           {canEdit ? (
-            <div role="group" aria-label="읽기 상태" className="flex items-center gap-0.5 rounded-[6px] bg-paper-sunken p-[3px] max-sm:w-full">
+            <div role="group" aria-label="읽기 상태" className="flex items-center gap-0.5 rounded-control bg-paper-sunken p-[3px] max-sm:w-full">
               {(['unread', 'reading', 'completed'] as ReadingState[]).map((state) => {
                 const active = readingState === state;
                 return (
@@ -206,7 +206,7 @@ function PageForm({
   return (
     <form
       onSubmit={save}
-      className="animate-fade-in mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[5px] border border-reading-border/70 bg-reading-light/60 px-3 py-2.5"
+      className="animate-fade-in mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-control border border-reading-border/70 bg-reading-light/60 px-3 py-2.5"
     >
       <label htmlFor={`page-${volumeId}`} className="text-[13px] font-medium text-reading-dark">
         지금 읽는 쪽

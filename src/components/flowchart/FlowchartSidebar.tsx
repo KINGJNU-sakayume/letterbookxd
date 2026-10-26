@@ -108,7 +108,7 @@ export function FlowchartSidebar({ nodes, edges, setCompletionLogs, onExpand }: 
                   isCompleted
                     ? 'border-completed bg-completed text-paper-raised'
                     : isEntry
-                      ? 'border-seal bg-paper-raised'
+                      ? 'border-ink bg-paper-raised'
                       : isSide
                         ? 'scale-75 border-line-strong bg-paper-raised'
                         : 'border-ink-faint bg-paper-raised'
@@ -127,7 +127,7 @@ export function FlowchartSidebar({ nodes, edges, setCompletionLogs, onExpand }: 
                   {node.data.label}
                 </Link>
                 <p className="mt-0.5 flex gap-2 text-[12px]">
-                  {isEntry && <span className="font-medium text-seal">입문 추천</span>}
+                  {isEntry && <span className="font-semibold text-ink">입문 추천</span>}
                   {isSide && <span className="text-ink-faint">곁가지</span>}
                   {isCompleted && <span className="text-completed-dark">완독</span>}
                 </p>

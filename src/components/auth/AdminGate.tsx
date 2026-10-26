@@ -61,7 +61,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
       <GateCard>
         <h1 className="font-serif text-[28px] font-bold text-ink">세션을 확인하지 못했습니다</h1>
         <p className="mt-2 text-[14.5px] leading-relaxed text-ink-muted">잠시 후 다시 시도해 주세요.</p>
-        <p className="mt-3 break-words rounded-[5px] bg-paper-sunken px-3 py-2 text-[12.5px] text-ink-muted">{sessionError}</p>
+        <p className="mt-3 break-words rounded-control bg-paper-sunken px-3 py-2 text-[12.5px] text-ink-muted">{sessionError}</p>
         <button onClick={() => void checkSession()} className="btn btn-primary mt-6 w-full">
           다시 시도
         </button>

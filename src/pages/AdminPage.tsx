@@ -250,7 +250,7 @@ function ManageLibraryPanel() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft sm:max-w-sm">
+        <div className="flex h-10 min-w-0 flex-1 items-center gap-2 field-shell sm:max-w-sm">
           <Search size={15} className="shrink-0 text-ink-faint" aria-hidden />
           <input
             type="search"

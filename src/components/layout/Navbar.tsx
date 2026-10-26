@@ -49,11 +49,11 @@ export function Navbar() {
       >
         본문으로 건너뛰기
       </a>
-      <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-line bg-paper">
         <div className="page-x flex h-16 items-center gap-6 lg:gap-10">
           <Link to="/" className="group flex shrink-0 items-center gap-2.5 coarse:min-h-11" aria-label="책장 처음으로">
             <span className="seal-mark transition-transform duration-200 group-hover:-rotate-3">책</span>
-            <span className="font-serif text-[21px] font-bold tracking-[-0.01em] text-ink">책장</span>
+            <span className="font-serif text-[21px] font-bold tracking-[-0.03em] text-ink">책장</span>
           </Link>
 
           <nav aria-label="주요 메뉴" className="hidden h-full items-stretch gap-1 md:flex">
@@ -87,7 +87,7 @@ export function Navbar() {
 
       <nav
         aria-label="주요 메뉴"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <div className="grid grid-cols-4">
           {NAV.map((item) => {

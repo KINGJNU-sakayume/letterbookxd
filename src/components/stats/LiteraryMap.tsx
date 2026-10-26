@@ -64,9 +64,9 @@ export function LiteraryMap({ counts, selected, onSelect }: LiteraryMapProps) {
                   onMouseMove={(e: MouseEvent) => (hit ? place(e, hit.name, count) : setHover(null))}
                   onClick={() => hit && onSelect(hit.name)}
                   style={{
-                    default: { fill, stroke: isSelected ? '#1d1b17' : '#f4f0e8', strokeWidth: isSelected ? 1.4 : 0.5, outline: 'none' },
-                    hover: { fill: hit ? '#27410f' : NO_DATA, stroke: '#f4f0e8', strokeWidth: 0.5, outline: 'none', cursor: hit ? 'pointer' : 'default' },
-                    pressed: { fill: hit ? '#27410f' : NO_DATA, outline: 'none' },
+                    default: { fill, stroke: isSelected ? 'var(--color-accent)' : 'var(--color-paper)', strokeWidth: isSelected ? 1.4 : 0.5, outline: 'none' },
+                    hover: { fill: hit ? 'var(--color-accent)' : NO_DATA, stroke: 'var(--color-paper)', strokeWidth: 0.5, outline: 'none', cursor: hit ? 'pointer' : 'default' },
+                    pressed: { fill: hit ? 'var(--color-accent)' : NO_DATA, outline: 'none' },
                   }}
                 />
               );
@@ -76,7 +76,7 @@ export function LiteraryMap({ counts, selected, onSelect }: LiteraryMapProps) {
       </ComposableMap>
       {hover && (
         <div
-          className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[5px] bg-ink px-2.5 py-1.5 shadow-lift"
+          className="pointer-events-none absolute z-10 whitespace-nowrap rounded-control bg-ink px-2.5 py-1.5 shadow-lift"
           style={{ left: hover.x + 14, top: hover.y + 14 }}
         >
           <span className="tnum block text-[14px] font-semibold leading-tight text-paper-raised">{hover.count}권</span>

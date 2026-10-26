@@ -211,7 +211,7 @@ export function BookDetailPage() {
         {/* 본문 */}
         <div className="min-w-0">
           <header>
-            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.015em] text-ink sm:text-[44px] 2xl:text-[52px]">
+            <h1 className="text-balance font-serif text-[34px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[44px] 2xl:text-[52px]">
               {dbWork.title}
             </h1>
             <p className="mt-3 text-[17px] text-ink-soft">
@@ -396,7 +396,7 @@ function MyRecord({ record }: { record: MyRecordData }) {
           {(c.rating || c.liked) && (
             <div className="mt-1.5 flex items-center gap-2">
               <StarRating rating={c.rating} size="sm" readonly showEmpty={false} />
-              {c.liked && <span className="text-[12.5px] font-medium text-seal">인생책</span>}
+              {c.liked && <span className="text-[12.5px] font-semibold text-ink">인생책</span>}
             </div>
           )}
         </div>

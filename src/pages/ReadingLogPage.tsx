@@ -291,7 +291,7 @@ export function ReadingLogPage() {
 
           <section className="min-w-0" aria-label="기록 목록">
             <div className="mb-6 flex flex-wrap items-center gap-2.5">
-              <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[5px] border border-line bg-paper-raised px-3 transition-colors focus-within:border-ink-soft lg:max-w-xs">
+              <div className="flex h-10 min-w-0 flex-1 items-center gap-2 field-shell lg:max-w-xs">
                 <Search size={15} className="shrink-0 text-ink-faint" aria-hidden />
                 <input
                   type="search"
@@ -393,8 +393,8 @@ export function ReadingLogPage() {
                             {[e.publisher, e.volume].filter(Boolean).join(' · ') || '—'}
                           </td>
                           <td className="py-2.5 pr-4"><KindTag entry={e} /></td>
-                          <td className="py-2.5 pr-4">{e.kind === 'reading' ? <span className="text-ink-faint">—</span> : <StarRating rating={e.rating} size="sm" readonly />}</td>
-                          <td className="py-2.5 text-center">{e.liked && <Heart size={14} className="mx-auto fill-seal text-seal" aria-label="인생책" />}</td>
+                          <td className="py-2.5 pr-4">{e.kind === 'reading' ? <span className="text-[12.5px] text-ink-faint">없음</span> : <StarRating rating={e.rating} size="sm" readonly />}</td>
+                          <td className="py-2.5 text-center">{e.liked && <Heart size={14} className="mx-auto fill-ink text-ink" aria-label="인생책" />}</td>
                           <td className="py-2.5 text-right">
                             <span className="inline-flex gap-0.5 text-ink-faint">
                               <button type="button" onClick={() => setEditing(e)} className="btn-icon btn-icon-sm" aria-label={`${e.title} 기록 고치기`}>
@@ -435,7 +435,7 @@ export function ReadingLogPage() {
                                 <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                                   <KindTag entry={e} />
                                   {e.kind !== 'reading' && <StarRating rating={e.rating} size="xs" readonly showEmpty={false} />}
-                                  {e.liked && <Heart size={11} className="fill-seal text-seal" aria-label="인생책" />}
+                                  {e.liked && <Heart size={11} className="fill-ink text-ink" aria-label="인생책" />}
                                 </span>
                               </span>
                             </Link>
@@ -474,7 +474,7 @@ export function ReadingLogPage() {
 function FilterList({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h2 className="mb-2.5 text-[12.5px] font-medium tracking-[0.02em] text-ink-faint">{title}</h2>
+      <h2 className="mb-2.5 text-[12.5px] font-semibold text-ink-muted">{title}</h2>
       <div className="flex flex-col">{children}</div>
     </div>
   );
