@@ -162,6 +162,10 @@ export function BookDetailPage() {
     .filter((t): t is { key: string; label: string; text: string } => t !== null);
 
   const allTranslations = [...workTranslations, ...editionTranslations];
+  // 내가 다 읽은 판본의 번역
+  const readTranslationKeys = editionGroups
+    .filter((g) => !!getSetCompletionLog(groupKey(dbWork.id, g.publisher)))
+    .map((g) => `pub-${g.publisher}`);
   const hasTranslations = allTranslations.length > 0;
   const hasSide = hasTranslations || related.items.length > 0;
   const hasMultiplePublishers = editionGroups.length > 1;
@@ -352,7 +356,13 @@ export function BookDetailPage() {
         {hasSide && (
           <aside className="min-w-0 lg:col-start-2 xl:col-start-3 xl:row-start-1" aria-label="번역 비교와 관련 작품">
             <div className="space-y-8 xl:sticky xl:top-24">
-              {hasTranslations && <TranslationComparison translations={allTranslations} highlightKey={`pub-${activePublisher}`} />}
+              {hasTranslations && (
+                <TranslationComparison
+                  translations={allTranslations}
+                  highlightKey={`pub-${activePublisher}`}
+                  readKeys={readTranslationKeys}
+                />
+              )}
               {related.items.length > 0 && <RelatedWorks title={related.title} items={related.items} currentId={dbWork.id} moreLink={related.more} />}
             </div>
           </aside>
