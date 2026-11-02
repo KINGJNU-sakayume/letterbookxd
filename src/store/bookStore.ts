@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import type { Work, EditionSet, Volume } from '../types';
-import type { GroupedBookData } from '../utils/bookGrouping';
+
+/** 작품 화면 등에서 올려 두는 작품·판본·권 (완독 연쇄 판정에 쓰인다) */
+export interface GroupedBookData {
+  works: Work[];
+  editionSets: EditionSet[];
+  volumes: Volume[];
+}
 
 interface BookStore {
   works: Work[];

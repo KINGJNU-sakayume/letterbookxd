@@ -5,7 +5,9 @@ import {
   deleteWork as deleteWorkFromCatalog, extractVolumeFromTitle, fetchAllSeries, fetchAllWorks, fetchEditionsByWorkId,
   insertEdition, insertSeries, insertWork, updateWork, upsertAuthorByName,
 } from '../services/db';
-import { AladinUnavailableError, getAladinDetail, searchAladinItems } from '../services/aladin';
+import {
+  getLookupKey, LookupKeyMissingError, NLK_KEY_GUIDE_URL, searchBooks, setLookupKey, type BookCandidate,
+} from '../services/bookLookup';
 import { CatalogEditBar } from '../components/admin/CatalogEditBar';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
@@ -28,7 +30,7 @@ type Tab = 'manage' | 'work' | 'edition' | 'author' | 'series' | 'flowchart';
 const TABS: { value: Tab; label: string; description: string }[] = [
   { value: 'manage', label: '작품 목록', description: '등록된 작품을 찾아 고치거나 지웁니다.' },
   { value: 'work', label: '작품 추가', description: '새 작품을 서가에 올립니다. 판본은 다음 단계에서 붙입니다.' },
-  { value: 'edition', label: '판본 추가', description: '알라딘에서 책을 찾아 출판사별 판본과 권을 붙입니다.' },
+  { value: 'edition', label: '판본 추가', description: '국립중앙도서관에서 책을 찾아 출판사별 판본과 권을 붙입니다.' },
   { value: 'author', label: '작가 추가', description: '같은 이름이 있으면 덮어씁니다.' },
   { value: 'series', label: '시리즈 추가', description: '여러 작품을 묶는 시리즈를 만듭니다.' },
   { value: 'flowchart', label: '읽기 순서', description: '작가별 추천 읽기 순서를 그립니다.' },
@@ -491,16 +493,6 @@ function SeriesForm() {
   );
 }
 
-// 알라딘 검색 결과
-interface AladinBookResult {
-  isbn: string;
-  isbn13: string;
-  title: string;
-  author: string;
-  publisher: string;
-  cover: string;
-}
-
 function EditionForm() {
   const [works, setWorks] = useState<DbWork[]>([]);
   const [worksLoading, setWorksLoading] = useState(true);
@@ -508,8 +500,25 @@ function EditionForm() {
   const [isbnQuery, setIsbnQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusMsg | null>(null);
-  const [searchResults, setSearchResults] = useState<AladinBookResult[]>([]);
+  const [searchResults, setSearchResults] = useState<BookCandidate[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  // 국립중앙도서관 인증키: 이 브라우저에만 저장 (undefined = 확인 중)
+  const [lookupKey, setLookupKeyState] = useState<string | null | undefined>(undefined);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [editingKey, setEditingKey] = useState(false);
+
+  useEffect(() => {
+    getLookupKey().then(setLookupKeyState).catch(() => setLookupKeyState(null));
+  }, []);
+
+  async function saveKey(next: string | null) {
+    await setLookupKey(next);
+    const saved = await getLookupKey();
+    setLookupKeyState(saved);
+    setKeyDraft('');
+    setEditingKey(false);
+    setStatus(saved ? { type: 'success', text: '인증키를 이 브라우저에 저장했습니다.' } : null);
+  }
 
   useEffect(() => {
     fetchAllWorks().then(setWorks).finally(() => setWorksLoading(false));
@@ -530,44 +539,38 @@ function EditionForm() {
     setSearchResults([]);
     setStatus(null);
     try {
-      const items = await searchAladinItems(query, 10);
+      const items = await searchBooks(query);
       if (items.length > 0) {
         setSearchResults(items);
       } else {
-        setStatus({ type: 'error', text: '검색 결과가 없습니다.' });
+        setStatus({ type: 'error', text: '검색 결과가 없습니다. 제목을 줄이거나 ISBN으로 찾아 보세요.' });
       }
     } catch (err) {
       console.error('검색 에러:', err);
-      setStatus({
-        type: 'error',
-        text: err instanceof AladinUnavailableError
-          ? `${err.message} 판본 정보는 직접 적어 주세요.`
-          : '알라딘 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      });
+      if (err instanceof LookupKeyMissingError) setEditingKey(true);
+      setStatus({ type: 'error', text: err instanceof Error ? err.message : '검색하지 못했습니다.' });
     } finally {
       setIsSearching(false);
     }
   }
 
-  const handleSelectBook = async (book: AladinBookResult) => {
-    const isbn = book.isbn13 || book.isbn;
-    const suggested = extractVolumeFromTitle(book.title);
-    setForm((f) => ({ ...f, isbn, publisher: book.publisher, cover_url: book.cover.replace('coversum', 'cover500'), volume_number: suggested || '', page_count: '' }));
+  function handleSelectBook(book: BookCandidate) {
+    const volume = book.volume || extractVolumeFromTitle(book.title);
+    setForm((f) => ({
+      ...f,
+      isbn: book.isbn,
+      publisher: book.publisher,
+      cover_url: book.cover,
+      volume_number: volume || '',
+      page_count: book.pageCount ? String(book.pageCount) : '',
+    }));
     setSearchResults([]);
     setIsbnQuery(book.title);
-    setStatus({ type: 'success', text: '쪽수를 가져오는 중입니다.' });
-    try {
-      const detail = await getAladinDetail(isbn);
-      if (detail && detail.page_count) {
-        setForm(f => ({ ...f, page_count: detail.page_count.toString() }));
-        setStatus({ type: 'success', text: `“${book.title}” 정보를 채웠습니다. (${detail.page_count}쪽)` });
-      } else {
-        setStatus({ type: 'error', text: '쪽수를 가져오지 못했습니다. 직접 적어 주세요.' });
-      }
-    } catch (err) {
-      setStatus({ type: 'error', text: err instanceof AladinUnavailableError ? err.message : '상세 정보를 가져오지 못했습니다.' });
-    }
-  };
+    const missing = [!book.pageCount && '쪽수', !book.cover && '표지'].filter(Boolean).join('와 ');
+    setStatus(missing
+      ? { type: 'error', text: `“${book.title}” 정보를 채웠습니다. ${missing}는 없어서 직접 적어 주세요.` }
+      : { type: 'success', text: `“${book.title}” 정보를 채웠습니다. (${book.pageCount}쪽)` });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -603,16 +606,53 @@ function EditionForm() {
               </SelectField>
             )}
 
+            {lookupKey !== undefined && (!lookupKey || editingKey) && (
+              <div className="rounded-control border border-line bg-paper-sunken px-4 py-3">
+                <label htmlFor="nlk-key" className="field-label">국립중앙도서관 인증키</label>
+                <p className="mb-2 text-[12.5px] leading-relaxed text-ink-muted">
+                  자동 채우기는 국립중앙도서관 ISBN 서지정보 API를 씁니다.{' '}
+                  <a href={NLK_KEY_GUIDE_URL} target="_blank" rel="noreferrer" className="underline underline-offset-2">인증키 신청</a> 후
+                  붙여 넣으세요. 키는 이 브라우저에만 저장되고 백업·카탈로그에는 들어가지 않습니다.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    id="nlk-key"
+                    type="password"
+                    autoComplete="off"
+                    value={keyDraft}
+                    onChange={(e) => setKeyDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void saveKey(keyDraft))}
+                    placeholder="cert_key"
+                    className="field flex-1"
+                  />
+                  <button type="button" disabled={!keyDraft.trim()} onClick={() => void saveKey(keyDraft)} className="btn btn-secondary h-auto px-4">
+                    저장
+                  </button>
+                  {lookupKey && (
+                    <button type="button" onClick={() => setEditingKey(false)} className="btn btn-ghost h-auto px-3">취소</button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div>
-              <label htmlFor="aladin-query" className="field-label">알라딘에서 찾기</label>
+              <div className="flex items-baseline justify-between gap-3">
+                <label htmlFor="book-query" className="field-label">국립중앙도서관에서 찾기</label>
+                {lookupKey && !editingKey && (
+                  <span className="flex gap-3 text-[12px] text-ink-muted">
+                    <button type="button" onClick={() => setEditingKey(true)} className="underline underline-offset-2 hover:text-ink">키 바꾸기</button>
+                    <button type="button" onClick={() => void saveKey(null)} className="underline underline-offset-2 hover:text-ink">키 지우기</button>
+                  </span>
+                )}
+              </div>
               <div className="flex gap-2">
                 <input
-                  id="aladin-query"
+                  id="book-query"
                   type="search"
                   value={isbnQuery}
                   onChange={(e) => setIsbnQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
-                  placeholder="책 제목이나 작가"
+                  placeholder="책 제목 또는 ISBN"
                   className="field flex-1"
                 />
                 <button type="button" onClick={handleSearch} disabled={isSearching} className="btn btn-secondary h-auto px-4">
@@ -621,16 +661,18 @@ function EditionForm() {
                 </button>
               </div>
               {searchResults.length > 0 && (
-                <ul className="panel mt-2 max-h-80 divide-y divide-line-soft overflow-y-auto" aria-label="알라딘 검색 결과">
+                <ul className="panel mt-2 max-h-80 divide-y divide-line-soft overflow-y-auto" aria-label="도서 검색 결과">
                   {searchResults.map((book) => (
-                    <li key={book.isbn13 || book.isbn}>
+                    <li key={book.isbn || book.title}>
                       <button type="button" onClick={() => handleSelectBook(book)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-paper">
-                        <BookCover src={book.cover} alt="" title={book.title} className="w-9 shrink-0" />
+                        <BookCover src={book.cover || null} alt="" title={book.title} className="w-9 shrink-0" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[14px] font-semibold text-ink">{book.title}</span>
-                          <span className="block truncate text-[12.5px] text-ink-muted">{book.author}, {book.publisher}</span>
+                          <span className="block truncate text-[12.5px] text-ink-muted">
+                            {[book.author, book.publisher, book.volume && `${book.volume}권`, book.pageCount && `${book.pageCount}쪽`].filter(Boolean).join(', ')}
+                          </span>
                         </span>
-                        <span className="tnum hidden shrink-0 text-[12px] text-ink-faint sm:inline">{book.isbn13 || book.isbn}</span>
+                        <span className="tnum hidden shrink-0 text-[12px] text-ink-faint sm:inline">{book.isbn}</span>
                       </button>
                     </li>
                   ))}

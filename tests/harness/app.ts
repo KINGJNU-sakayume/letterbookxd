@@ -15,3 +15,8 @@ export { LOG_ID_PATTERN, validateLogRecord } from '../../src/domain/logs/records
 export {
   buildBackup, parseBackup, parseImportFile, planImport, resolvePlan,
 } from '../../src/domain/backup/backup';
+export { DB_NAME, closeDbForTests } from '../../src/storage/db';
+export {
+  asIsbn, buildNlkUrl, getLookupKey, LookupError, LookupKeyMissingError, nlkErrorMessage, parseNlkResponse,
+  parsePageCount, searchBooks, setLookupKey,
+} from '../../src/services/bookLookup';
