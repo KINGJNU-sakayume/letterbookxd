@@ -1,9 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
-import { fetchFlowchartByAuthor } from '../services/db';
+import { fetchAuthorByName, fetchFlowchartByAuthor, fetchWorksByAuthor } from '../services/db';
 import type { DbFlowchart } from '../types';
 import { FlowchartSidebar, FlowchartModal } from '../components/flowchart';
 import { Breadcrumbs, Page, SectionHeading } from '../components/layout/Page';
@@ -43,7 +41,6 @@ export function AuthorPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const { volumeLogs, setCompletionLogs } = useLogStore();
-  const signedIn = useAuthStore((s) => !!s.session);
   useDocumentTitle(name);
 
   useEffect(() => {
@@ -51,32 +48,10 @@ export function AuthorPage() {
       if (!name) return;
       setIsLoading(true);
       try {
-        const { data: authorData } = await supabase
-          .from('authors')
-          .select('*')
-          .eq('name', name)
-          .maybeSingle();
+        const authorData = await fetchAuthorByName(name);
         setAuthor(authorData as AuthorRecord | null);
 
-        const { data: worksData, error } = await supabase
-          .from('works')
-          .select(`
-            id,
-            title,
-            published_year,
-            representative_edition_id,
-            series_id,
-            editions!work_id (
-              id,
-              cover_url,
-              publisher,
-              page_count
-            )
-          `)
-          .eq('author', name)
-          .order('published_year', { ascending: true });
-
-        if (error) { console.error('데이터 로드 에러:', error); return; }
+        const worksData = await fetchWorksByAuthor(name);
 
         const processedWorks = ((worksData ?? []) as unknown as Omit<WorkItem, 'display_cover'>[]).map(work => {
           const editions = work.editions || [];
@@ -206,7 +181,7 @@ export function AuthorPage() {
             <p className="text-pretty mt-8 max-w-[68ch] whitespace-pre-line text-[17px] leading-[1.8] text-ink-soft">{author.bio}</p>
           )}
 
-          {signedIn && works.length > 0 && (
+          {works.length > 0 && (
             <dl className="well mt-9 grid max-w-2xl grid-cols-3 divide-x divide-line px-1 sm:px-2">
               <Figure label="읽은 작품" value={personal.readCount} suffix={`/ ${works.length}`} />
               <Figure label="평균 별점" value={personal.avg ?? '없음'} />
@@ -214,7 +189,7 @@ export function AuthorPage() {
             </dl>
           )}
 
-          {signedIn && personal.lifeBooks.length > 0 && (
+          {personal.lifeBooks.length > 0 && (
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
               <span className="text-[12.5px] font-semibold text-ink">인생책</span>
               {personal.lifeBooks.map((w) => (
@@ -245,7 +220,7 @@ export function AuthorPage() {
                         <p className="mt-0.5 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink decoration-line-strong underline-offset-4 group-hover:underline group-focus-visible:underline">
                           {work.title}
                         </p>
-                        {signedIn && state !== 'unread' && (
+                        {state !== 'unread' && (
                           <ReadingMark
                             className="mt-1.5"
                             state={state}

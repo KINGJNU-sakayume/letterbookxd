@@ -14,8 +14,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Loader2, Save, RotateCcw, CheckCircle2, AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { fetchFlowchartByAuthor, upsertFlowchart } from '../../services/db';
+import { fetchFlowchartByAuthor, fetchWorkAuthorNames, fetchWorksByAuthor, upsertFlowchart } from '../../services/db';
 import type { FlowchartNode, FlowchartEdge, FlowchartNodeType } from '../../types';
 import { FlowchartEditorBookNode } from './FlowchartEditorBookNode';
 import { FlowchartEditorEdge } from './FlowchartEditorEdge';
@@ -67,15 +66,11 @@ export function FlowchartEditor() {
   // Load unique authors on mount
   useEffect(() => {
     async function loadAuthors() {
-      const { data } = await supabase
-        .from('works')
-        .select('author')
-        .order('author');
-      if (data) {
-        const unique = Array.from(new Set(data.map(r => r.author as string)));
-        setAuthors(unique);
+      try {
+        setAuthors(await fetchWorkAuthorNames());
+      } finally {
+        setLoadingAuthors(false);
       }
-      setLoadingAuthors(false);
     }
     loadAuthors();
   }, []);
@@ -95,17 +90,17 @@ export function FlowchartEditor() {
       try {
         const [fc, worksRes] = await Promise.all([
           fetchFlowchartByAuthor(selectedAuthor),
-          supabase
-            .from('works')
-            .select('id, title, published_year, representative_cover_url')
-            .eq('author', selectedAuthor)
-            .order('published_year', { ascending: true }),
+          fetchWorksByAuthor(selectedAuthor),
         ]);
 
         setNodes(fc?.nodes ?? []);
         setEdges(fc?.edges ?? []);
-        if (worksRes.error) throw worksRes.error;
-        setAuthorWorks((worksRes.data ?? []) as AuthorWork[]);
+        setAuthorWorks(worksRes.map((w) => ({
+          id: w.id,
+          title: w.title,
+          published_year: w.published_year ?? null,
+          representative_cover_url: w.representative_cover_url,
+        })) as AuthorWork[]);
       } catch (err) {
         setStatus({ type: 'error', text: err instanceof Error ? err.message : '데이터 로드 실패' });
       } finally {

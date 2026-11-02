@@ -11,7 +11,6 @@ import { ReadingCard } from '../components/book/ReadingCard';
 import { Figure, Figures } from '../components/ui/Figure';
 import { ProgressDialog } from '../components/book/ProgressDialog';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { useCatalogStore, type CatalogSeries, type CatalogWork } from '../store/catalogStore';
 import { useReadingItems, type ReadingItem } from '../hooks/useLibrary';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -53,7 +52,6 @@ export function BookshelfPage() {
   useDocumentTitle('내 책장');
   const { works, series, status, load, reload } = useCatalogStore();
   const { volumeLogs, setCompletionLogs, hasLoaded } = useLogStore();
-  const { session, ready } = useAuthStore();
   const [params, setParams] = useSearchParams();
   const [progressItem, setProgressItem] = useState<ReadingItem | null>(null);
 
@@ -128,25 +126,6 @@ export function BookshelfPage() {
       .sort((a, b) => b[0] - a[0])
       .map(([year, items]) => ({ key: `y${year}`, label: `${year}년`, items: items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }));
   }, [completions, sort]);
-
-  if (!ready) return <PageLoader />;
-
-  if (!session) {
-    return (
-      <Page>
-        <PageHeader title="내 책장" />
-        <EmptyState
-          title="로그인하면 내 책장이 보입니다"
-          description="읽는 중인 책과 완독한 책, 이어 읽을 시리즈가 여기에 모입니다."
-          action={
-            <Link to="/login" state={{ from: '/bookshelf' }} className="btn btn-primary">
-              로그인
-            </Link>
-          }
-        />
-      </Page>
-    );
-  }
 
   if (!hasLoaded || status === 'idle' || status === 'loading') return <PageLoader />;
 

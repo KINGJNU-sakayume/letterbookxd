@@ -10,7 +10,6 @@ import { useConfirm } from '../components/ui/confirm';
 import { EmptyState, PageLoader } from '../components/ui/States';
 import { Figure, Figures } from '../components/ui/Figure';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { useCatalogStore } from '../store/catalogStore';
 import { toast } from '../store/toastStore';
 import { parseEditionSetId, parseVolumeId } from '../utils/editionUtils';
@@ -62,7 +61,6 @@ export function ReadingLogPage() {
   useDocumentTitle('독서 기록');
   const { volumeLogs, setCompletionLogs, seriesCompletionLogs, hasLoaded, updateLogMetadata, deleteLogById } = useLogStore();
   const { works, series, status, load } = useCatalogStore();
-  const { session, ready } = useAuthStore();
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState<Entry | null>(null);
   const confirm = useConfirm();
@@ -210,21 +208,6 @@ export function ReadingLogPage() {
     const done = await deleteLogById(entry.id);
     toast(done ? '기록을 지웠습니다.' : '기록을 지우지 못했습니다.', done ? 'default' : 'error');
     return done;
-  }
-
-  if (!ready) return <PageLoader />;
-
-  if (!session) {
-    return (
-      <Page>
-        <PageHeader title="독서 기록" />
-        <EmptyState
-          title="로그인하면 독서 기록이 보입니다"
-          description="완독한 날짜와 별점이 달력처럼 쌓입니다."
-          action={<Link to="/login" state={{ from: '/reading-log' }} className="btn btn-primary">로그인</Link>}
-        />
-      </Page>
-    );
   }
 
   if (!hasLoaded || status === 'idle' || status === 'loading') return <PageLoader />;

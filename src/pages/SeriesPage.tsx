@@ -13,7 +13,6 @@ import { VolumeRow } from '../components/book/VolumeRow';
 import { SetReviewPanel } from '../components/book/SetReviewPanel';
 import { useLogStore } from '../store/logStore';
 import { useBookStore } from '../store/bookStore';
-import { useAuthStore } from '../store/authStore';
 import { fetchSeriesById, fetchWorksBySeriesId, groupEditionsByPublisher } from '../services/db';
 import type { DbSeries, DbWork, DbEdition } from '../services/db';
 import type { Work, EditionSet, Volume } from '../types';
@@ -43,7 +42,6 @@ export function SeriesPage() {
     getSeriesCompletionLog,
     upsertSeriesCompletionLog,
   } = useLogStore();
-  const signedIn = useAuthStore((s) => !!s.session);
   useDocumentTitle(series?.title);
 
   useEffect(() => {
@@ -135,7 +133,7 @@ export function SeriesPage() {
   const tags = splitGenre(series.genre);
 
   // 내 진행: 넓은 화면은 표지 아래, 좁은 화면은 제목과 소개 다음에 둔다 (작품 화면의 '내 기록'과 같은 순서)
-  const progress = signedIn && works.length > 0 ? (
+  const progress = works.length > 0 ? (
     <div className="mt-6 border-t border-line pt-4 max-lg:max-w-md">
       <p className="text-[12.5px] font-medium text-ink-faint">내 진행</p>
       <p className="mt-1.5 text-[14px] text-ink-soft">
@@ -256,7 +254,7 @@ export function SeriesPage() {
                           <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-muted">
                             {work.published_year ? <span className="tnum">{work.published_year}</span> : null}
                             <span className="tnum">{groupEditionsByPublisher(work.editions).length > 1 ? `${groupEditionsByPublisher(work.editions).length}개 출판사` : `${work.editions.length}권`}</span>
-                            {signedIn && <ReadingMark state={state} rating={best?.rating} liked={best?.liked} />}
+                            {<ReadingMark state={state} rating={best?.rating} liked={best?.liked} />}
                           </span>
                         </span>
                         <ChevronRight size={16} className={`shrink-0 transition-colors ${active ? 'text-ink' : 'text-line-strong group-hover:text-ink-muted'}`} aria-hidden />
@@ -318,7 +316,7 @@ export function SeriesPage() {
                           editionSetId={setId}
                           isSingleVolume={isSingle}
                           totalPages={edition.page_count || undefined}
-                          canEdit={signedIn}
+                          canEdit
                         />
                       ))}
                     </ul>
@@ -329,16 +327,8 @@ export function SeriesPage() {
                         publisher={selectedGroup.publisher}
                         title={selectedWork.title}
                         isSinglePublisher={editionGroups.length === 1}
-                        canEdit={signedIn}
+                        canEdit
                       />
-                    )}
-                    {!signedIn && (
-                      <p className="border-t border-line py-3 text-[13px] text-ink-muted">
-                        <Link to="/login" state={{ from: `/series/${series.id}` }} className="link-quiet font-medium text-ink-soft">
-                          로그인
-                        </Link>
-                        하면 읽은 권과 별점을 남길 수 있습니다.
-                      </p>
                     )}
                   </div>
                 </div>

@@ -12,7 +12,6 @@ import { ReadingCard } from '../components/book/ReadingCard';
 import { Figure, Figures } from '../components/ui/Figure';
 import { useCatalogStore, type CatalogAuthor, type CatalogSeries, type CatalogWork } from '../store/catalogStore';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { useReadingItems, useWorkStatuses, type WorkStatus } from '../hooks/useLibrary';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { matchesQuery } from '../lib/hangul';
@@ -58,7 +57,6 @@ export function SearchPage() {
   useDocumentTitle(null);
   const { works, series, authors, status, error, load, reload } = useCatalogStore();
   const setCompletionLogs = useLogStore((s) => s.setCompletionLogs);
-  const signedIn = useAuthStore((s) => !!s.session);
   const [params, setParams] = useSearchParams();
   const [showAllTags, setShowAllTags] = useState(false);
 
@@ -70,7 +68,7 @@ export function SearchPage() {
   const tag = params.get('tag');
   const list = view === 'works' ? params.get('list') : null;
   const rawState = params.get('state');
-  const stateFilter: StateFilter | null = signedIn && view !== 'authors' && (rawState === 'reading' || rawState === 'completed' || rawState === 'unread') ? rawState : null;
+  const stateFilter: StateFilter | null = view !== 'authors' && (rawState === 'reading' || rawState === 'completed' || rawState === 'unread') ? rawState : null;
   const query = params.get('q') ?? '';
   const sort = SORTS[view].some((s) => s.value === params.get('sort')) ? (params.get('sort') as string) : SORTS[view][0].value;
 
@@ -158,13 +156,13 @@ export function SearchPage() {
   }, [view, authors, works, tag, query, sort]);
 
   const stateFacets = useMemo(() => {
-    if (!signedIn || view === 'authors') return [];
+    if (view === 'authors') return [];
     const pool: ReadingState[] =
       view === 'works'
         ? standalone.map((w) => statuses.get(w.id)?.state ?? 'unread')
         : series.map((s) => seriesState.get(s.id)?.state ?? 'unread');
     return (['reading', 'completed', 'unread'] as StateFilter[]).map((value) => ({ value, count: pool.filter((s) => s === value).length }));
-  }, [signedIn, view, standalone, series, statuses, seriesState]);
+  }, [view, standalone, series, statuses, seriesState]);
 
   const resultCount = view === 'works' ? filteredWorks.length : view === 'series' ? filteredSeries.length : filteredAuthors.length;
   const hasFilters = !!(tag || list || stateFilter || query);
@@ -189,7 +187,7 @@ export function SearchPage() {
         }
       />
 
-      {signedIn && readingItems.length > 0 && (
+      {readingItems.length > 0 && (
         <section className="mb-12 lg:mb-14" aria-labelledby="continue-reading">
           <SectionHeading
             id="continue-reading"
@@ -377,7 +375,7 @@ export function SearchPage() {
             <ul className={GRID}>
               {filteredWorks.map((w) => (
                 <li key={w.id}>
-                  <WorkTile work={w} status={signedIn ? statuses.get(w.id) : undefined} />
+                  <WorkTile work={w} status={statuses.get(w.id)} />
                 </li>
               ))}
             </ul>
@@ -385,7 +383,7 @@ export function SearchPage() {
             <ul className={GRID}>
               {filteredSeries.map((s) => (
                 <li key={s.id}>
-                  <SeriesTile series={s} done={signedIn ? seriesState.get(s.id)?.done ?? 0 : null} />
+                  <SeriesTile series={s} done={seriesState.get(s.id)?.done ?? 0} />
                 </li>
               ))}
             </ul>
@@ -393,7 +391,7 @@ export function SearchPage() {
             <ul className="grid grid-cols-[repeat(auto-fill,minmax(136px,1fr))] gap-x-5 gap-y-9 sm:grid-cols-[repeat(auto-fill,minmax(152px,1fr))] sm:gap-x-6 2xl:gap-x-8">
               {filteredAuthors.map((a) => (
                 <li key={a.id}>
-                  <AuthorTile author={a} read={signedIn ? readByAuthor.get(a.name) ?? 0 : null} />
+                  <AuthorTile author={a} read={readByAuthor.get(a.name) ?? 0} />
                 </li>
               ))}
             </ul>

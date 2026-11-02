@@ -1,10 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { BarChart3, CalendarDays, Compass, Library, Settings, type LucideIcon } from 'lucide-react';
-import { isAdminSession, useAuthStore } from '../../store/authStore';
 import { GlobalSearch } from './GlobalSearch';
 import { AccountMenu } from './AccountMenu';
 
-type Section = 'browse' | 'shelf' | 'log' | 'stats' | 'admin';
+type Section = 'browse' | 'shelf' | 'log' | 'stats' | 'admin' | 'settings';
 
 interface NavItem {
   section: Section;
@@ -28,14 +27,15 @@ function sectionOf(pathname: string): Section | null {
   if (pathname.startsWith('/reading-log')) return 'log';
   if (pathname.startsWith('/stats')) return 'stats';
   if (pathname.startsWith('/admin')) return 'admin';
+  if (pathname.startsWith('/settings')) return 'settings';
   return null;
 }
 
 export function Navbar() {
   const { pathname } = useLocation();
   const section = sectionOf(pathname);
-  const admin = useAuthStore((s) => isAdminSession(s.session));
-  const items = admin ? [...NAV, { section: 'admin' as const, to: '/admin', label: '관리', short: '관리', icon: Settings }] : NAV;
+  // 이 기기 = 소유자이므로 관리 메뉴를 늘 보여 준다
+  const items = [...NAV, { section: 'admin' as const, to: '/admin', label: '관리', short: '관리', icon: Settings }];
 
   return (
     <>

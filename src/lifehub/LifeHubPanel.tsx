@@ -4,7 +4,6 @@ import { Dialog } from '../components/ui/Dialog';
 import { StarRating } from '../components/ui/StarRating';
 import { toast } from '../store/toastStore';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { useCatalogStore, type CatalogEdition, type CatalogWork } from '../store/catalogStore';
 import { ensureWorkLoaded } from '../services/bookCache';
 import { createEditionSetRef, createVolumeRef } from '../domain/books/identity';
@@ -33,7 +32,6 @@ interface Form { state: 'reading' | 'completed'; page: string; rating: number | 
 
 function ReviewDialog({ proposal, onClose, onSaved }: { proposal: ReadingProposal; onClose: () => void; onSaved: () => void }) {
   const works = useCatalogStore((s) => s.works);
-  const isAdmin = useAuthStore((s) => s.session?.user.app_metadata?.role === 'admin');
   const query = proposal;
   const found = useMemo(() => findWorks(query, works), [query, works]);
   const [work, setWork] = useState<CatalogWork | null>(found.exact);
@@ -124,7 +122,7 @@ function ReviewDialog({ proposal, onClose, onSaved }: { proposal: ReadingProposa
           {found.choices.length === 0 ? (
             <p className="text-ink-muted">
               카탈로그에서 「{proposal.title}」을 찾지 못했습니다. 작품을 추가한 뒤 다시 검토하세요.
-              {isAdmin && <> <Link to="/admin" className="underline underline-offset-2">관리 화면으로</Link></>}
+              <> <Link to="/admin" className="underline underline-offset-2">관리 화면으로</Link></>
             </p>
           ) : (
             <ul className="space-y-1">

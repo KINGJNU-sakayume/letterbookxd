@@ -28,3 +28,9 @@ npm-debug.log*
 .hallmark/*
 !.hallmark/log.json
 !.hallmark/design.md
+
+# 개인 데이터: 백업·내보내기 파일은 공개 저장소에 올리지 않는다
+backups/
+supabase-export/
+letterbookxd-backup*.json
+*.csv
