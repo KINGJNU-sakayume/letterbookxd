@@ -22,8 +22,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_ALADIN_PROXY_URL: ${{ vars.VITE_ALADIN_PROXY_URL }}
       - name: Commit and push docs
         run: |
           git config user.name "github-actions"

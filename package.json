@@ -9,11 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "test": "tsc src/domain/stats/computeStats.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && tsc src/lib/hangul.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && tsc src/utils/translationDiff.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && tsc src/lifehub/remote.ts src/lifehub/resolve.ts --outDir .test-dist --module ES2022 --target ES2022 --lib ES2022,DOM --moduleResolution bundler --skipLibCheck && node --test tests/stats.test.mjs tests/hangul.test.mjs tests/translationDiff.test.mjs tests/lifehub.test.mjs"
+    "test": "tsc src/domain/stats/computeStats.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && tsc src/lib/hangul.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && tsc src/utils/translationDiff.ts --outDir .test-dist --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck && tsc src/lifehub/remote.ts src/lifehub/resolve.ts --outDir .test-dist --module ES2022 --target ES2022 --lib ES2022,DOM --moduleResolution bundler --skipLibCheck && esbuild tests/harness/app.ts --bundle --platform=node --format=esm --packages=external --outfile=.test-dist/app.js --log-level=warning && node --test tests/stats.test.mjs tests/hangul.test.mjs tests/translationDiff.test.mjs tests/lifehub.test.mjs tests/logStore.test.mjs tests/backup.test.mjs tests/catalogSource.test.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.4",
     "@xyflow/react": "^12.10.2",
+    "dexie": "^4.4.7",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -27,9 +27,11 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
+    "esbuild": "^0.21.5",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
+    "fake-indexeddb": "^6.2.7",
     "globals": "^15.9.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",

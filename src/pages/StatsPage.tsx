@@ -11,7 +11,6 @@ import { LiteraryMap, MapLegend } from '../components/stats/LiteraryMap';
 import { rampColor } from '../components/stats/mapScale';
 import { computeStats, type RawStatsData, type YearFilter } from '../domain/stats/computeStats';
 import { useLogStore } from '../store/logStore';
-import { useAuthStore } from '../store/authStore';
 import { useCatalogStore } from '../store/catalogStore';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -22,7 +21,6 @@ export function StatsPage() {
   useDocumentTitle('독서 통계');
   const { volumeLogs, setCompletionLogs, seriesCompletionLogs, hasLoaded } = useLogStore();
   const { works, series, status, load, reload } = useCatalogStore();
-  const { session, ready } = useAuthStore();
   const [params, setParams] = useSearchParams();
   const [showTable, setShowTable] = useState(false);
   const [country, setCountry] = useState<string | null>(null);
@@ -61,21 +59,6 @@ export function StatsPage() {
   const requested = Number(params.get('year'));
   const year: YearFilter = allYears.includes(requested) ? requested : 'all';
   const stats = useMemo(() => (year === 'all' ? allTime : computeStats(raw, year)), [raw, year, allTime]);
-
-  if (!ready) return <PageLoader />;
-
-  if (!session) {
-    return (
-      <Page>
-        <PageHeader title="독서 통계" />
-        <EmptyState
-          title="로그인하면 통계가 보입니다"
-          description="완독한 책이 쌓이면 달마다 읽은 양, 별점, 많이 읽은 작가와 나라를 정리해 보여 줍니다."
-          action={<Link to="/login" state={{ from: '/stats' }} className="btn btn-primary">로그인</Link>}
-        />
-      </Page>
-    );
-  }
 
   if (!hasLoaded || status === 'idle' || status === 'loading') return <PageLoader />;
   if (status === 'error') {

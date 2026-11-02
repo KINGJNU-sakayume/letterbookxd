@@ -1,0 +1,1255 @@
+{
+  "version": 1,
+  "works": [
+    {
+      "id": "03bf4dc1-25ad-42e2-8c58-e69fe06d8bc2",
+      "title": "검의 폭풍",
+      "author": "조지 R.R. 마틴",
+      "ai_translation": "",
+      "created_at": "2026-03-05T03:57:03.382723+00:00",
+      "representative_cover_url": null,
+      "genre": "미국 소설",
+      "lists": [
+        "시리즈 소설"
+      ],
+      "description": "가장 화려한 잔칫상 위로 피의 비가 쏟아지고, 맹세와 배신이 엇갈리는 칼날 위에서 가문들의 영광은 한순간에 재가 되어 흩어집니다.",
+      "published_year": null,
+      "representative_edition_id": null,
+      "series_id": "157a30c6-b2b8-4145-8f8c-9f3cd0f48435",
+      "series_order": 3
+    },
+    {
+      "id": "03f4c4ea-a1c4-4d9f-b34a-b3028447c77a",
+      "title": "닥터 지바고",
+      "author": "보리스 파스테르나크",
+      "ai_translation": "사람들은 걷고 또 걸으며 '영원한 안식'을 노래했다. 행렬이 멈추었을 때조차 사람들의 발과 말들, 그리고 바람의 숨결이 그 관성에 따라 여전히 그 노래를 부르고 있는 것만 같았다.\n\n길을 가던 사람들은 길을 비켜주며, (제복의) 단추를 세어 보거나 하품을 하기도 했다. 여기저기서 묻는 소리가 들려왔다. \"누구 장례요?\" \"지바고라오.\" \"아, 그 상인 말이오?\" \"아니요, 상인이 아니라 의사요.\" \"아하.\"\n\n사람들은 걷고 또 걸었다. 모퉁이에서 길을 꺾었다. 행렬은 잠시 멈췄다가 다시 움직이기 시작했다. 사람들은 아까와는 다른 노래를 부르기 시작했다. '성도와 함께 잠들게 하소서'라는 노래였다.",
+      "created_at": "2026-03-02T07:12:51.55137+00:00",
+      "representative_cover_url": "https://image.aladin.co.kr/product/17975/10/cover200/893746361x_1.jpg",
+      "genre": "러시아 소설",
+      "lists": [
+        "노벨문학상 수상 작가"
+      ],
+      "description": "러시아 혁명의 격동기 속에서 지식인 의사 지바고가 겪는 비극적인 운명과 라라와의 애절한 사랑, 그리고 그 속에서도 꺾이지 않는 인간의 존엄성을 담은 대서사시.",
+      "published_year": 1957,
+      "representative_edition_id": "bcf8df5e-bb5c-4a62-8df3-fbf3876993c4",
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "05a999ec-49f2-4404-b6d6-e095ad4ee37b",
+      "title": "까마귀의 향연",
+      "author": "조지 R.R. 마틴",
+      "ai_translation": "",
+      "created_at": "2026-03-05T03:57:42.426055+00:00",
+      "representative_cover_url": null,
+      "genre": "미국 소설",
+      "lists": [
+        "시리즈 소설"
+      ],
+      "description": "폭풍이 지나간 자리에 남은 시체들을 탐하는 까마귀들처럼, 무너진 왕국의 폐허 속에서 살아남은 자들은 각자의 고독한 신념을 붙들고 차가운 겨울을 준비합니다.",
+      "published_year": null,
+      "representative_edition_id": null,
+      "series_id": "157a30c6-b2b8-4145-8f8c-9f3cd0f48435",
+      "series_order": 4
+    },
+    {
+      "id": "24ec7c0a-efe1-480e-9fd5-4aff1e92e317",
+      "title": "나는 고양이로소이다",
+      "author": "나쓰메 소세키",
+      "ai_translation": "이 몸은 고양이로소이다. 이름은 아직 없다. 어디서 태어났는지 도무지 감조차 잡히지 않는다. 그저 어둑어둑하고 축축한 곳에서 야옹야옹 울고 있었던 것만은 분명히 기억한다.",
+      "created_at": "2026-03-29T14:47:35.022668+00:00",
+      "representative_cover_url": null,
+      "genre": "일본 소설",
+      "lists": [],
+      "description": "고양이의 냉소적인 시선으로 인간 사회의 위선과 근대 지식인의 허상을 재치 있게 해부하며, '인간이란 얼마나 하찮고도 우스운 존재인가'를 묻는 풍자 문학의 정수",
+      "published_year": null,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "3ba6788e-b7e2-4521-a38a-ed7b43506257",
+      "title": "채식주의자",
+      "author": "한강",
+      "ai_translation": "아내가 채식을 시작하기 전까지 나는 그녀가 특별한 사람이라고 생각한 적이 없었다. 솔직히 말하자면, 아내로서 그녀는 내게 아무런 매력도 없었다.",
+      "created_at": "2026-03-03T03:31:39.338417+00:00",
+      "representative_cover_url": null,
+      "genre": "한국 소설",
+      "lists": [],
+      "description": "억압적 폭력에 맞서 인간의 욕망을 거부하고 스스로 식물이 되고자 한 여자의 파격적인 변신을 통해, 인간성과 야수성 사이의 서늘한 경계를 탐구하는 소설.",
+      "published_year": 2007,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "3eb8089b-dcd9-433d-8bf4-bcf6d26c1a01",
+      "title": "설국",
+      "author": "가와바타 야스나리",
+      "ai_translation": "국경의 긴 터널을 빠져나오자, 눈의 고장이었다. 밤의 밑바닥이 하얘졌다.",
+      "created_at": "2026-03-03T03:31:39.338417+00:00",
+      "representative_cover_url": null,
+      "genre": "일본 소설",
+      "lists": [],
+      "description": "국경의 긴 터널을 지나 펼쳐지는 은빛 설원의 풍경 속에 덧없는 허무와 고독, 그리고 시리도록 아름다운 감각적 탐미를 담아낸 일본 근대 소설의 정점.",
+      "published_year": 1948,
+      "representative_edition_id": "a8200f61-3b4d-4ea5-8584-f1dc22e235ad",
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "4d9a169d-c88d-420c-a0a0-bd0229506ac0",
+      "title": "나?",
+      "author": "페터 플람",
+      "ai_translation": "나는 내가 아니다. 나는 그 사실을 알고 있지만, 증명할 길은 없다. 사람들은 나를 다른 사람으로 알고 있다. 나는 낯선 삶 속에 던져졌고, 이제는 나가는 길을 찾지 못하겠다. 내 것이 아닌 이름을 달고, 내 집이 아닌 곳에 살며, 알지도 못하는 여자를 아내로 두고 있다. 내 주변의 모든 것이 거짓이며, 그중에서도 가장 커다란 거짓은 바로 나 자신이다.",
+      "created_at": "2026-03-29T13:13:01.513049+00:00",
+      "representative_cover_url": null,
+      "genre": "영미 소설",
+      "lists": [],
+      "description": "전쟁의 참화 속에서 분열된 개인의 자아를 통해 ‘나는 누구이며, 타인이 규정한 내가 진짜 나인가’라는 실존적 공포를 파헤친 광기 어린 고백록.",
+      "published_year": null,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "68a0bc4a-f896-41dc-9d5f-0fa092b4683a",
+      "title": "안나 카레니나",
+      "author": "레프 톨스토이",
+      "ai_translation": "행복한 가정은 모두 서로를 닮았지만, 불행한 가정은 저마다의 이유로 제각기 불행하다.",
+      "created_at": "2026-03-02T14:54:31.460567+00:00",
+      "representative_cover_url": "https://image.aladin.co.kr/product/461/57/cover500/s062635100_1.jpg",
+      "genre": "러시아 소설",
+      "lists": [
+        "죽기 전에 꼭 읽어야 할 책 1001"
+      ],
+      "description": "사랑과 열망이라는 불꽃이 귀족 사회의 견고한 위선과 충돌하며 빚어내는 파멸의 기록. 안나와 레빈이라는 두 인물의 대조적인 삶을 통해 진정한 행복과 도덕, 그리고 삶의 의미를 집요하게 추적한 사실주의 문학의 정점.",
+      "published_year": 1877,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "68ae7371-d7e4-48d7-8837-d04191392e7c",
+      "title": "드래곤과의 춤",
+      "author": "조지 R.R. 마틴",
+      "ai_translation": "",
+      "created_at": "2026-03-05T03:58:06.966501+00:00",
+      "representative_cover_url": null,
+      "genre": "미국 소설",
+      "lists": [
+        "시리즈 소"
+      ],
+      "description": "장벽의 얼음과 동방의 불꽃이 각자의 운명을 향해 타오르는 사이, 보이지 않는 그림자들이 서서히 실체를 드러내며 거대한 체스판 위의 마지막 말들을 몰아세웁니다.",
+      "published_year": null,
+      "representative_edition_id": null,
+      "series_id": "157a30c6-b2b8-4145-8f8c-9f3cd0f48435",
+      "series_order": 5
+    },
+    {
+      "id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "title": "전쟁과 평화",
+      "author": "레프 톨스토이",
+      "ai_translation": "자, 공작님. 이제 제노바와 루카는 보나파르트 가문의 영지가 되고 말았군요.",
+      "created_at": "2026-03-03T03:06:00.188426+00:00",
+      "representative_cover_url": null,
+      "genre": "러시아 소설",
+      "lists": [],
+      "description": "1812년 나폴레옹의 러시아 침공을 배경으로, 역사의 소용돌이 속에 던져진 세 가문의 운명을 통해 삶과 죽음, 그리고 인간 역사의 본질을 탐구한 세계 문학의 금자탑입니다.",
+      "published_year": 1869,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "8780883a-26c3-4002-b34e-a08eb395bb20",
+      "title": "참을 수 없는 존재의 가벼움",
+      "author": "밀란 쿤데라",
+      "ai_translation": "영원한 회귀란 신비로운 사상이고, 니체는 이것으로 많은 철학자를 곤혹스럽게 했다. 우리가 이미 겪었던 일이 언젠가 반복될 것이고, 그 반복 또한 무한히 반복된다고 생각하면!",
+      "created_at": "2026-03-03T03:32:41.494281+00:00",
+      "representative_cover_url": null,
+      "genre": "체코 소설",
+      "lists": [],
+      "description": "프라하의 봄이라는 비극적 역사 속에서 네 남녀의 얽힌 운명을 통해 사랑과 배신, 그리고 삶이라는 참을 수 없는 가벼움의 본질을 철학적으로 사유한 걸작.",
+      "published_year": 1984,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "99e4cdb0-53c5-412b-8318-4ff07b5c98bd",
+      "title": "레미제라블",
+      "author": "빅토르 위고",
+      "ai_translation": "1815년, 디뉴의 주교는 샤를 프랑수아 아드리앵 뮈리엘 씨였다. 그는 일흔다섯쯤 된 노인으로, 1806년부터 디뉴의 주교좌를 지켜오고 있었다. 비록 사소해 보일지라도, 한 사람이 어떤 일을 겪었으며 어떤 평판을 얻었는가는 그의 삶 전체, 특히 그 운명의 뒷이야기를 이해하는 데 있어 실제 그가 행한 일만큼이나 중요한 법이다.",
+      "created_at": "2026-03-03T02:15:42.002675+00:00",
+      "representative_cover_url": null,
+      "genre": "프랑스 소설",
+      "lists": [],
+      "description": "죄와 구원, 사랑과 혁명의 대서사시를 통해 '인간은 어떻게 빛으로 나아가는가'라는 질문에 답하는 인류의 도덕적 교과서.",
+      "published_year": 1862,
+      "representative_edition_id": "f9232b20-933a-44af-9979-e2da3d6b3db8",
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "a7101e50-3c6a-455e-97a7-3465d3cd746c",
+      "title": "이반 일리치의 죽음",
+      "author": "레프 톨스토이",
+      "ai_translation": "법원 청사의 복도에서, 멜빈스키 사건 공판이 휴정되는 동안 판사들과 검사는 이반 예고로비치 셰베크의 방에 모였다.",
+      "created_at": "2026-03-03T03:20:14.65515+00:00",
+      "representative_cover_url": null,
+      "genre": "러시아 소설",
+      "lists": [],
+      "description": "성공 가도를 달리던 평범한 관료 이반 일리치가 갑작스러운 불치병에 걸려 죽음에 직면하며 겪는 심리적 변화와 인간 존재의 본질적인 고독을 치밀하게 묘사한 톨스토이 중기 문학의 걸작입니다.",
+      "published_year": 1886,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "b0d92f8d-855e-441c-bb3d-feb91eff9a14",
+      "title": "프로젝트 헤일메리",
+      "author": "앤디 위어",
+      "ai_translation": "",
+      "created_at": "2026-04-13T13:10:13.352574+00:00",
+      "representative_cover_url": null,
+      "genre": "영미 소설",
+      "lists": [],
+      "description": "태양이 빛을 잃어가던 기이한 현상과 빙하기를 앞둔 지구, 온갖 관측과 연구 끝에 태양이 미지의 미생물 '아스트로파지'에 감염되었다는 것이 밝혀지던 순간, 그리고 기술적 한계 탓에 편도행으로 설계된 헤일메리호는 지구로의 귀환이 불가능하다는 사실도. 하나씩 돌아오는 기억에 망연자실한 마음도 잠시, 우주선 계기판에 그동안 듣도 보도 못한 형태의 외계 우주선이 다가오는 것이 보인다. 그는 태양의 빛을 되찾고 지구로 무사히 돌아갈 수 있을까. <마션>을 잇는 유쾌한 우주 활극.",
+      "published_year": null,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "title": "죄와 벌",
+      "author": "표도르 도스토옙스키",
+      "ai_translation": "7월 초순, 지독히 무더운 어느 날 해질 무렵, 한 청년이 S골목의 하숙집 입주인에게 빌린 자신의 작은 방에서 거리로 나와, 무언가 망설이는 듯한 걸음걸이로 K다리를 향해 천천히 발길을 옮겼다.\n\n그는 계단에서 여주인과 마주치는 것을 용케 피했다. 그의 방은 5층이나 되는 높은 집의 지붕 바로 밑에 있었는데, 아파트라기보다는 오히려 벽장과 흡사했다.",
+      "created_at": "2026-03-02T10:43:24.811549+00:00",
+      "representative_cover_url": "https://image.aladin.co.kr/product/24085/81/cover500/8954671772_1.jpg",
+      "genre": "러시아 소설",
+      "lists": [
+        "노벨 연구소 선정 최고의 책",
+        "BBC 선정 최고의 책"
+      ],
+      "description": "가난한 대학생 라스콜리니코프는 자신을 선택받은 초인이라 믿으며 노파를 살해한다. 범죄 이후 겪는 처절한 심리적 갈등과 구원의 과정을 그린 도스토옙스키의 걸작.",
+      "published_year": 1866,
+      "representative_edition_id": "ede2d46f-6a81-452e-9a29-0fd24e97f4d3",
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "c7d8175e-74e4-4b30-84f9-7156b2e18283",
+      "title": "이방인",
+      "author": "알베르 카뮈",
+      "ai_translation": "오늘 엄마가 죽었다. 아니, 어쩌면 어제였는지도 모른다.",
+      "created_at": "2026-03-03T03:32:41.494281+00:00",
+      "representative_cover_url": null,
+      "genre": "프랑스 소설",
+      "lists": [],
+      "description": "태양의 눈부심 아래 저지른 우발적 살인을 통해 사회적 관습과 도덕이라는 가면에 가려진 인간 존재의 근원적 부조리를 냉철하게 폭로한 실존주의 문학의 정수.",
+      "published_year": 1942,
+      "representative_edition_id": "e7337efd-a542-47ca-b1be-20e13b79eb8d",
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "dd0a54cc-3149-4762-87cc-61a48de1ccc6",
+      "title": "왕좌의 게임",
+      "author": "조지 R.R. 마틴",
+      "ai_translation": "",
+      "created_at": "2026-03-05T01:52:28.561509+00:00",
+      "representative_cover_url": null,
+      "genre": "미국 소설",
+      "lists": [
+        "시리즈 소설"
+      ],
+      "description": "철왕좌를 둘러싼 가문들의 피 비린내 나는 권력 다툼 속에서, 북부의 위협과 동방의 용이 깨어나며 거대한 서사의 시작",
+      "published_year": null,
+      "representative_edition_id": "4ce2ef56-89b4-4606-9e1b-8c3b4dd2b08e",
+      "series_id": "157a30c6-b2b8-4145-8f8c-9f3cd0f48435",
+      "series_order": 1
+    },
+    {
+      "id": "e5b03c36-e4cc-4b10-8acb-12e2d3f69db6",
+      "title": "왕들의 전쟁",
+      "author": "조지 R.R. 마틴",
+      "ai_translation": "",
+      "created_at": "2026-03-05T03:56:27.129952+00:00",
+      "representative_cover_url": null,
+      "genre": "미국 소설",
+      "lists": [
+        "시리즈 소설"
+      ],
+      "description": "하늘에 뜬 붉은 혜성이 불길한 징조를 내뿜는 가운데, 옥좌를 탐하는 왕들의 야망이 블랙워터의 불길 속에서 녹아내리며 거대한 혼돈의 서막을 알립니다.",
+      "published_year": null,
+      "representative_edition_id": "5dd501e6-8232-4a61-81bf-6b5ddfd34f07",
+      "series_id": "157a30c6-b2b8-4145-8f8c-9f3cd0f48435",
+      "series_order": 2
+    },
+    {
+      "id": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0",
+      "title": "카라마조프 가의 형제들",
+      "author": "표도르 도스토옙스키",
+      "ai_translation": "알렉세이 표도로비치 카라마조프는 우리 현의 지주였던 표도르 파블로비치 카라마조프의 셋째 아들이다. 표도르는 13년 전 발생한 그 비극적이고도 의문스러운 죽음 때문에 당시는 물론 지금까지도 우리 동네 사람들의 입에 오르내리는 인물인데, 그 사건에 대해서는 뒤에서 차차 다루기로 하겠다.",
+      "created_at": "2026-03-02T14:33:05.973906+00:00",
+      "representative_cover_url": "https://image.aladin.co.kr/product/98/80/cover500/s937461544_1.jpg",
+      "genre": "러시아 소설",
+      "lists": [
+        "노벨 연구소 선정 최고의 책"
+      ],
+      "description": "도스토옙스키 문학의 결정판이자 최후의 걸작. 친부 살해라는 자극적인 소재를 통해 신과 인간, 자유 의지, 그리고 고난을 통한 구원이라는 심오한 철학적 질문들을 웅장하게 그려낸 대서사시.",
+      "published_year": 1880,
+      "representative_edition_id": "d27e4ee0-1014-492e-9a93-c3805afddf4b",
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "f2789836-d9b2-4639-92ab-8ae99aa3d244",
+      "title": "소년이 온다",
+      "author": "한강",
+      "ai_translation": "비가 올 것 같아. 너는 나직하게 말한다. 정말 비가 온다면, 이 모든 게 씻겨 내려갈 수 있을까.",
+      "created_at": "2026-03-03T03:31:39.338417+00:00",
+      "representative_cover_url": null,
+      "genre": "한국 소설",
+      "lists": [],
+      "description": "광주의 아픈 기억을 한 소년의 시선으로 복원하며, 짓밟힌 육체와 영혼의 슬픔 위로 인간의 숭고한 존엄성과 연대의 힘을 눈물겹게 그려낸 대서사시.",
+      "published_year": 2014,
+      "representative_edition_id": null,
+      "series_id": null,
+      "series_order": null
+    },
+    {
+      "id": "f3055e53-e77f-4bfe-8a68-f0aeced36215",
+      "title": "인간 실격",
+      "author": "다자이 오사무",
+      "ai_translation": "수치심으로 점철된 생애를 살아왔습니다.",
+      "created_at": "2026-03-02T11:22:01.852314+00:00",
+      "representative_cover_url": "https://image.aladin.co.kr/product/49/16/cover500/893746103x_3.jpg",
+      "genre": "일본 소설",
+      "lists": [],
+      "description": "남들 앞에서 광대 짓을 하며 속마음을 숨긴 채 살아가는 요조의 고백을 통해, 인간 존재의 심연과 고독을 처절하게 그려낸 다자이 오사무의 자전적 소설.",
+      "published_year": 1948,
+      "representative_edition_id": "31b7fc2b-cc4f-42f6-9033-a1b97d61a2d4",
+      "series_id": null,
+      "series_order": null
+    }
+  ],
+  "editions": [
+    {
+      "id": "09a9b763-e545-4a55-95ea-dea8748c3035",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "민음사",
+      "isbn": "9788937463556",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/15268/48/cover500/8937463555_1.jpg",
+      "created_at": "2026-03-03T03:10:11.431768+00:00",
+      "volume_number": "3",
+      "page_count": 780
+    },
+    {
+      "id": "0a6134cf-626b-49e0-b6b8-0562a9571a26",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "문학동네",
+      "isbn": "9788954642576",
+      "excerpt": "그것 보세요, 공작. 제노바도 루카도  일가의 영지, 영지나 다름없이 되어버렸잖아요.",
+      "cover_url": "https://image.aladin.co.kr/product/9400/36/cover500/8954642578_1.jpg",
+      "created_at": "2026-03-03T03:12:41.279081+00:00",
+      "volume_number": "1",
+      "page_count": 584
+    },
+    {
+      "id": "0e3a5372-fd1e-4e02-a7f6-0460197f9f85",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "을유문화사",
+      "isbn": "9788932404813",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/22160/91/cover500/893240481x_1.jpg",
+      "created_at": "2026-03-03T03:15:34.01507+00:00",
+      "volume_number": "중",
+      "page_count": 864
+    },
+    {
+      "id": "11b3dbbe-683a-4bf9-a542-8097b835b5f3",
+      "work_id": "3ba6788e-b7e2-4521-a38a-ed7b43506257",
+      "publisher": "창비",
+      "isbn": "9788936434595",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/29137/2/cover500/8936434594_2.jpg",
+      "created_at": "2026-03-03T03:42:10.696821+00:00",
+      "volume_number": "",
+      "page_count": 276
+    },
+    {
+      "id": "120f45ce-737a-4fd1-a544-2e07383a55f8",
+      "work_id": "68a0bc4a-f896-41dc-9d5f-0fa092b4683a",
+      "publisher": "민음사",
+      "isbn": "9788937462214",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/461/58/cover500/s092635100_1.jpg",
+      "created_at": "2026-03-02T14:55:26.005539+00:00",
+      "volume_number": "3",
+      "page_count": 668
+    },
+    {
+      "id": "16e7409d-e502-46a0-b4a9-c882c41c81f2",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "민음사",
+      "isbn": "9788937463549",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/15268/47/cover500/8937463547_1.jpg",
+      "created_at": "2026-03-03T03:10:06.252774+00:00",
+      "volume_number": "2",
+      "page_count": 760
+    },
+    {
+      "id": "1a1962dc-b09c-407e-83b7-f3b0b7e8a262",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "열린책들",
+      "isbn": "9788932909165",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/599/13/cover500/8932909164_1.jpg",
+      "created_at": "2026-03-02T10:46:21.188867+00:00",
+      "volume_number": "하",
+      "page_count": 408
+    },
+    {
+      "id": "22da13f1-8c0b-4931-a9cd-7c60127d5046",
+      "work_id": "dd0a54cc-3149-4762-87cc-61a48de1ccc6",
+      "publisher": "은행나무",
+      "isbn": "9788956609003",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/8645/72/cover500/8956609004_1.jpg",
+      "created_at": "2026-03-05T03:34:36.650093+00:00",
+      "volume_number": "2",
+      "page_count": 564
+    },
+    {
+      "id": "2c38bc6a-9c42-44a2-87f4-2e6066fa18fd",
+      "work_id": "a7101e50-3c6a-455e-97a7-3465d3cd746c",
+      "publisher": "문예출판사",
+      "isbn": "9788931023770",
+      "excerpt": "커다란 법원 건물에서 멜빈스키 사건 심리가 열리던 날, 잠시 휴정 시간을 이용해 재판관들과 검사는 이반 예고로비치 셰베크 집무실에 모여 앉아 잡담을 나누었다. 어느새 화제는 그 유명한 크라소프 사건으로 흘러갔다.",
+      "cover_url": "https://image.aladin.co.kr/product/34597/92/cover500/8931023774_1.jpg",
+      "created_at": "2026-03-03T03:47:43.485031+00:00",
+      "volume_number": "",
+      "page_count": 264
+    },
+    {
+      "id": "2d11a977-df0d-4d78-b6bb-735ee9c303de",
+      "work_id": "c7d8175e-74e4-4b30-84f9-7156b2e18283",
+      "publisher": "민음사",
+      "isbn": "9788937443848",
+      "excerpt": "오늘 엄마가 죽었다. 아니 어쩌면 어제.",
+      "cover_url": "https://image.aladin.co.kr/product/21224/66/cover500/8937443848_1.jpg",
+      "created_at": "2026-03-03T03:34:41.627854+00:00",
+      "volume_number": "",
+      "page_count": 280
+    },
+    {
+      "id": "2d8c85a7-bf45-4ed2-8a3b-7dcffc72d350",
+      "work_id": "03f4c4ea-a1c4-4d9f-b34a-b3028447c77a",
+      "publisher": "문학동네",
+      "isbn": "9788954654258",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/17604/5/cover200/8954654258_2.jpg",
+      "created_at": "2026-03-02T09:17:25.04652+00:00",
+      "volume_number": "2",
+      "page_count": 508
+    },
+    {
+      "id": "31b7fc2b-cc4f-42f6-9033-a1b97d61a2d4",
+      "work_id": "f3055e53-e77f-4bfe-8a68-f0aeced36215",
+      "publisher": "민음사",
+      "isbn": "9788937461033",
+      "excerpt": "부끄럼 많은 생애를 보냈습니다.",
+      "cover_url": "https://image.aladin.co.kr/product/49/16/cover500/893746103x_3.jpg",
+      "created_at": "2026-03-02T11:22:54.393131+00:00",
+      "volume_number": "",
+      "page_count": 191
+    },
+    {
+      "id": "32464805-77bb-4fab-ba27-9a142914750f",
+      "work_id": "3eb8089b-dcd9-433d-8bf4-bcf6d26c1a01",
+      "publisher": "민음사",
+      "isbn": "9788937460616",
+      "excerpt": "국경의 긴 터널을 빠져나오자, 눈의 고장이었다. 밤의 밑바닥이 하얘졌다.",
+      "cover_url": "https://image.aladin.co.kr/product/32/87/cover500/s092934786_1.jpg",
+      "created_at": "2026-03-03T03:39:38.02379+00:00",
+      "volume_number": "",
+      "page_count": 176
+    },
+    {
+      "id": "3774725c-df04-4415-9ba3-16a464a217f1",
+      "work_id": "24ec7c0a-efe1-480e-9fd5-4aff1e92e317",
+      "publisher": "현암사",
+      "isbn": "9788932316758",
+      "excerpt": "나는 고양이다. 이름은 아직 없다. 어디서 태어났는지 도무지 짐작이 가지 않는다. 아무튼 어두컴컴하고 축축한 데서 야옹야옹 울고 있었던 것만은 분명히 기억한다.",
+      "cover_url": "https://image.aladin.co.kr/product/3123/93/cover500/s582639136_1.jpg",
+      "created_at": "2026-03-29T14:55:09.519944+00:00",
+      "volume_number": "",
+      "page_count": 642
+    },
+    {
+      "id": "3b2f6a5f-ce13-452d-b4cc-b2aa5734581a",
+      "work_id": "f2789836-d9b2-4639-92ab-8ae99aa3d244",
+      "publisher": "창비",
+      "isbn": "9788936434120",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/4086/97/cover500/8936434128_2.jpg",
+      "created_at": "2026-03-03T03:41:53.075741+00:00",
+      "volume_number": "",
+      "page_count": 216
+    },
+    {
+      "id": "3b6bbad6-fd6b-4a49-9131-40390898b59d",
+      "work_id": "b0d92f8d-855e-441c-bb3d-feb91eff9a14",
+      "publisher": "알에이치코리아(RHK)",
+      "isbn": "9788925588735",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/27045/43/cover500/k692135851_3.jpg",
+      "created_at": "2026-04-14T13:13:28.662852+00:00",
+      "volume_number": "",
+      "page_count": 692
+    },
+    {
+      "id": "3e288271-655c-4e9b-9483-7865a9da15d0",
+      "work_id": "e5b03c36-e4cc-4b10-8acb-12e2d3f69db6",
+      "publisher": "은행나무",
+      "isbn": "9788956601731",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/10904/83/cover500/8956601739_1.jpg",
+      "created_at": "2026-03-05T03:58:29.432174+00:00",
+      "volume_number": "2",
+      "page_count": 632
+    },
+    {
+      "id": "4094ad2e-3341-4c59-bafd-47a4d28849eb",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "문학동네",
+      "isbn": "9788954671781",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/24085/83/cover500/8954671780_1.jpg",
+      "created_at": "2026-03-02T10:54:02.142215+00:00",
+      "volume_number": "2",
+      "page_count": 476
+    },
+    {
+      "id": "4163df5c-f969-4019-929d-f1601c6b7140",
+      "work_id": "03f4c4ea-a1c4-4d9f-b34a-b3028447c77a",
+      "publisher": "민음사",
+      "isbn": "9788937463624",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/17975/12/cover200/8937463628_1.jpg",
+      "created_at": "2026-03-02T07:21:47.762243+00:00",
+      "volume_number": "2",
+      "page_count": 564
+    },
+    {
+      "id": "45aa9db9-435e-49e6-8454-cea961db6f49",
+      "work_id": "f3055e53-e77f-4bfe-8a68-f0aeced36215",
+      "publisher": "문학동네",
+      "isbn": "9791141602383",
+      "excerpt": "참 부끄러운 생애를 살아왔습니다.",
+      "cover_url": "https://image.aladin.co.kr/product/36655/4/cover500/k452030089_1.jpg",
+      "created_at": "2026-03-02T11:22:26.984451+00:00",
+      "volume_number": "",
+      "page_count": 164
+    },
+    {
+      "id": "47bd853b-df15-4579-99df-221e3bf4db78",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "민음사",
+      "isbn": "9788937462849",
+      "excerpt": "7월 초 굉장히 무더울 때, 저녁 무렵에 한 청년이 S골목의 세입자에게 빌려 쓰고 있는 골방에서 거리로 나와 왠지 망설이듯 천천히 K 다리쪽으로 걸어갔다.",
+      "cover_url": "https://image.aladin.co.kr/product/1621/17/cover500/8937462842_3.jpg",
+      "created_at": "2026-03-02T10:44:43.840982+00:00",
+      "volume_number": "1",
+      "page_count": 512
+    },
+    {
+      "id": "48b1d00d-96c7-41df-bea7-93439c382b7b",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "열린책들",
+      "isbn": "9788932909158",
+      "excerpt": "찌는 듯이 무더운 7월 초의 어느 날 해질 무렵, S골목의 하숙집에서 살고 잇던 한 청년이 자신의 작은 방에서 거리로 나와, 왠지 망설이는 듯 한 모습으로 K다리를 향해 천천히 발걸음을 옮기고 있었다.",
+      "cover_url": "https://image.aladin.co.kr/product/599/13/cover500/8932909156_1.jpg",
+      "created_at": "2026-03-02T10:46:10.289062+00:00",
+      "volume_number": "상",
+      "page_count": 408
+    },
+    {
+      "id": "4ce2ef56-89b4-4606-9e1b-8c3b4dd2b08e",
+      "work_id": "dd0a54cc-3149-4762-87cc-61a48de1ccc6",
+      "publisher": "은행나무",
+      "isbn": "9788956608990",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/8645/71/cover500/8956608997_1.jpg",
+      "created_at": "2026-03-05T03:34:25.593016+00:00",
+      "volume_number": "1",
+      "page_count": 520
+    },
+    {
+      "id": "50518c0c-d417-4cff-9c37-e3e30ae2d1b6",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "문학동네",
+      "isbn": "9788954646406",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/11569/10/cover500/8954646409_2.jpg",
+      "created_at": "2026-03-03T03:12:59.235187+00:00",
+      "volume_number": "3",
+      "page_count": 608
+    },
+    {
+      "id": "51389f90-3400-4b36-a2c3-2f11d6f88e66",
+      "work_id": "68a0bc4a-f896-41dc-9d5f-0fa092b4683a",
+      "publisher": "민음사",
+      "isbn": "9788937462191",
+      "excerpt": "행복한 가정은 모두 모습이 비슷하고, 불행한 가정은 모두 제각각의 불행을 안고 있다.",
+      "cover_url": "https://image.aladin.co.kr/product/461/57/cover500/s062635100_1.jpg",
+      "created_at": "2026-03-02T14:55:06.304047+00:00",
+      "volume_number": "1",
+      "page_count": 520
+    },
+    {
+      "id": "5249485f-4d0b-4b85-a79e-a7d8fe3a11f8",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "을유문화사",
+      "isbn": "9788932404806",
+      "excerpt": "공작, 제노바와 루카는 부오나파르트 가문의 소유지예요.",
+      "cover_url": "https://image.aladin.co.kr/product/22160/86/cover500/8932404801_1.jpg",
+      "created_at": "2026-03-03T03:15:24.459304+00:00",
+      "volume_number": "상",
+      "page_count": 860
+    },
+    {
+      "id": "572348d5-111c-40eb-98f2-a23e500f5eb6",
+      "work_id": "99e4cdb0-53c5-412b-8318-4ff07b5c98bd",
+      "publisher": "민음사",
+      "isbn": "9788937463020",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/2067/36/cover500/8937463024_2.jpg",
+      "created_at": "2026-03-03T03:01:10.546147+00:00",
+      "volume_number": "2",
+      "page_count": 468
+    },
+    {
+      "id": "5ac967b9-63cf-44d4-a253-99ab25ecee71",
+      "work_id": "68ae7371-d7e4-48d7-8837-d04191392e7c",
+      "publisher": "은행나무",
+      "isbn": "9791190492904",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/24800/57/cover500/k842631930_1.jpg",
+      "created_at": "2026-03-05T03:59:36.82945+00:00",
+      "volume_number": "2",
+      "page_count": 536
+    },
+    {
+      "id": "5c344ebc-3bc1-493f-8d56-d8f9a631faf0",
+      "work_id": "05a999ec-49f2-4404-b6d6-e095ad4ee37b",
+      "publisher": "은행나무",
+      "isbn": "9791189982331",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/20129/2/cover500/k222635444_1.jpg",
+      "created_at": "2026-03-05T03:59:13.612454+00:00",
+      "volume_number": "2",
+      "page_count": 572
+    },
+    {
+      "id": "5d478c48-de5a-4860-996d-138f7de47fcb",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "민음사",
+      "isbn": "9788937463532",
+      "excerpt": "그러니까 공작, 제노바와 루카는 이제 부오나파르트 가문의 소유물이자 영지일 뿐이에요.",
+      "cover_url": "https://image.aladin.co.kr/product/15268/43/cover500/8937463539_1.jpg",
+      "created_at": "2026-03-03T03:09:55.765059+00:00",
+      "volume_number": "1",
+      "page_count": 700
+    },
+    {
+      "id": "5dd501e6-8232-4a61-81bf-6b5ddfd34f07",
+      "work_id": "e5b03c36-e4cc-4b10-8acb-12e2d3f69db6",
+      "publisher": "은행나무",
+      "isbn": "9788956601571",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/10904/69/cover500/8956601577_1.jpg",
+      "created_at": "2026-03-05T03:58:22.311861+00:00",
+      "volume_number": "1",
+      "page_count": 596
+    },
+    {
+      "id": "60c37290-da50-4ed1-9c34-6eeb75646d45",
+      "work_id": "f3055e53-e77f-4bfe-8a68-f0aeced36215",
+      "publisher": "시공사",
+      "isbn": "9788952790620",
+      "excerpt": "부끄러운 일이 많은 생애를 보내왔습니다.",
+      "cover_url": "https://image.aladin.co.kr/product/14787/55/cover500/8952790626_1.jpg",
+      "created_at": "2026-03-02T11:23:40.825331+00:00",
+      "volume_number": "",
+      "page_count": 292
+    },
+    {
+      "id": "6327c2ae-101f-4454-85e5-e1b2650d31bf",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "민음사",
+      "isbn": "9788937463563",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/15268/48/cover500/8937463563_1.jpg",
+      "created_at": "2026-03-03T03:10:17.106893+00:00",
+      "volume_number": "4",
+      "page_count": 748
+    },
+    {
+      "id": "6f4f3d3f-6c57-4420-92df-53947d5aa61e",
+      "work_id": "c7d8175e-74e4-4b30-84f9-7156b2e18283",
+      "publisher": "을유문화사",
+      "isbn": "9788932404936",
+      "excerpt": "오늘 엄마가 죽었다. 아니 어쩌면 어제일지도 모르겠다.",
+      "cover_url": "https://image.aladin.co.kr/product/24929/83/cover500/8932404933_1.jpg",
+      "created_at": "2026-03-03T03:36:44.310711+00:00",
+      "volume_number": "",
+      "page_count": 248
+    },
+    {
+      "id": "721d08d3-e622-4561-99da-c45b437f88ed",
+      "work_id": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0",
+      "publisher": "민음사",
+      "isbn": "9788937461569",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/98/80/cover500/8937461560_3.jpg",
+      "created_at": "2026-03-02T14:33:57.745074+00:00",
+      "volume_number": "3",
+      "page_count": 581
+    },
+    {
+      "id": "7a096dbe-0c1d-4fae-8369-4592f4a7e318",
+      "work_id": "99e4cdb0-53c5-412b-8318-4ff07b5c98bd",
+      "publisher": "민음사",
+      "isbn": "9788937463044",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/2067/37/cover500/8937463040_2.jpg",
+      "created_at": "2026-03-03T03:01:39.115333+00:00",
+      "volume_number": "4",
+      "page_count": 600
+    },
+    {
+      "id": "7e42822a-2706-4683-8fdd-ecd495636499",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "을유문화사",
+      "isbn": "9788932403885",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/1976/54/cover500/s232635801_1.jpg",
+      "created_at": "2026-03-03T10:17:36.259304+00:00",
+      "volume_number": "하",
+      "page_count": 536
+    },
+    {
+      "id": "86889c04-bcf0-4cad-8c71-410fd2676220",
+      "work_id": "a7101e50-3c6a-455e-97a7-3465d3cd746c",
+      "publisher": "민음사",
+      "isbn": "9788937464386",
+      "excerpt": "커다란 법원 건물, 멜빈스키 사건을 심리하던 판사와 검사들은 휴정 시간에 이반 예고로비치 셰베크의 집무실에 모여 대화를 나누다가 저 유명한 크라솝스키 사건에 이르렀다.",
+      "cover_url": "https://image.aladin.co.kr/product/33025/31/cover500/8937464381_1.jpg",
+      "created_at": "2026-03-03T03:42:39.400903+00:00",
+      "volume_number": "",
+      "page_count": 144
+    },
+    {
+      "id": "87516cf7-960b-48b4-8383-d1374c4d82ef",
+      "work_id": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0",
+      "publisher": "문학동네",
+      "isbn": "9788954650991",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/14325/29/cover500/8954650996_1.jpg",
+      "created_at": "2026-03-02T14:35:24.910257+00:00",
+      "volume_number": "3",
+      "page_count": 556
+    },
+    {
+      "id": "87558d50-b832-4a88-8ba3-6e1d1141808d",
+      "work_id": "03f4c4ea-a1c4-4d9f-b34a-b3028447c77a",
+      "publisher": "민음사",
+      "isbn": "9788937463617",
+      "excerpt": "사람들은 계속 걸음을 옮기며 '영원의 기억'을 불렀고, 그들이 멈출 때는 발소리, 말발굽 소리, 바람 소리가 노래를 이어 가는 것 같았다.\n\n행인들은 행렬을 위해 길을 터 주고 화환을 세며 성호를 그었다. (후략)",
+      "cover_url": "https://image.aladin.co.kr/product/17975/10/cover200/893746361x_1.jpg",
+      "created_at": "2026-03-02T07:21:27.74921+00:00",
+      "volume_number": "1",
+      "page_count": 464
+    },
+    {
+      "id": "8a22e621-1086-4824-8611-784be72bf619",
+      "work_id": "68ae7371-d7e4-48d7-8837-d04191392e7c",
+      "publisher": "은행나무",
+      "isbn": "9791190492898",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/24800/56/cover500/k802631930_1.jpg",
+      "created_at": "2026-03-05T03:59:27.028157+00:00",
+      "volume_number": "1",
+      "page_count": 532
+    },
+    {
+      "id": "924d1c55-fd05-43a4-84b4-6a588ed0d64e",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "문학동네",
+      "isbn": "9788954642583",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/10536/39/cover500/8954642586_1.jpg",
+      "created_at": "2026-03-03T03:12:52.969858+00:00",
+      "volume_number": "2",
+      "page_count": 612
+    },
+    {
+      "id": "93a50d5e-8d25-48f0-b7fb-f460b649042a",
+      "work_id": "68a0bc4a-f896-41dc-9d5f-0fa092b4683a",
+      "publisher": "민음사",
+      "isbn": "9788937462207",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/461/57/cover500/s072635100_1.jpg",
+      "created_at": "2026-03-02T14:55:20.383587+00:00",
+      "volume_number": "2",
+      "page_count": 668
+    },
+    {
+      "id": "959174cf-da8d-4f6c-8ee6-2369d2170d97",
+      "work_id": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0",
+      "publisher": "문학동네",
+      "isbn": "9788954650977",
+      "excerpt": "알렉세이 표도로비치 카라마조프는 우리 군郡의 지주 표도르 파블로 비치 카라마조프의 셋째 아들이었는데, 이 지주로 말하자면 정확히 십 삼 년 전에 맞이했던 그의 비극적이고도 음침한 최후로 인해 당시에는 어지간히 유명했던 인물로(하기야 우리 고장 사람들은 지금도 여전히 회상하곤 한다), 그의 최후에 대해서는 앞으로 적당한 대목에서 이야기하도록 하겠다.",
+      "cover_url": "https://image.aladin.co.kr/product/14325/25/cover500/895465097x_1.jpg",
+      "created_at": "2026-03-02T14:35:01.327717+00:00",
+      "volume_number": "1",
+      "page_count": 576
+    },
+    {
+      "id": "960d19b8-9e1f-4e2a-8944-edb1b7bb9ec3",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "을유문화사",
+      "isbn": "9788932404820",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/22160/93/cover500/8932404828_1.jpg",
+      "created_at": "2026-03-03T03:15:39.702905+00:00",
+      "volume_number": "하",
+      "page_count": 852
+    },
+    {
+      "id": "9bc08a03-e2a9-404c-9129-3e2271df3d82",
+      "work_id": "99e4cdb0-53c5-412b-8318-4ff07b5c98bd",
+      "publisher": "민음사",
+      "isbn": "9788937463051",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/2067/37/cover500/8937463059_2.jpg",
+      "created_at": "2026-03-03T03:01:51.207701+00:00",
+      "volume_number": "5",
+      "page_count": 524
+    },
+    {
+      "id": "9bdd392b-764d-4e29-8e8b-e4eb53405dbf",
+      "work_id": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0",
+      "publisher": "민음사",
+      "isbn": "9788937461552",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/98/80/cover500/8937461552_3.jpg",
+      "created_at": "2026-03-02T14:33:48.679584+00:00",
+      "volume_number": "2",
+      "page_count": 479
+    },
+    {
+      "id": "9e2b5d98-c688-44ce-9d1f-4e610773c840",
+      "work_id": "05a999ec-49f2-4404-b6d6-e095ad4ee37b",
+      "publisher": "은행나무",
+      "isbn": "9791189982324",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/20129/1/cover500/k262635444_1.jpg",
+      "created_at": "2026-03-05T03:59:02.876984+00:00",
+      "volume_number": "1",
+      "page_count": 576
+    },
+    {
+      "id": "a8200f61-3b4d-4ea5-8584-f1dc22e235ad",
+      "work_id": "3eb8089b-dcd9-433d-8bf4-bcf6d26c1a01",
+      "publisher": "문예출판사",
+      "isbn": "9788931024340",
+      "excerpt": "현(懸) 접경의 긴 터널을 빠져나오자 눈(雪) 고장이었다. 밤의 밑바닥이 하얘졌다.",
+      "cover_url": "https://image.aladin.co.kr/product/35524/9/cover500/8931024347_1.jpg",
+      "created_at": "2026-03-03T03:41:18.2739+00:00",
+      "volume_number": "",
+      "page_count": 256
+    },
+    {
+      "id": "ac304c99-7f89-483b-b0aa-c6d0a675ceca",
+      "work_id": "c7d8175e-74e4-4b30-84f9-7156b2e18283",
+      "publisher": "현대지성",
+      "isbn": "9791139710311",
+      "excerpt": "오늘 엄마가 죽었다. 어쩌면 어제.",
+      "cover_url": "https://image.aladin.co.kr/product/31057/13/cover500/k242831424_1.jpg",
+      "created_at": "2026-03-03T03:35:29.426552+00:00",
+      "volume_number": "",
+      "page_count": 208
+    },
+    {
+      "id": "b024c213-a1be-43ae-ba02-e814557867f3",
+      "work_id": "a7101e50-3c6a-455e-97a7-3465d3cd746c",
+      "publisher": "창비",
+      "isbn": "9788936464073",
+      "excerpt": "커다란 법원 건물. 멜빈스끼 집안 사건을 심리하던 재판관들과 검사는 휴정시간에 이반 예고로비치 의 집무실에 모여들어 이런저런 이야기를 나누다가 요즘 아주 유명세를 떨치고 있는 끄라소프 사건을 화제에 올렸다.",
+      "cover_url": "https://image.aladin.co.kr/product/2013/23/cover500/8936464078_2.jpg",
+      "created_at": "2026-03-03T03:45:29.867014+00:00",
+      "volume_number": "",
+      "page_count": 160
+    },
+    {
+      "id": "ba845fb2-40e5-469c-ba98-76b469ba6187",
+      "work_id": "03bf4dc1-25ad-42e2-8c58-e69fe06d8bc2",
+      "publisher": "은행나무",
+      "isbn": "9791188810451",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/15650/15/cover500/k832533039_1.jpg",
+      "created_at": "2026-03-05T03:58:38.140907+00:00",
+      "volume_number": "1",
+      "page_count": 804
+    },
+    {
+      "id": "badff615-10d1-4189-a025-5e38eebaf637",
+      "work_id": "99e4cdb0-53c5-412b-8318-4ff07b5c98bd",
+      "publisher": "민음사",
+      "isbn": "9788937463037",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/2067/36/cover500/8937463032_2.jpg",
+      "created_at": "2026-03-03T03:01:15.580463+00:00",
+      "volume_number": "3",
+      "page_count": 432
+    },
+    {
+      "id": "bcf8df5e-bb5c-4a62-8df3-fbf3876993c4",
+      "work_id": "03f4c4ea-a1c4-4d9f-b34a-b3028447c77a",
+      "publisher": "문학동네",
+      "isbn": "9788954654241",
+      "excerpt": "걷고 걸으며 '영원한 기억'을 부르고들 있었고, 잠시 노랫소리가 멎자 회장자會裝者들의 발소리, 말발굽소리, 간간이 부는 바람소리가 그것을 이어받아 부르는 것처럼 느껴졌다. (후략)",
+      "cover_url": "https://image.aladin.co.kr/product/17604/0/cover200/895465424x_2.jpg",
+      "created_at": "2026-03-02T09:16:58.654066+00:00",
+      "volume_number": "1",
+      "page_count": 404
+    },
+    {
+      "id": "c9cec317-622f-4f7d-bfbd-13d186955de1",
+      "work_id": "a7101e50-3c6a-455e-97a7-3465d3cd746c",
+      "publisher": "현대지성",
+      "isbn": "9791139710793",
+      "excerpt": "멜빈스키 사건 심리 중 휴식 시간이었다. 법원의 큰 건물에 있는 이반 예고로비치 셰벡의 사무실에 위원들과 검사가 모였는데 대화는 유명한 크라소프 사건으로 급선회했다.",
+      "cover_url": "https://image.aladin.co.kr/product/31326/73/cover500/k122832790_1.jpg",
+      "created_at": "2026-03-03T03:43:58.24783+00:00",
+      "volume_number": "",
+      "page_count": 224
+    },
+    {
+      "id": "cb5f0662-eac7-4d36-8aea-c9742a75b7c7",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "을유문화사",
+      "isbn": "9788932403878",
+      "excerpt": "7월 초, 지독히도 무더운 때의 어느 저녁 무렵, 한 청년이 S 골목의 셋집에 있는 자신의 조그만 하숙방에서 거리로 나와, 왠지 망설이는 듯한 모습으로 느릿느릿 K다리쪽으로 발걸음을 떼었다.",
+      "cover_url": "https://image.aladin.co.kr/product/1976/50/cover500/s722639936_1.jpg",
+      "created_at": "2026-03-03T10:17:23.983886+00:00",
+      "volume_number": "상",
+      "page_count": 484
+    },
+    {
+      "id": "ccbac12c-e732-4fdd-921d-faa37b4bb6e2",
+      "work_id": "a7101e50-3c6a-455e-97a7-3465d3cd746c",
+      "publisher": "열린책들",
+      "isbn": "9788932912387",
+      "excerpt": "커다란 법원 건물에서 멜빈스끼 사건을 심리하던 판사들과 검사들은 휴정 시간이 되자 이반 예고로비치 셰베끄의 집무실에 모여 세간을 떠들썩하게 만든 끄라소프 사건에 대해 쑥덕거리기 시작했다.",
+      "cover_url": "https://image.aladin.co.kr/product/17623/74/cover500/8932912386_1.jpg",
+      "created_at": "2026-03-03T03:46:09.465335+00:00",
+      "volume_number": "",
+      "page_count": 232
+    },
+    {
+      "id": "cd4699c7-eb5a-49f2-81a4-f4046c247089",
+      "work_id": "03bf4dc1-25ad-42e2-8c58-e69fe06d8bc2",
+      "publisher": "은행나무",
+      "isbn": "9791188810468",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/15650/18/cover500/k972533030_1.jpg",
+      "created_at": "2026-03-05T03:58:44.325828+00:00",
+      "volume_number": "2",
+      "page_count": 772
+    },
+    {
+      "id": "d27e4ee0-1014-492e-9a93-c3805afddf4b",
+      "work_id": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0",
+      "publisher": "민음사",
+      "isbn": "9788937461545",
+      "excerpt": "알렉세이 표도로비치 카라마조프는 우리 군(郡)의 지주 표도르 파블로비치 카라마조프의 셋째 아들이었는데, 그의 아버지는 정확히 삼십 년 전 비극적이고 어두운 최후를 맞이했기 때문에(지금도 우리 도시에서는 회상하곤 할 만큼) 한때 대단한 유명세를 탔던바, 그의 최후에 대해서는 때가 되면 얘기를 하겠다.",
+      "cover_url": "https://image.aladin.co.kr/product/98/80/cover500/s937461544_1.jpg",
+      "created_at": "2026-03-02T14:33:39.605003+00:00",
+      "volume_number": "1",
+      "page_count": 593
+    },
+    {
+      "id": "d2a8ae41-ac70-4666-9b4c-f568ce2d54bc",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "민음사",
+      "isbn": "9788937462856",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/1621/20/cover500/8937462850_3.jpg",
+      "created_at": "2026-03-02T10:44:54.479892+00:00",
+      "volume_number": "2",
+      "page_count": 536
+    },
+    {
+      "id": "d3b642c4-0aa6-49ec-8182-d499307c0487",
+      "work_id": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0",
+      "publisher": "문학동네",
+      "isbn": "9788954650984",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/14325/29/cover500/8954650988_1.jpg",
+      "created_at": "2026-03-02T14:35:15.020918+00:00",
+      "volume_number": "2",
+      "page_count": 472
+    },
+    {
+      "id": "d48a3808-5a78-4189-b0a0-b0ebbe81f8c4",
+      "work_id": "7ba70355-294e-4243-9694-5a544c69d70b",
+      "publisher": "문학동네",
+      "isbn": "9788954648936",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/12350/65/cover500/8954648932_1.jpg",
+      "created_at": "2026-03-03T03:13:38.150896+00:00",
+      "volume_number": "4",
+      "page_count": 608
+    },
+    {
+      "id": "e7337efd-a542-47ca-b1be-20e13b79eb8d",
+      "work_id": "c7d8175e-74e4-4b30-84f9-7156b2e18283",
+      "publisher": "열린책들",
+      "isbn": "9788932911724",
+      "excerpt": "오늘, 엄마가 죽었다. 아니, 어쩌면 어제였을까.",
+      "cover_url": "https://image.aladin.co.kr/product/1196/10/cover500/893291172x_1.jpg",
+      "created_at": "2026-03-03T03:36:19.305478+00:00",
+      "volume_number": "",
+      "page_count": 200
+    },
+    {
+      "id": "e738fd01-9a52-4150-adcf-989a10b8f944",
+      "work_id": "4d9a169d-c88d-420c-a0a0-bd0229506ac0",
+      "publisher": "민음사",
+      "isbn": "9788937464621",
+      "excerpt": "내가 아닙니다. 재판장님, 죽은 이가 나의 입으로 말합니다. 여기 서 있는 건 내가 아니고, 들어 올려지는 팔은 나의 팔이 아니고, 하얗게 세어 버린 건 나의 머리카락이 아니며, 내가 저지른 일이, 내가 저지른 일이 아닙니다.",
+      "cover_url": "https://image.aladin.co.kr/product/35894/23/cover500/8937464624_1.jpg",
+      "created_at": "2026-03-29T14:35:58.256023+00:00",
+      "volume_number": "",
+      "page_count": 208
+    },
+    {
+      "id": "e9579ee0-0670-4597-85ae-2cbb1f9c0647",
+      "work_id": "8780883a-26c3-4002-b34e-a08eb395bb20",
+      "publisher": "민음사",
+      "isbn": "9788937462344",
+      "excerpt": "영원한 회귀란 신비로운 사상이고, 니체는 이것으로 많은 철학자를 곤경에 빠뜨렸다.",
+      "cover_url": "https://image.aladin.co.kr/product/610/30/cover500/8937462346_3.jpg",
+      "created_at": "2026-03-03T03:33:43.230535+00:00",
+      "volume_number": "",
+      "page_count": 496
+    },
+    {
+      "id": "ede2d46f-6a81-452e-9a29-0fd24e97f4d3",
+      "work_id": "b76c4f8e-7082-47b9-888b-cb7508f12ad1",
+      "publisher": "문학동네",
+      "isbn": "9788954671774",
+      "excerpt": "7월 초 몹시 무더운 저녁 무렵, 한 청년이 S골목의 세입자에게 빌려 살고 있는 골방에서 거리로 나와 망설이듯 천천히 K다리로 향했다.",
+      "cover_url": "https://image.aladin.co.kr/product/24085/81/cover500/8954671772_1.jpg",
+      "created_at": "2026-03-02T10:53:51.703318+00:00",
+      "volume_number": "1",
+      "page_count": 440
+    },
+    {
+      "id": "f272eec0-7e60-4e39-bcea-1f4e750d6712",
+      "work_id": "68ae7371-d7e4-48d7-8837-d04191392e7c",
+      "publisher": "은행나무",
+      "isbn": "9791190492911",
+      "excerpt": "",
+      "cover_url": "https://image.aladin.co.kr/product/24800/57/cover500/k822631930_1.jpg",
+      "created_at": "2026-03-05T03:59:49.23034+00:00",
+      "volume_number": "3",
+      "page_count": 524
+    },
+    {
+      "id": "f9232b20-933a-44af-9979-e2da3d6b3db8",
+      "work_id": "99e4cdb0-53c5-412b-8318-4ff07b5c98bd",
+      "publisher": "민음사",
+      "isbn": "9788937463013",
+      "excerpt": "1815년, 샤를 프랑수아 비앵브뉘 미리엘 씨는 디뉴의 주교였다. 그는 일흔다섯쯤 된 노인으로, 1806년 이래 디뉴의 주교 자리를 차지하고 있었다.\n\n그가 교구에 도착할 무렵 그에 관해서 퍼진 갖가지 소문이며 화제를 여기에 적는 것은 내가 이야기해야 하는 것의 근본적인 내용과는 아무런 관계도 없지만, 만사에 정확을 기한다는 점만으로도 아마 무용하지는 않으리라. 진위 여부를 막론하고, 어떤 사람에 관한 소문은 흔히 그 사람의 생애나 특히 운명에서, 그 사람의 실제 행위와 마찬가지로 중요한 위치를 차지한다.",
+      "cover_url": "https://image.aladin.co.kr/product/2067/13/cover500/8937463016_2.jpg",
+      "created_at": "2026-03-03T03:00:57.576567+00:00",
+      "volume_number": "1",
+      "page_count": 532
+    }
+  ],
+  "series": [
+    {
+      "id": "157a30c6-b2b8-4145-8f8c-9f3cd0f48435",
+      "title": "얼음과 불의 노래",
+      "author": "조지 R.R. 마틴",
+      "description": "영원한 적도 아군도 없는 가혹한 겨울 속에서, 인간의 욕망과 고귀함이 충돌하며 빚어내는 거대한 운명의 소용돌이",
+      "genre": "판타지 시리즈, 드라마 원작 시리즈",
+      "cover_url": "https://m.media-amazon.com/images/I/91iY86ZIuOL._AC_UF894,1000_QL80_.jpg",
+      "created_at": "2026-03-05T01:48:09.809951+00:00"
+    },
+    {
+      "id": "1dcecd3f-4af5-4cb0-be2e-9d12461a1862",
+      "title": "해리 포터",
+      "author": "J. K. 롤링",
+      "description": "평범한 인간(머글) 세상 뒤편에 숨겨진 마법사 사회를 배경으로, 부모를 잃은 소년 해리 포터가 호그와트 마법 학교에서 성장하며 어둠의 마법사 볼드모트에 맞서 싸우는 판타지 서사시",
+      "genre": "판타지 소설",
+      "cover_url": "https://media.idownloadblog.com/wp-content/uploads/2025/12/Harry-Potter-mountains-wallpaper.png",
+      "created_at": "2026-03-31T13:13:29.773293+00:00"
+    }
+  ],
+  "authors": [
+    {
+      "id": "03c223cd-44ec-4fc9-becf-2a448461301e",
+      "name": "보리스 파스테르나크",
+      "birth_death": "1890 — 1960",
+      "country": "러시아",
+      "awards": [],
+      "bio": "인간 영혼의 가장 어두운 심연을 현미경처럼 들여다본 심리학자이자, 고통 속에서 구원의 빛을 찾아낸 러시아의 위대한 예언자.",
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Boris_Pasternak_1958_photo.jpg/960px-Boris_Pasternak_1958_photo.jpg"
+    },
+    {
+      "id": "0a896116-cf09-430b-9c14-ae3ebce3e8cd",
+      "name": "레프 톨스토이",
+      "birth_death": "1828 — 1910",
+      "country": "러시아",
+      "awards": [],
+      "bio": "도스토옙스키와 더불어 19세기 러시아 문학을 상징하는 대문호이자 사상가입니다.",
+      "photo_url": "https://i.namu.wiki/i/LCxXvSvx7FH3SCM9tow6QW9s0yoEobdV1W6XcjrgUWlpJp44AXMFoaZqhcU-3Og69_4QElRrWmwHdO1SvHNcje--POC7iTDAsVspOmF90zNXxoC7weaBXZYOQFhbAY0w-zXbutTKErGR6eYCKScEXw.jpg"
+    },
+    {
+      "id": "5d029a54-736f-4bdc-b23e-d2ff800d3929",
+      "name": "밀란 쿤데라",
+      "birth_death": "1929 — 2023",
+      "country": "체코",
+      "awards": [],
+      "bio": "역사의 거대한 수레바퀴 아래 짓눌린 개인의 삶을 관조하며, 존재의 가벼움과 무거움 사이의 영원한 회귀를 날카로운 통찰로 그려낸 현대 문학의 지성.",
+      "photo_url": "https://www.faber.co.uk/wp-content/uploads/2021/08/Milan-Kundera-1-1000x1406.jpg"
+    },
+    {
+      "id": "94e9782f-381d-4ac8-97bd-7fac4af87f9f",
+      "name": "알베르 카뮈",
+      "birth_death": "1913 — 1960",
+      "country": "프랑스",
+      "awards": [],
+      "bio": "부조리한 세상 속에서 인간의 고독과 반항의 정신을 치열하게 탐구하며, 허무의 심연 끝에서 실존의 찬란한 빛을 길어 올린 철학적 소설가.",
+      "photo_url": "https://i.namu.wiki/i/AY8qaFd0h2ze28e-mQxpCiAetvmGK5PPpp9GECu5Sb-2-_gFadmaHG-Rv1Rxjcjg91iHdwmEpzhdpg-ri2i6YQ.jpg"
+    },
+    {
+      "id": "97ffebce-bae6-45ad-bff5-ab934e9aca34",
+      "name": "표도르 도스토옙스키",
+      "birth_death": "1821 — 1881",
+      "country": "러시아",
+      "awards": [
+        "BBC 선정 위대한 작가",
+        "로시야 1 선정 러시아의 인물"
+      ],
+      "bio": "인간 영혼의 가장 어두운 심연을 현미경처럼 들여다본 심리학자이자, 고통 속에서 구원의 빛을 찾아낸 러시아의 위대한 예언자.",
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Dostoevsky_1872.jpg"
+    },
+    {
+      "id": "a7dccdcc-5089-4e11-98f9-f45eb1f464b6",
+      "name": "다자이 오사무",
+      "birth_death": "1909 — 1948",
+      "country": "일본",
+      "awards": [],
+      "bio": "파멸을 향해 치닫는 인간 존재의 근원적인 수치심과 고독을 투명하게 길어 올린 무뢰파의 기수이자, 부끄러움 속에서 역설적인 위안을 건네는 퇴폐미의 정수.",
+      "photo_url": "https://i.namu.wiki/i/Er1H6QjpRjch1WC83cEAOiVH0yHG4yK0bRbXfj8YrIYpyV980NewS_P6Hq4StRSun7KPBpXQbrCywhEItU4xYx1oveLf_7ZfmrWdorzC2SHTdA_aHo7sDmM6lfC1tr_i5ChLAi8A2YGYxZr7vAfRUg.webp"
+    },
+    {
+      "id": "b5861b62-0448-41fc-8a01-25aaf7b430f3",
+      "name": "한강",
+      "birth_death": "1970 — ",
+      "country": "한국",
+      "awards": [
+        "노벨문학상 수상 작가"
+      ],
+      "bio": "인간 존재의 근원적인 고통과 상실을 섬세하고도 강렬한 시적 문체로 어루만지며, 역사적 상흔 속에 감춰진 존엄의 빛을 발견해 내는 작가.",
+      "photo_url": "https://wimg.mk.co.kr/news/cms/202410/11/news-p.v1.20241011.a835e83beced4980bf493a5a48aac73e_P1.png"
+    },
+    {
+      "id": "ec3ce041-d980-45fb-adec-fb0d63d95724",
+      "name": "가와바타 야스나리",
+      "birth_death": "1899 — 1972",
+      "country": "일본",
+      "awards": [
+        "노벨문학상 수상 작가"
+      ],
+      "bio": "허무와 슬픔을 탐미적 언어로 길어 올린 일본 문학의 서정적 거장이자, 보이지 않는 찰나의 미학을 세계적 예술로 승화시킨 작가.",
+      "photo_url": "https://i.namu.wiki/i/2zQ9tEMig85MDvCJx928jBPjGjV5LWLBKB3LKUbZxRbk5PAahMKynpVmWbJ2E4O2q6DLW4JUFCvZcBtCXs-aIDByiq6Uup_ge4ekne9N6Rj5oZYG2krBcICOJ168wUnv4d6BXo8qXZ7F0x3tN2u7TA.webp"
+    },
+    {
+      "id": "ff744384-d4fa-4067-ad85-a6a3778fffad",
+      "name": "빅토르 위고",
+      "birth_death": "1802 — 1885",
+      "country": "프랑스",
+      "awards": [],
+      "bio": "펜 하나로 시대의 양심을 깨운 프랑스의 국가적 자부심이며, 낭만주의의 기수이자 소외된 이들의 목소리가 되어준 거장.",
+      "photo_url": "https://i.namu.wiki/i/mNQ2Ij0dAb81W-AGSAXiZsMJpjMjFx4vJBCWRQhiLRgTZxJMH6fBUxY-7s91mLEVda1_KIq5zbg428_3JR6cCkGawCNUUMhQjTaUkTsI4j6KX8bcdWd-68V9FZt71xZ_oXSw1_tK4zW7xOS2HaCR3A.webp"
+    }
+  ],
+  "flowcharts": [
+    {
+      "id": "4f4ebc61-7e6a-4165-ae36-3bb3a8110e05",
+      "author_name": "표도르 도스토옙스키",
+      "nodes": [
+        {
+          "id": "node-1774862017423",
+          "data": {
+            "label": "죄와 벌",
+            "workId": "b76c4f8e-7082-47b9-888b-cb7508f12ad1"
+          },
+          "type": "main",
+          "dragging": false,
+          "measured": {
+            "width": 110,
+            "height": 185
+          },
+          "position": {
+            "x": 205.5,
+            "y": 90
+          },
+          "selected": false
+        },
+        {
+          "id": "node-1774862018991",
+          "data": {
+            "label": "카라마조프 가의 형제들",
+            "workId": "e86fd1c5-d375-44c3-aa58-3bc4fc2eccf0"
+          },
+          "type": "main",
+          "dragging": false,
+          "measured": {
+            "width": 110,
+            "height": 199
+          },
+          "position": {
+            "x": 205.5,
+            "y": 324
+          },
+          "selected": false
+        }
+      ],
+      "edges": [
+        {
+          "id": "xy-edge__node-1774862017423-node-1774862018991",
+          "label": "감명 깊었다면",
+          "source": "node-1774862017423",
+          "target": "node-1774862018991",
+          "animated": false,
+          "selected": false
+        }
+      ],
+      "created_at": "2026-03-30T09:14:34.62286+00:00",
+      "updated_at": "2026-03-30T10:19:45.501+00:00"
+    }
+  ]
+}

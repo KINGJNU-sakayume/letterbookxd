@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo, type FormEvent, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Pencil, Search, Trash2 } from 'lucide-react';
-import { fetchAllWorks, insertWork, insertEdition, extractVolumeFromTitle, getAladinDetail } from '../services/db';
-import { buildAladinFetchUrl } from '../services/api';
-import { supabase } from '../lib/supabase';
+import {
+  deleteWork as deleteWorkFromCatalog, extractVolumeFromTitle, fetchAllSeries, fetchAllWorks, fetchEditionsByWorkId,
+  insertEdition, insertSeries, insertWork, updateWork, upsertAuthorByName,
+} from '../services/db';
+import { getAladinDetail, searchAladinItems } from '../services/aladin';
+import { CatalogEditBar } from '../components/admin/CatalogEditBar';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
 import type { DbWork } from '../services/db';
@@ -15,9 +18,8 @@ import { useConfirm } from '../components/ui/confirm';
 import { BookCover } from '../components/ui/BookCover';
 import { Portrait } from '../components/ui/Portrait';
 import { PageLoader, Spinner } from '../components/ui/States';
-import { useAuthStore } from '../store/authStore';
+import { useLogStore } from '../store/logStore';
 import { useCatalogStore } from '../store/catalogStore';
-import { toast } from '../store/toastStore';
 import { josa, matchesQuery } from '../lib/hangul';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -54,35 +56,18 @@ export function AdminPage() {
   const [params, setParams] = useSearchParams();
   const tab: Tab = TABS.find((t) => t.value === params.get('tab'))?.value ?? 'manage';
   const current = TABS.find((t) => t.value === tab)!;
-  const { session, signOut } = useAuthStore();
-  const [signingOut, setSigningOut] = useState(false);
 
   function select(next: Tab) {
     setParams(next === 'manage' ? {} : { tab: next }, { replace: true });
-  }
-
-  async function handleSignOut() {
-    setSigningOut(true);
-    const ok = await signOut();
-    setSigningOut(false);
-    if (!ok) toast('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.', 'error');
   }
 
   return (
     <Page>
       <PageHeader
         title="서가 관리"
-        description="작품, 판본, 작가, 시리즈와 읽기 순서를 고칩니다."
-        actions={
-          <div className="flex items-center gap-3 text-[13.5px] text-ink-muted">
-            <span className="hidden truncate sm:inline">{session?.user.email}</span>
-            <button type="button" disabled={signingOut} onClick={() => void handleSignOut()} className="btn btn-secondary btn-sm">
-              {signingOut && <Spinner />}
-              로그아웃
-            </button>
-          </div>
-        }
+        description="작품, 판본, 작가, 시리즈와 읽기 순서를 고칩니다. 수정은 이 기기에 편집본으로 쌓이고, JSON으로 내보내 커밋하면 배포됩니다."
       />
+      <CatalogEditBar />
 
       <div className="lg:grid lg:grid-cols-[176px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[200px_minmax(0,1fr)] 2xl:gap-16">
         <nav aria-label="관리 메뉴" className="hidden lg:block">
@@ -177,12 +162,20 @@ function ManageLibraryPanel() {
 
   async function reload() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('works')
-      .select('id,title,author,genre,description,editions(id)')
-      .order('title');
-    if (error) setStatus({ type: 'error', text: error.message });
-    else setWorks((data ?? []) as ManageWork[]);
+    try {
+      const all = await fetchAllWorks();
+      const rows = await Promise.all(all.map(async (w) => ({
+        id: w.id,
+        title: w.title,
+        author: w.author,
+        genre: w.genre ?? null,
+        description: w.description ?? null,
+        editions: (await fetchEditionsByWorkId(w.id)).map((e) => ({ id: e.id })),
+      })));
+      setWorks(rows.sort((a, b) => a.title.localeCompare(b.title, 'ko')));
+    } catch (err) {
+      setStatus({ type: 'error', text: err instanceof Error ? err.message : '작품 목록을 읽지 못했습니다.' });
+    }
     setLoading(false);
   }
 
@@ -202,17 +195,19 @@ function ManageLibraryPanel() {
     e?.preventDefault();
     if (!editing || !draft.title.trim() || !draft.author.trim()) return;
     setSaving(true);
-    const { error } = await supabase.from('works').update({
-      title: draft.title.trim(),
-      author: draft.author.trim(),
-      genre: draft.genre.trim() || null,
-      description: draft.description.trim() || null,
-    }).eq('id', editing.id);
-    setSaving(false);
-    if (error) {
-      setStatus({ type: 'error', text: error.message });
+    try {
+      await updateWork(editing.id, {
+        title: draft.title.trim(),
+        author: draft.author.trim(),
+        genre: draft.genre.trim() || null,
+        description: draft.description.trim() || null,
+      });
+    } catch (err) {
+      setSaving(false);
+      setStatus({ type: 'error', text: err instanceof Error ? err.message : '고치지 못했습니다.' });
       return;
     }
+    setSaving(false);
     setEditing(null);
     setStatus({ type: 'success', text: `“${draft.title.trim()}” 정보를 고쳤습니다.` });
     refreshCatalog();
@@ -222,19 +217,22 @@ function ManageLibraryPanel() {
   async function deleteWork(work: ManageWork) {
     const ok = await confirm({
       title: `${josa(`“${work.title}”`, '을', '를')} 지울까요?`,
-      description: '이 작품의 판본과 모든 읽기 기록이 함께 지워지며 되돌릴 수 없습니다.',
+      description: '이 작품의 판본과 이 기기의 읽기 기록이 함께 지워지며 되돌릴 수 없습니다. 필요하면 먼저 설정에서 백업해 두세요.',
       confirmLabel: '영구히 지우기',
       tone: 'danger',
     });
     if (!ok) return;
     setSaving(true);
-    const { error: logsError } = await supabase.from('logs').delete().eq('work_id', work.id);
-    if (logsError) { setStatus({ type: 'error', text: logsError.message }); setSaving(false); return; }
-    const { error: editionsError } = await supabase.from('editions').delete().eq('work_id', work.id);
-    if (editionsError) { setStatus({ type: 'error', text: editionsError.message }); setSaving(false); return; }
-    const { error } = await supabase.from('works').delete().eq('id', work.id);
+    const logsDeleted = await useLogStore.getState().deleteLogsByWorkId(work.id);
+    if (!logsDeleted) { setStatus({ type: 'error', text: '읽기 기록을 지우지 못했습니다.' }); setSaving(false); return; }
+    let error: string | null = null;
+    try {
+      await deleteWorkFromCatalog(work.id);
+    } catch (err) {
+      error = err instanceof Error ? err.message : '지우지 못했습니다.';
+    }
     setSaving(false);
-    if (error) setStatus({ type: 'error', text: error.message });
+    if (error) setStatus({ type: 'error', text: error });
     else {
       setStatus({ type: 'success', text: `${josa(`“${work.title}”`, '을', '를')} 지웠습니다.` });
       refreshCatalog();
@@ -341,8 +339,8 @@ function WorkForm() {
 
   useEffect(() => {
     async function fetchSeries() {
-      const { data } = await supabase.from('series').select('id, title').order('title');
-      if (data) setSeriesList(data as SeriesItem[]);
+      const data = await fetchAllSeries();
+      setSeriesList(data.map((x): SeriesItem => ({ id: x.id, title: x.title })));
     }
     fetchSeries();
   }, []);
@@ -448,11 +446,10 @@ function SeriesForm() {
     setLoading(true);
     setStatus(null);
     try {
-      const { error } = await supabase.from('series').insert([{
+      await insertSeries({
         title: form.title, author: form.author, genre: form.genre,
         description: form.description, cover_url: form.cover_url || null,
-      }]);
-      if (error) throw error;
+      });
       setStatus({ type: 'success', text: `“${form.title}” 시리즈를 만들었습니다.` });
       setForm({ title: '', author: '', genre: '', description: '', cover_url: '' });
       refreshCatalog();
@@ -533,14 +530,9 @@ function EditionForm() {
     setSearchResults([]);
     setStatus(null);
     try {
-      const params = new URLSearchParams({
-        Query: query, QueryType: 'Keyword',
-        MaxResults: '10', start: '1', SearchTarget: 'Book', output: 'js', Version: '20131101',
-      });
-      const response = await fetch(buildAladinFetchUrl('ItemSearch.aspx', params));
-      const data = await response.json();
-      if (data.item && data.item.length > 0) {
-        setSearchResults(data.item);
+      const items = await searchAladinItems(query, 10);
+      if (items.length > 0) {
+        setSearchResults(items);
       } else {
         setStatus({ type: 'error', text: '검색 결과가 없습니다.' });
       }
@@ -689,8 +681,7 @@ function AuthorForm() {
     setStatus(null);
     try {
       const awardArray = form.awards.split(',').map(s => s.trim()).filter(Boolean);
-      const { error } = await supabase.from('authors').upsert({ ...form, awards: awardArray }, { onConflict: 'name' });
-      if (error) throw error;
+      await upsertAuthorByName({ ...form, awards: awardArray });
       setStatus({ type: 'success', text: `${form.name} 작가 정보를 저장했습니다.` });
       setForm({ name: '', birth_death: '', country: '', awards: '', bio: '', photo_url: '' });
       refreshCatalog();

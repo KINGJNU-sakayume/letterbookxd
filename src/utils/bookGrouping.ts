@@ -1,4 +1,4 @@
-import type { AladinBook } from '../services/api';
+import type { AladinBook } from '../services/aladin';
 import type { Work, EditionSet, Volume } from '../types';
 
 export interface GroupedBookData {

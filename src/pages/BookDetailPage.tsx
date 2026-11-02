@@ -11,11 +11,9 @@ import { SetReviewPanel } from '../components/book/SetReviewPanel';
 import { TranslationComparison } from '../components/book/TranslationComparison';
 import { useLogStore } from '../store/logStore';
 import { useBookStore } from '../store/bookStore';
-import { isAdminSession, useAuthStore } from '../store/authStore';
 import { useCatalogStore, type CatalogWork } from '../store/catalogStore';
 import { toast } from '../store/toastStore';
-import { supabase } from '../lib/supabase';
-import { fetchWorkById, fetchEditionsByWorkId, fetchSeriesById, groupEditionsByPublisher } from '../services/db';
+import { fetchWorkById, fetchEditionsByWorkId, fetchSeriesById, groupEditionsByPublisher, updateWork } from '../services/db';
 import type { DbWork, DbEdition, DbSeries, EditionGroup } from '../services/db';
 import {
   groupKey,
@@ -47,9 +45,6 @@ export function BookDetailPage() {
 
   const { setGroupedData } = useBookStore();
   const { getSetCompletionLog, volumeLogs, setCompletionLogs } = useLogStore();
-  const session = useAuthStore((s) => s.session);
-  const signedIn = !!session;
-  const admin = isAdminSession(session);
   useDocumentTitle(dbWork?.title);
 
   useEffect(() => {
@@ -87,11 +82,7 @@ export function BookDetailPage() {
     if (!workId || savingCover) return;
     setSavingCover(true);
     try {
-      const { error } = await supabase
-        .from('works')
-        .update({ representative_edition_id: editionId })
-        .eq('id', workId);
-      if (error) throw error;
+      await updateWork(workId, { representative_edition_id: editionId });
       setRepEditionId(editionId);
       toast('대표 표지를 바꿨습니다.');
       void useCatalogStore.getState().reload();
@@ -204,7 +195,7 @@ export function BookDetailPage() {
             {hasMultiplePublishers && activePublisher && (
               <p className="mt-3 text-center text-[12.5px] text-ink-muted lg:text-left">{activePublisher} 판 표지</p>
             )}
-            {signedIn && myRecord && (
+            {myRecord && (
               <div className="hidden lg:block">
                 <MyRecord record={myRecord} />
               </div>
@@ -246,7 +237,7 @@ export function BookDetailPage() {
             )}
           </header>
 
-          {signedIn && myRecord && (
+          {myRecord && (
             <div className="max-w-md lg:hidden">
               <MyRecord record={myRecord} />
             </div>
@@ -300,7 +291,7 @@ export function BookDetailPage() {
                     <span className="tnum">{isSingle ? '한 권' : `${volCount}권 구성`}</span>
                     {totalPages > 0 && <span className="tnum">{totalPages.toLocaleString()}쪽</span>}
                     {setComplete && <span className="tag tag-on">완독</span>}
-                    {admin && firstEditionId && hasMultiplePublishers && (
+                    {firstEditionId && hasMultiplePublishers && (
                       <button
                         type="button"
                         onClick={() => void handleSetRepresentative(firstEditionId)}
@@ -325,7 +316,7 @@ export function BookDetailPage() {
                         editionSetId={setId}
                         isSingleVolume={isSingle}
                         totalPages={edition.page_count || undefined}
-                        canEdit={signedIn}
+                        canEdit
                       />
                     ))}
                   </ul>
@@ -336,16 +327,8 @@ export function BookDetailPage() {
                       publisher={selectedGroup.publisher}
                       title={dbWork.title}
                       isSinglePublisher={!hasMultiplePublishers}
-                      canEdit={signedIn}
+                      canEdit
                     />
-                  )}
-                  {!signedIn && (
-                    <p className="border-t border-line py-3 text-[13px] text-ink-muted">
-                      <Link to="/login" state={{ from: `/book/${dbWork.id}` }} className="link-quiet font-medium text-ink-soft">
-                        로그인
-                      </Link>
-                      하면 읽는 중인 쪽수와 완독, 별점을 남길 수 있습니다.
-                    </p>
                   )}
                 </div>
               );
@@ -441,7 +424,6 @@ function useRelatedWorks(work: DbWork | null, series: DbSeries | null) {
 
 function RelatedWorks({ title, items, currentId, moreLink }: { title: string; items: CatalogWork[]; currentId: string; moreLink?: string }) {
   const statuses = useWorkStatuses(items);
-  const signedIn = useAuthStore((s) => !!s.session);
   return (
     <section aria-labelledby="related-heading">
       <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -473,7 +455,7 @@ function RelatedWorks({ title, items, currentId, moreLink }: { title: string; it
                   </span>
                   <span className="mt-0.5 flex items-center gap-2 text-[12.5px] text-ink-muted">
                     {current ? '지금 보는 작품' : w.published_year ? <span className="tnum">{w.published_year}</span> : null}
-                    {signedIn && status && !current && <ReadingMark state={status.state} percent={status.percent} rating={status.rating} liked={status.liked} />}
+                    {status && !current && <ReadingMark state={status.state} percent={status.percent} rating={status.rating} liked={status.liked} />}
                   </span>
                 </span>
               </Link>

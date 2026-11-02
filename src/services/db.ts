@@ -1,47 +1,11 @@
-import { supabase } from '../lib/supabase';
-import { buildAladinFetchUrl } from './api';
-import type { FlowchartNode, FlowchartEdge, DbFlowchart } from '../types';
+import { getCatalog, mutateCatalog } from './catalogSource';
+import type { FlowchartNode, FlowchartEdge } from '../types';
+import type { CatalogData, DbAuthor, DbEdition, DbFlowchart, DbSeries, DbWork } from '../catalog/model';
 
-// --- 인터페이스 정의 ---
+export type { DbAuthor, DbEdition, DbFlowchart, DbSeries, DbWork } from '../catalog/model';
 
-export interface DbSeries {
-  id: string;
-  title: string;
-  author: string;
-  genre?: string;
-  description?: string;
-  cover_url?: string;
-  created_at: string;
-}
-
-export interface DbWork {
-  id: string;
-  title: string;
-  author: string;
-  genre?: string;
-  lists?: string[];
-  description?: string;
-  ai_translation?: string;
-  original_excerpt: string;
-  representative_cover_url: string | null;
-  representative_edition_id?: string | null;
-  series_id?: string | null;
-  series_order?: number | null;
-  published_year?: number | null;
-  created_at: string;
-}
-
-export interface DbEdition {
-  id: string;
-  work_id: string;
-  publisher: string;
-  isbn: string;
-  excerpt: string | null;
-  cover_url: string;
-  volume_number: string;
-  page_count: number;
-  created_at: string;
-}
+// 카탈로그 읽기·쓰기. 예전에는 Supabase 테이블이었고, 지금은 번들 JSON + 이 기기의 편집본이다.
+// (catalogSource.ts 참고) 함수 이름과 반환 모양은 Supabase 시절과 같게 유지한다.
 
 export interface EditionGroup {
   publisher: string;
@@ -76,106 +40,164 @@ export function extractVolumeFromTitle(title: string): string {
   return '';
 }
 
-// --- 데이터베이스 함수 ---
+// --- 조회 ---
+
+const compareTitle = (a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title, 'ko');
+const byVolume = (a: DbEdition, b: DbEdition) =>
+  a.volume_number.localeCompare(b.volume_number, undefined, { numeric: true });
+const now = () => new Date().toISOString();
+
+function editionsOf(catalog: CatalogData, workId: string): DbEdition[] {
+  return catalog.editions.filter((e) => e.work_id === workId).sort(byVolume);
+}
 
 export async function fetchAllWorks(): Promise<DbWork[]> {
-  const { data, error } = await supabase
-    .from('works').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as DbWork[];
+  const { works } = await getCatalog();
+  return [...works].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
 }
 
 export async function fetchWorkById(workId: string): Promise<DbWork | null> {
-  const { data, error } = await supabase
-    .from('works').select('*').eq('id', workId).maybeSingle();
-  if (error) throw error;
-  return data as DbWork | null;
+  const { works } = await getCatalog();
+  return works.find((w) => w.id === workId) ?? null;
 }
 
 export async function fetchEditionsByWorkId(workId: string): Promise<DbEdition[]> {
-  const { data, error } = await supabase
-    .from('editions').select('*').eq('work_id', workId).order('volume_number');
-  if (error) throw error;
-  return (data ?? []) as DbEdition[];
+  return editionsOf(await getCatalog(), workId);
 }
 
 export async function fetchSeriesById(seriesId: string): Promise<DbSeries | null> {
-  const { data, error } = await supabase
-    .from('series').select('*').eq('id', seriesId).maybeSingle();
-  if (error) throw error;
-  return data as DbSeries | null;
+  const { series } = await getCatalog();
+  return series.find((s) => s.id === seriesId) ?? null;
+}
+
+export async function fetchAllSeries(): Promise<DbSeries[]> {
+  const { series } = await getCatalog();
+  return [...series].sort(compareTitle);
 }
 
 export async function fetchWorksBySeriesId(seriesId: string): Promise<(DbWork & { editions: DbEdition[] })[]> {
-  const { data, error } = await supabase
-    .from('works')
-    .select('*, editions!editions_work_id_fkey(*)')
-    .eq('series_id', seriesId)
-    .order('series_order', { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as (DbWork & { editions: DbEdition[] })[];
+  const catalog = await getCatalog();
+  return catalog.works
+    .filter((w) => w.series_id === seriesId)
+    .sort((a, b) => (a.series_order ?? Infinity) - (b.series_order ?? Infinity))
+    .map((w) => ({ ...w, editions: editionsOf(catalog, w.id) }));
 }
 
+export async function fetchWorksByAuthor(author: string): Promise<(DbWork & { editions: DbEdition[] })[]> {
+  const catalog = await getCatalog();
+  return catalog.works
+    .filter((w) => w.author === author)
+    .sort((a, b) => (a.published_year ?? Infinity) - (b.published_year ?? Infinity))
+    .map((w) => ({ ...w, editions: editionsOf(catalog, w.id) }));
+}
+
+export async function fetchAuthorByName(name: string): Promise<DbAuthor | null> {
+  const { authors } = await getCatalog();
+  return authors.find((a) => a.name === name) ?? null;
+}
+
+/** 작품에 등장하는 작가 이름 (가나다순, 중복 없음) */
+export async function fetchWorkAuthorNames(): Promise<string[]> {
+  const { works } = await getCatalog();
+  return Array.from(new Set(works.map((w) => w.author))).sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+/** 둘러보기·검색용: 작품(판본 요약 포함), 시리즈, 작가 */
+export async function fetchCatalogRows() {
+  const catalog = await getCatalog();
+  const works = [...catalog.works].sort(compareTitle).map((w) => ({
+    id: w.id,
+    title: w.title,
+    author: w.author,
+    genre: w.genre ?? null,
+    lists: w.lists ?? null,
+    published_year: w.published_year ?? null,
+    series_id: w.series_id ?? null,
+    series_order: w.series_order ?? null,
+    representative_edition_id: w.representative_edition_id ?? null,
+    created_at: w.created_at ?? null,
+    editions: editionsOf(catalog, w.id).map((e) => ({
+      id: e.id, cover_url: e.cover_url, page_count: e.page_count, volume_number: e.volume_number, publisher: e.publisher,
+    })),
+  }));
+  const series = [...catalog.series].sort(compareTitle).map((s) => ({
+    id: s.id, title: s.title, author: s.author, genre: s.genre ?? null, cover_url: s.cover_url ?? null,
+  }));
+  const authors = [...catalog.authors].sort((a, b) => a.name.localeCompare(b.name, 'ko')).map((a) => ({
+    id: a.id, name: a.name, photo_url: a.photo_url ?? null, country: a.country ?? null,
+  }));
+  return { works: works as unknown[], series: series as unknown[], authors: authors as unknown[] };
+}
+
+// --- 쓰기 (이 기기의 편집본에 쌓인다) ---
+
 export async function insertWork(payload: Omit<DbWork, 'id' | 'original_excerpt' | 'representative_cover_url' | 'created_at'>): Promise<DbWork> {
-  const { data, error } = await supabase.from('works').insert([payload]).select().single();
-  if (error) throw error;
-  return data as DbWork;
+  const work: DbWork = {
+    ...payload,
+    id: crypto.randomUUID(),
+    original_excerpt: '',
+    representative_cover_url: null,
+    created_at: now(),
+  };
+  await mutateCatalog((c) => { c.works.push(work); });
+  return work;
+}
+
+export async function updateWork(workId: string, patch: Partial<Omit<DbWork, 'id' | 'created_at'>>): Promise<void> {
+  await mutateCatalog((c) => {
+    const w = c.works.find((x) => x.id === workId);
+    if (!w) throw new Error('작품을 찾을 수 없습니다.');
+    Object.assign(w, patch);
+  });
+}
+
+/** 작품과 그 판본을 지운다 (읽기 기록은 logStore.deleteLogsByWorkId로 따로 지운다) */
+export async function deleteWork(workId: string): Promise<void> {
+  await mutateCatalog((c) => {
+    c.editions = c.editions.filter((e) => e.work_id !== workId);
+    c.works = c.works.filter((w) => w.id !== workId);
+  });
 }
 
 export async function insertEdition(payload: Omit<DbEdition, 'id' | 'created_at'>): Promise<DbEdition> {
-  const { data, error } = await supabase
-    .from('editions')
-    .insert([{
-      work_id: payload.work_id,
-      publisher: payload.publisher,
-      isbn: payload.isbn,
-      excerpt: payload.excerpt,
-      cover_url: payload.cover_url,
-      volume_number: payload.volume_number,
-      page_count: payload.page_count,
-    }])
-    .select()
-    .single();
-  if (error) throw error;
-  return data as DbEdition;
-}
-
-// --- 둘러보기·검색용 카탈로그 ---
-
-/** 작품(판본 표지·쪽수 포함), 시리즈, 작가를 한 번에 읽는다. 시리즈·작가 오류는 빈 목록으로 넘긴다. */
-export async function fetchCatalogRows() {
-  const [worksRes, seriesRes, authorsRes] = await Promise.all([
-    supabase
-      .from('works')
-      .select(`
-        id, title, author, genre, lists, published_year, series_id, series_order,
-        representative_edition_id, created_at,
-        editions!work_id ( id, cover_url, page_count, volume_number, publisher )
-      `)
-      .order('title', { ascending: true }),
-    supabase.from('series').select('id, title, author, genre, cover_url').order('title', { ascending: true }),
-    supabase.from('authors').select('id, name, photo_url, country').order('name', { ascending: true }),
-  ]);
-  if (worksRes.error) throw worksRes.error;
-  if (seriesRes.error) console.warn('시리즈 목록을 불러오지 못했습니다:', seriesRes.error);
-  if (authorsRes.error) console.warn('작가 목록을 불러오지 못했습니다:', authorsRes.error);
-  return {
-    works: (worksRes.data ?? []) as unknown[],
-    series: (seriesRes.data ?? []) as unknown[],
-    authors: (authorsRes.data ?? []) as unknown[],
+  const edition: DbEdition = {
+    id: crypto.randomUUID(),
+    work_id: payload.work_id,
+    publisher: payload.publisher,
+    isbn: payload.isbn,
+    excerpt: payload.excerpt,
+    cover_url: payload.cover_url,
+    volume_number: payload.volume_number,
+    page_count: payload.page_count,
+    created_at: now(),
   };
+  await mutateCatalog((c) => {
+    if (!c.works.some((w) => w.id === edition.work_id)) throw new Error('작품을 찾을 수 없습니다.');
+    c.editions.push(edition);
+  });
+  return edition;
 }
 
-// --- 플로우차트 함수 ---
+export async function insertSeries(payload: Omit<DbSeries, 'id' | 'created_at'>): Promise<DbSeries> {
+  const series: DbSeries = { ...payload, id: crypto.randomUUID(), created_at: now() };
+  await mutateCatalog((c) => { c.series.push(series); });
+  return series;
+}
+
+/** 같은 이름의 작가가 있으면 덮어쓴다 (id는 유지) */
+export async function upsertAuthorByName(payload: Omit<DbAuthor, 'id' | 'created_at'>): Promise<void> {
+  await mutateCatalog((c) => {
+    const existing = c.authors.find((a) => a.name === payload.name);
+    if (existing) Object.assign(existing, payload);
+    else c.authors.push({ ...payload, id: crypto.randomUUID(), created_at: now() });
+  });
+}
+
+// --- 플로우차트 ---
 
 export async function fetchFlowchartByAuthor(authorName: string): Promise<DbFlowchart | null> {
-  const { data, error } = await supabase
-    .from('author_flowcharts')
-    .select('*')
-    .eq('author_name', authorName)
-    .maybeSingle();
-  if (error) throw error;
-  return data as DbFlowchart | null;
+  const { flowcharts } = await getCatalog();
+  return flowcharts.find((f) => f.author_name === authorName) ?? null;
 }
 
 export async function upsertFlowchart(
@@ -183,33 +205,9 @@ export async function upsertFlowchart(
   nodes: FlowchartNode[],
   edges: FlowchartEdge[]
 ): Promise<void> {
-  const { error } = await supabase
-    .from('author_flowcharts')
-    .upsert(
-      { author_name: authorName, nodes, edges, updated_at: new Date().toISOString() },
-      { onConflict: 'author_name' }
-    );
-  if (error) throw error;
-}
-
-// 개발 중에는 vite 프록시(/aladin-api), 배포본에서는 Supabase Edge Function을 거친다
-export async function getAladinDetail(isbn: string) {
-  const params = new URLSearchParams({
-    itemIdType: 'ISBN13',
-    ItemId: isbn,
-    output: 'js',
-    Version: '20131101',
-    OptResult: 'itemPage',
+  await mutateCatalog((c) => {
+    const existing = c.flowcharts.find((f) => f.author_name === authorName);
+    if (existing) Object.assign(existing, { nodes, edges, updated_at: now() });
+    else c.flowcharts.push({ id: crypto.randomUUID(), author_name: authorName, nodes, edges, created_at: now(), updated_at: now() });
   });
-
-  const res = await fetch(buildAladinFetchUrl('ItemLookUp.aspx', params));
-  if (!res.ok) throw new Error(`Aladin API error: ${res.status}`);
-  const json = await res.json();
-  const item = json.item?.[0];
-  if (!item) return null;
-
-  return {
-    page_count: item.subInfo?.itemPage ? parseInt(item.subInfo.itemPage, 10) : 0,
-    cover: item.cover?.replace('coversum', 'cover500'),
-  };
 }
