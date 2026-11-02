@@ -13,5 +13,5 @@ export { hashCatalog, normalizeCatalog, serializeCatalog, emptyCatalog } from '.
 export { decideSeriesCompletion, decideSetCompletion } from '../../src/domain/logs/cascade';
 export { LOG_ID_PATTERN, validateLogRecord } from '../../src/domain/logs/records';
 export {
-  buildBackup, parseBackup, parseCsv, parseImportFile, parseSupabaseLogsCsv, pgTimestampToIso, planImport, resolvePlan,
+  buildBackup, parseBackup, parseImportFile, planImport, resolvePlan,
 } from '../../src/domain/backup/backup';

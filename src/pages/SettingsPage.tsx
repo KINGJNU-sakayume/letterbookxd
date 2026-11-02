@@ -144,13 +144,13 @@ function ImportSection() {
     <section aria-labelledby="backup-import">
       <SectionHeading id="backup-import" title="불러오기" />
       <p className="text-[14px] leading-relaxed text-ink-soft">
-        이 앱에서 내보낸 백업 JSON, 또는 Supabase 대시보드에서 내려받은 <code className="text-[13px]">logs</code> 테이블 CSV를 고르세요.
+        이 앱에서 내보낸 백업 JSON을 고르세요.
         바로 저장하지 않고 먼저 무엇이 바뀌는지 보여 드립니다.
       </p>
       <label className="btn btn-secondary mt-5 cursor-pointer">
         <Upload size={15} aria-hidden />
         파일 고르기
-        <input ref={inputRef} type="file" accept=".json,.csv,application/json,text/csv" className="sr-only" onChange={(e) => void handleFile(e)} />
+        <input ref={inputRef} type="file" accept=".json,application/json" className="sr-only" onChange={(e) => void handleFile(e)} />
       </label>
       {fileName && <span className="ml-3 text-[13px] text-ink-muted">{fileName}</span>}
       {error && <p role="alert" className="mt-3 text-[13.5px] text-seal">{error}</p>}
@@ -222,7 +222,7 @@ function ImportPreview({ source, plan, mode, onMode, withCatalog, onWithCatalog,
     <div className="panel mt-6 p-5">
       <h3 className="font-serif text-[18px] font-bold text-ink">미리보기</h3>
       <p className="mt-1 text-[13px] text-ink-muted">
-        {source.kind === 'backup' ? '책장 백업 파일' : 'Supabase logs CSV'}
+        책장 백업 파일
         {source.exportedAt && ` · ${formatDateTime(source.exportedAt)}에 내보냄`}
       </p>
       <dl className="mt-4 grid grid-cols-3 gap-3 text-center">

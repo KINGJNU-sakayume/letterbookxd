@@ -5,7 +5,7 @@ import {
   deleteWork as deleteWorkFromCatalog, extractVolumeFromTitle, fetchAllSeries, fetchAllWorks, fetchEditionsByWorkId,
   insertEdition, insertSeries, insertWork, updateWork, upsertAuthorByName,
 } from '../services/db';
-import { getAladinDetail, searchAladinItems } from '../services/aladin';
+import { AladinUnavailableError, getAladinDetail, searchAladinItems } from '../services/aladin';
 import { CatalogEditBar } from '../components/admin/CatalogEditBar';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
@@ -538,7 +538,12 @@ function EditionForm() {
       }
     } catch (err) {
       console.error('검색 에러:', err);
-      setStatus({ type: 'error', text: '알라딘 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
+      setStatus({
+        type: 'error',
+        text: err instanceof AladinUnavailableError
+          ? `${err.message} 판본 정보는 직접 적어 주세요.`
+          : '알라딘 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+      });
     } finally {
       setIsSearching(false);
     }
@@ -559,8 +564,8 @@ function EditionForm() {
       } else {
         setStatus({ type: 'error', text: '쪽수를 가져오지 못했습니다. 직접 적어 주세요.' });
       }
-    } catch {
-      setStatus({ type: 'error', text: '상세 정보를 가져오지 못했습니다.' });
+    } catch (err) {
+      setStatus({ type: 'error', text: err instanceof AladinUnavailableError ? err.message : '상세 정보를 가져오지 못했습니다.' });
     }
   };
 

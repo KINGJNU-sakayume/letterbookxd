@@ -2,7 +2,7 @@ import type { DbFlowchart } from '../types';
 
 export type { DbFlowchart };
 
-// 카탈로그(공개 데이터)의 행 모양. Supabase 시절 테이블 컬럼을 그대로 따른다.
+// 카탈로그(공개 데이터)의 행 모양. 컬럼 이름은 snake_case를 쓴다.
 
 export interface DbSeries {
   id: string;

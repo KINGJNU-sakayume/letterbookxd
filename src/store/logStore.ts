@@ -19,7 +19,6 @@ import {
 export type { SeriesCompletionLog } from '../domain/logs/records';
 
 // 독서 기록은 이 브라우저의 IndexedDB(Dexie)에만 저장된다. 이 기기 = 소유자.
-// 공개 API(이름·인자·반환)는 Supabase 시절과 같다.
 
 interface LogState {
   volumeLogs: VolumeLog[];
