@@ -18,6 +18,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { parseEditionSetId } from '../utils/editionUtils';
 import { compareKo, formatDate } from '../utils/format';
 import { setReview } from '../utils/readingState';
+import { LifeHubPanel } from '../lifehub/LifeHubPanel';
 
 type FilterTab = 'all' | 'reading' | 'completed' | 'incomplete_series';
 type SortOption = 'recent' | 'rating' | 'author';
@@ -168,6 +169,8 @@ export function BookshelfPage() {
           </Figures>
         }
       />
+
+      <LifeHubPanel />
 
       {status === 'error' ? (
         <ErrorState onRetry={() => void reload()} />

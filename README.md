@@ -208,6 +208,10 @@ User actions (toggle state, rate, update page) → `logStore` method → `db.ts`
 
 ---
 
+### Life Hub proposals (optional)
+
+Claude can propose reading records through [Life Hub](https://github.com/KINGJNU-sakayume/life-hub) ("데미안 다 읽었어, 별 다섯 개"). On **내 책장** the signed-in owner connects once (`Life Hub 연결`; OAuth public client `public/lifehub-client.json` with PKCE, `letterbookxd:inbox` only; Life Hub returns to `public/lifehub/`). Each proposal is matched against the catalogue (`src/lifehub/resolve.ts`): only a single exact title (and author) match, a single publisher and a single volume are preselected; anything else is a choice for the owner, and books missing from the catalogue wait until they are added. Approving writes through `logStore.upsertVolumeLog` (same completion cascade as the UI) and, for a stated completion date, `updateLogMetadata`. Receipts (proposal → log ID) and rejections are kept in localStorage and retried; rejecting changes nothing.
+
 ## 7. Environment Variables & Configuration
 
 > **Note:** The Supabase anon key is intentionally public (client-side) — access control is enforced by Supabase Row Level Security (RLS).
