@@ -1,4 +1,4 @@
-import{e as R,$ as b,a0 as C,a1 as H,a2 as J,a as y,r as p,j as e,H as E,a3 as _,w as N,x as F,a4 as M,u as j}from"./index-BiWHLmbx.js";import{u as z,P as U,a as K,S as v}from"./useDocumentTitle-C0Jh2gtD.js";import{D as W,C as V,d as Y,f as S}from"./CatalogEditBar-Dpn_l6sV.js";import{p as q}from"./editionUtils-CJeZ7zbK.js";import"./identity-DTbp0C81.js";/**
+import{e as R,$ as b,a0 as C,a1 as H,a2 as J,a as y,r as p,j as e,H as E,a3 as _,w as N,x as F,a4 as M,u as j}from"./index-ioCLWy-s.js";import{u as z,P as U,a as K,S as v}from"./useDocumentTitle-DoZP_-Bf.js";import{D as W,C as V,d as Y,f as S}from"./CatalogEditBar-BRiXiJx2.js";import{p as q}from"./editionUtils-CJeZ7zbK.js";import"./identity-DTbp0C81.js";/**
  * @license lucide-react v0.344.0 - ISC
  *
  * This source code is licensed under the ISC license.
