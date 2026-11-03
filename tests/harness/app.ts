@@ -2,7 +2,7 @@
 export { useLogStore } from '../../src/store/logStore';
 export { useBookStore } from '../../src/store/bookStore';
 export { getDb, resetDbForTests, selectDbForTests } from '../../src/storage/db';
-export { setNowForTests, computeStamp, nextStamp } from '../../src/storage/clock';
+export { setNowForTests, computeStamp, nextStamp, noteServerTime as noteServerTimeForTests } from '../../src/storage/clock';
 export {
   discardCatalogEdits, getCatalog, getCatalogOverride, getCatalogStatus, mutateCatalog,
   replaceCatalogOverride, seriesInfoForWork, setBundledCatalogLoader,
