@@ -2,7 +2,8 @@
  * 책장 ↔ Life Hub connection.
  *
  * - Connect: OAuth 2.1 authorization code + PKCE (S256); 책장 is a public client identified by
- *   public/lifehub-client.json and receives only a `letterbookxd:inbox` token. Life Hub returns to
+ *   public/lifehub-client.json. It asks for `letterbookxd:inbox letterbookxd:sync`; Life Hub grants the sync scope only
+ *   when the owner ticks the sync checkbox on the consent page, so the granted scope is kept from the token response. Life Hub returns to
  *   /lifehub/ (public/lifehub/index.html), which hands the result to the app.
  * - Proposals (`reading_record`) are fetched live (`status=open`: pending, plus those the owner approved in a
  *   Claude card) and validated again here. Nothing is recorded until the owner approves one, on the bookshelf
@@ -17,8 +18,11 @@ export const APP_URL = 'https://kingjnu-sakayume.github.io/letterbookxd/';
 export const CALLBACK_URL = APP_URL + 'lifehub/';
 export const CLIENT_ID = APP_URL + 'lifehub-client.json';
 export const RESOURCE = LIFEHUB_ORIGIN + '/letterbookxd';
-export const SCOPE = 'letterbookxd:inbox';
+export const INBOX_SCOPE = 'letterbookxd:inbox';
+export const SYNC_SCOPE = 'letterbookxd:sync';
+export const SCOPE = `${INBOX_SCOPE} ${SYNC_SCOPE}`;
 const API = LIFEHUB_ORIGIN + '/letterbookxd/v1';
+const SYNC_API = API + '/sync';
 /** Written by public/lifehub/index.html. */
 export const CALLBACK_KEY = 'letterbookxd.lifehub.callback.v1';
 
@@ -42,7 +46,8 @@ export function browserDeps(): Deps {
   };
 }
 
-export type LifeHubErrorKind = 'not_connected' | 'denied' | 'state' | 'network' | 'server';
+/** 'no_scope': the token has no sync scope (the owner did not tick the sync checkbox). The token stays valid for the inbox. */
+export type LifeHubErrorKind = 'not_connected' | 'denied' | 'state' | 'network' | 'server' | 'no_scope';
 export class LifeHubError extends Error {
   kind: LifeHubErrorKind;
   constructor(kind: LifeHubErrorKind, message: string) {
@@ -122,7 +127,7 @@ const PENDING_AUTH_KEY = 'letterbookxd.lifehub.pending-auth.v1';
 const OUTCOMES_KEY = 'letterbookxd.lifehub.outcomes.v1';
 const REJECTIONS_KEY = 'letterbookxd.lifehub.rejections.v1';
 const AUTH_MAX_AGE_MS = 10 * 60 * 1000;
-interface Tokens { access_token: string; access_expires_at: number; refresh_token: string }
+interface Tokens { access_token: string; access_expires_at: number; refresh_token: string; /** scope Life Hub granted (space separated), when it said */ scope?: string }
 interface PendingAuth { state: string; verifier: string; created_at: number }
 export type Outcome = 'confirmed' | 'rejected' | 'conflict' | 'missing';
 
@@ -182,10 +187,13 @@ async function tokenRequest(deps: Deps, params: Record<string, string>): Promise
   }
   if (typeof body.access_token !== 'string' || typeof body.refresh_token !== 'string' || String(body.token_type).toLowerCase() !== 'bearer')
     throw new LifeHubError('server', 'Life Hub 응답 형식이 올바르지 않아요.');
+  // A refresh response may leave the scope out: keep what was granted before.
+  const scope = typeof body.scope === 'string' ? body.scope : readJson<Tokens>(deps.storage, TOKENS_KEY)?.scope;
   const tokens: Tokens = {
     access_token: body.access_token,
     refresh_token: body.refresh_token,
     access_expires_at: deps.now() + (typeof body.expires_in === 'number' ? body.expires_in : 300) * 1000,
+    ...(scope === undefined ? {} : { scope }),
   };
   deps.storage.setItem(TOKENS_KEY, JSON.stringify(tokens));
   return tokens;
@@ -230,6 +238,56 @@ async function api(deps: Deps, method: 'GET' | 'POST' | 'PUT', path: string, bod
   };
   let response = await send(await accessToken(deps));
   if (response.status === 401) response = await send(await accessToken(deps, true));
+  if (response.status === 401 || response.status === 403) {
+    deps.storage.removeItem(TOKENS_KEY);
+    throw new LifeHubError('not_connected', 'Life Hub 연결이 더 이상 유효하지 않아요. 다시 연결해 주세요.');
+  }
+  return response;
+}
+
+/**
+ * false only when Life Hub told us which scope it granted and the sync scope is not in it. Unknown (a connection
+ * from before the scope was kept) counts as "maybe": the server decides, and answers with insufficient_scope.
+ */
+export function mayHaveSyncScope(deps: Pick<Deps, 'storage'>): boolean {
+  const scope = readJson<Tokens>(deps.storage, TOKENS_KEY)?.scope;
+  return scope === undefined || scope.split(/\s+/).includes(SYNC_SCOPE);
+}
+
+/** true only when Life Hub said the sync scope was granted. */
+function hasSyncScope(deps: Pick<Deps, 'storage'>): boolean {
+  const scope = readJson<Tokens>(deps.storage, TOKENS_KEY)?.scope;
+  return scope !== undefined && scope.split(/\s+/).includes(SYNC_SCOPE);
+}
+
+/**
+ * A request to the sync resource (`/letterbookxd/v1/sync`, `path` '' or '/meta').
+ * 403 + `WWW-Authenticate: ... error="insufficient_scope"` means the token has the inbox scope only: the token stays
+ * (the inbox still works with it) and a 'no_scope' error is thrown. If the browser cannot read that header (CORS
+ * exposes only some headers) and the sync scope is not confirmed in the token, it is treated the same way (the token is kept). Any other
+ * 403, and a 401 that survives a refresh, end the connection exactly like api().
+ */
+export async function syncRequest(
+  deps: Deps, method: 'GET' | 'PUT', path: '' | '/meta', init: { headers?: Record<string, string>; body?: string } = {},
+): Promise<Response> {
+  const send = async (token: string) => {
+    try {
+      return await deps.fetch(SYNC_API + path, {
+        method,
+        headers: { Authorization: 'Bearer ' + token, ...(init.headers ?? {}) },
+        ...(init.body === undefined ? {} : { body: init.body }),
+      });
+    } catch {
+      throw new LifeHubError('network', 'Life Hub에 연결할 수 없어요. 네트워크를 확인해 주세요.');
+    }
+  };
+  let response = await send(await accessToken(deps));
+  if (response.status === 401) response = await send(await accessToken(deps, true));
+  if (response.status === 403) {
+    const challenge = response.headers.get('WWW-Authenticate') ?? '';
+    if (/error="?insufficient_scope"?/i.test(challenge) || (challenge === '' && !hasSyncScope(deps)))
+      throw new LifeHubError('no_scope', '동기화 권한이 없어요. Life Hub를 다시 연결하며 동기화에 체크해 주세요.');
+  }
   if (response.status === 401 || response.status === 403) {
     deps.storage.removeItem(TOKENS_KEY);
     throw new LifeHubError('not_connected', 'Life Hub 연결이 더 이상 유효하지 않아요. 다시 연결해 주세요.');

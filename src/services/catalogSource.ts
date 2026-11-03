@@ -153,3 +153,10 @@ export async function seriesInfoForWork(workId: string): Promise<{ seriesId: str
   if (!seriesId) return null;
   return { seriesId, workIds: works.filter((w) => w.series_id === seriesId).map((w) => w.id) };
 }
+
+/** 시리즈에 속한 작품 id들 (완독 연쇄를 다시 판정할 때 쓴다). 카탈로그에 없으면 null. */
+export async function seriesWorkIds(seriesId: string): Promise<string[] | null> {
+  const { works } = await getCatalog();
+  const ids = works.filter((w) => w.series_id === seriesId).map((w) => w.id);
+  return ids.length ? ids : null;
+}

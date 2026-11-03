@@ -1,0 +1,140 @@
+import { getDb, type LetterbookDb } from '../storage/db';
+import { nextStamp } from '../storage/clock';
+import { useBookStore } from './bookStore';
+import { useLogStore } from './logStore';
+import { seriesInfoForWork, seriesWorkIds } from '../services/catalogSource';
+import { decideSeriesCompletion, decideSetCompletion } from '../domain/logs/cascade';
+import { newLogId, pickLogRecord, toSetLog, toVolumeLog, targetKey, type LogRecord } from '../domain/logs/records';
+import { mergeStates, pruneTombstones, safeTargetKey, validateTombstone, type SyncState, type Tombstone } from '../domain/sync/merge';
+import { validateLogRecord } from '../domain/logs/records';
+
+// 동기화 병합 결과를 이 기기에 반영한다. 병합 자체는 domain/sync/merge.ts(순수 함수).
+// 반영은 "로컬 ∪ 서버"의 병합 결과로만 바꾼다: 서버 문서가 비어 있거나 망가져도 로컬을 지우지 않는다.
+
+/** 이 기기의 기록·묘비 */
+export async function readLocalState(db: LetterbookDb = getDb()): Promise<SyncState> {
+  return { logs: await db.logs.toArray(), tombstones: await db.tombstones.toArray() };
+}
+
+const mergeable = (r: LogRecord) => validateLogRecord(r) === null && safeTargetKey(r) !== null;
+
+/**
+ * 서버 문서(없으면 null)를 로컬과 병합해 한 트랜잭션으로 반영한다.
+ * 읽기와 쓰기가 같은 트랜잭션이라 병합 중에 들어온 로컬 변경을 덮어쓰지 않는다.
+ * 검증을 통과하지 못한 로컬 행은 병합 대상에서 빼고 그대로 둔다 (동기화가 지우지 않는다).
+ * @returns dropped: 서버 문서에서 버린 항목 수, changed: 로컬이 바뀌었는지
+ */
+export async function applyRemoteState(remote: { logs: unknown[]; tombstones?: unknown[] } | null): Promise<{ dropped: number; changed: boolean }> {
+  const db = getDb();
+  let result = { dropped: 0, changed: false };
+  await db.transaction('rw', db.logs, db.tombstones, async () => {
+    const localLogs = await db.logs.toArray();
+    const localTombs = await db.tombstones.toArray();
+    const localValid = localLogs.filter(mergeable);
+    const localTombValid = localTombs.filter((t) => validateTombstone(t) !== null);
+    const merged = mergeStates(
+      { logs: localValid, tombstones: localTombValid },
+      { logs: remote?.logs ?? [], tombstones: remote?.tombstones ?? [] },
+    );
+    // 로컬 쪽 입력은 모두 유효하게 걸렀으므로 버려진 수는 서버 문서의 것이다.
+    const keepLogIds = new Set(merged.logs.map((r) => r.id));
+    const dropLogs = localValid.filter((r) => !keepLogIds.has(r.id)).map((r) => r.id);
+    const keepTombIds = new Set(merged.tombstones.map((t) => t.id));
+    const dropTombs = localTombValid.filter((t) => !keepTombIds.has(t.id)).map((t) => t.id);
+
+    const before = new Map(localLogs.map((r) => [r.id, JSON.stringify(pickLogRecord(r))]));
+    const putLogs = merged.logs.filter((r) => before.get(r.id) !== JSON.stringify(pickLogRecord(r)));
+    const beforeT = new Map(localTombs.map((t) => [t.id, JSON.stringify(t)]));
+    const putTombs = merged.tombstones.filter((t) => beforeT.get(t.id) !== JSON.stringify(t));
+
+    if (dropLogs.length) await db.logs.bulkDelete(dropLogs);
+    if (putLogs.length) await db.logs.bulkPut(putLogs);
+    if (dropTombs.length) await db.tombstones.bulkDelete(dropTombs);
+    if (putTombs.length) await db.tombstones.bulkPut(putTombs);
+    result = { dropped: merged.dropped, changed: !!(dropLogs.length || putLogs.length || dropTombs.length || putTombs.length) };
+  });
+  return result;
+}
+
+/**
+ * 병합 뒤에 기존 완독 연쇄(세트 → 시리즈)를 다시 돌린다. 만들거나 지우는 기록은 새 도장이 찍힌 평범한 로컬 변경이라
+ * 다음 push에 실린다. 권 목록을 모르는 판본(아직 불러오지 않음)은 건드리지 않는다.
+ * @returns 바뀐 것이 있는지
+ */
+export async function reconcileCompletions(): Promise<boolean> {
+  const db = getDb();
+  const seed = await db.logs.toArray();
+  const setIds = new Set<string>();
+  const workIdsToCheck = new Set<string>();
+  for (const r of seed) {
+    if ((r.logType === 'volume' || r.logType === 'set_completion') && r.editionSetId) setIds.add(r.editionSetId);
+    if (r.workId) workIdsToCheck.add(r.workId);
+  }
+  // 카탈로그 읽기는 트랜잭션 밖에서
+  const seriesWorks = new Map<string, string[]>();
+  for (const workId of workIdsToCheck) {
+    try {
+      const info = await seriesInfoForWork(workId);
+      if (info) seriesWorks.set(info.seriesId, info.workIds);
+    } catch { /* 카탈로그를 읽지 못하면 그 작품의 시리즈는 건드리지 않는다 */ }
+  }
+  for (const r of seed) {
+    if (r.logType === 'series_completion' && r.seriesId && !seriesWorks.has(r.seriesId)) {
+      try {
+        const ids = await seriesWorkIds(r.seriesId);
+        if (ids) seriesWorks.set(r.seriesId, ids);
+      } catch { /* 위와 같다 */ }
+    }
+  }
+  const volumes = useBookStore.getState().volumes;
+
+  let changed = false;
+  await db.transaction('rw', db.logs, db.tombstones, db.settings, async () => {
+    const del = async (row: LogRecord) => {
+      await db.logs.delete(row.id);
+      await db.tombstones.put({ id: row.id, targetKey: targetKey(row), deletedAt: await nextStamp(db), supersededBy: null });
+      changed = true;
+    };
+    const create = async (patch: Partial<LogRecord> & Pick<LogRecord, 'logType'>) => {
+      const stamp = await nextStamp(db);
+      await db.logs.put({
+        id: newLogId(), volumeId: null, editionSetId: null, workId: null, seriesId: null, readingState: null,
+        currentPage: null, liked: false, rating: null, autoGenerated: true, createdAt: stamp, updatedAt: stamp, ...patch,
+      });
+      changed = true;
+    };
+
+    for (const editionSetId of [...setIds].sort()) {
+      const all = await db.logs.toArray();
+      const setVolumeIds = volumes.filter((v) => v.editionSetId === editionSetId).map((v) => v.id);
+      const existing = all.find((r) => r.logType === 'set_completion' && r.editionSetId === editionSetId);
+      const decision = decideSetCompletion(setVolumeIds, all.filter((r) => r.logType === 'volume').map(toVolumeLog), !!existing);
+      if (decision === 'create') {
+        const workId = all.find((r) => r.editionSetId === editionSetId && r.workId)?.workId ?? null;
+        if (workId) await create({ logType: 'set_completion', editionSetId, workId });
+      } else if (decision === 'delete' && existing) await del(existing);
+    }
+
+    for (const [seriesId, workIds] of [...seriesWorks].sort(([a], [b]) => (a < b ? -1 : 1))) {
+      const all = await db.logs.toArray();
+      const existing = all.find((r) => r.logType === 'series_completion' && r.seriesId === seriesId);
+      const decision = decideSeriesCompletion(workIds, all.filter((r) => r.logType === 'set_completion').map(toSetLog), !!existing);
+      if (decision === 'create') await create({ logType: 'series_completion', seriesId });
+      else if (decision === 'delete' && existing) await del(existing);
+    }
+  });
+  return changed;
+}
+
+/** 보관 기간(180일)이 지난 묘비를 이 기기에서 지운다. 쓰기(PUT) 직전에만 부른다. */
+export async function pruneLocalTombstones(nowMs: number): Promise<Tombstone[]> {
+  const db = getDb();
+  const all = await db.tombstones.toArray();
+  const keep = new Set(pruneTombstones(all, nowMs).map((t) => t.id));
+  const drop = all.filter((t) => !keep.has(t.id)).map((t) => t.id);
+  if (drop.length) await db.tombstones.bulkDelete(drop);
+  return all.filter((t) => keep.has(t.id));
+}
+
+/** 화면 상태를 저장소와 맞춘다 */
+export const reloadLogStore = () => useLogStore.getState().loadLogs();
