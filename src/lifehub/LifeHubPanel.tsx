@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dialog } from '../components/ui/Dialog';
 import { StarRating } from '../components/ui/StarRating';
 import { toast } from '../store/toastStore';
 import { useLogStore } from '../store/logStore';
 import { useCatalogStore, type CatalogEdition, type CatalogWork } from '../store/catalogStore';
-import { ensureWorkLoaded } from '../services/bookCache';
-import { createEditionSetRef, createVolumeRef } from '../domain/books/identity';
-import { dayToIso, findWorks, publishersOf, volumesOf } from './resolve';
+import { createVolumeRef } from '../domain/books/identity';
+import { autoPlan, findWorks, publishersOf, volumesOf } from './resolve';
+import { recordProposal } from './apply';
 import {
-  beginConnect, browserDeps, completeStoredCallback, connectAvailable, disconnect, isConnected, LifeHubError,
-  rejectLocally, rememberReceipt, sync, type ReadingProposal,
+  autoApplyEnabled, beginConnect, browserDeps, completeStoredCallback, connectAvailable, disconnect, isConnected, LifeHubError,
+  rejectLocally, setAutoApply, sync, type ReadingProposal,
 } from './remote';
 
 /** One token exchange per page load, even when effects run twice (StrictMode). */
@@ -18,6 +18,7 @@ let callbackOnce: Promise<boolean> | null = null;
 const finishCallback = () => (callbackOnce ??= completeStoredCallback(browserDeps()));
 
 const STATE_LABEL = { reading: '읽는 중', completed: '완독' } as const;
+const volumeLabel = (e: CatalogEdition) => (e.volume_number && e.volume_number !== '1' ? ` ${e.volume_number}권` : '');
 const describe = (p: ReadingProposal) =>
   [
     p.title + (p.volume ? ` ${p.volume}권` : ''),
@@ -68,24 +69,11 @@ function ReviewDialog({ proposal, onClose, onSaved }: { proposal: ReadingProposa
     if (!work || publisher === null || !edition || pageInvalid || dateInvalid) return;
     setBusy(true);
     try {
-      await ensureWorkLoaded(work.id);
-      const volumeId = createVolumeRef(edition.id);
-      const store = useLogStore.getState();
-      const before = store.getVolumeLog(volumeId);
-      await store.upsertVolumeLog({
-        volumeId, editionSetId: createEditionSetRef(work.id, publisher), workId: work.id, logType: 'volume',
-        readingState: form.state,
-        currentPage: form.state === 'reading' ? pageNumber ?? before?.currentPage ?? null : before?.currentPage ?? null,
-        liked: form.state === 'completed' ? form.liked || (before?.liked ?? false) : before?.liked ?? false,
-        rating: form.state === 'completed' ? form.rating ?? before?.rating ?? null : before?.rating ?? null,
+      const ok = await recordProposal(proposal.key, work, publisher, edition, {
+        state: form.state, page: pageNumber, rating: form.rating, liked: form.liked, date: form.date || null,
       });
-      const saved = useLogStore.getState().getVolumeLog(volumeId);
-      if (!saved || saved.readingState !== form.state) return; // the store already showed the error
-      if (form.state === 'completed' && form.date) {
-        await useLogStore.getState().updateLogMetadata(saved.id, { rating: saved.rating, liked: saved.liked, createdAt: dayToIso(form.date) });
-      }
-      rememberReceipt(proposal.key, saved.id, browserDeps());
-      toast(`${work.title}${edition.volume_number && edition.volume_number !== '1' ? ` ${edition.volume_number}권` : ''}: ${STATE_LABEL[form.state]}으로 기록했습니다.`);
+      if (!ok) return; // the store already showed the error
+      toast(`${work.title}${volumeLabel(edition)}: ${STATE_LABEL[form.state]}으로 기록했습니다.`);
       onSaved();
     } catch (err) {
       console.error('Life Hub 제안 기록 실패:', err);
@@ -103,7 +91,7 @@ function ReviewDialog({ proposal, onClose, onSaved }: { proposal: ReadingProposa
       open
       onClose={onClose}
       size="lg"
-      title="Claude가 제안한 독서 기록"
+      title={proposal.status === 'approved' ? 'Claude에서 승인한 독서 기록' : 'Claude가 제안한 독서 기록'}
       description={describe(proposal)}
       footer={
         <div className="flex justify-end gap-2">
@@ -209,12 +197,40 @@ export function LifeHubPanel() {
   const [reviewing, setReviewing] = useState<ReadingProposal | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [autoApply, setAutoApplyState] = useState(() => autoApplyEnabled(browserDeps()));
+  const catalogReady = useCatalogStore((s) => s.status === 'ready');
 
-  const runSync = useCallback(async () => {
+  // One sync at a time (a card approval must never be recorded twice); a request meanwhile runs once after it.
+  const running = useRef(false);
+  const again = useRef(false);
+  const runSync = useCallback(async (): Promise<void> => {
     if (!isConnected(browserDeps())) return;
+    if (running.current) {
+      again.current = true;
+      return;
+    }
+    running.current = true;
     setSyncing(true);
     try {
-      const result = await sync(browserDeps());
+      const catalog = useCatalogStore.getState();
+      const works = catalog.status === 'ready' ? catalog.works : undefined;
+      let result = await sync(browserDeps(), works);
+      // Claude-card approvals whose book is clear are recorded now, then their receipts go out.
+      const recorded: string[] = [];
+      if (works) {
+        for (const p of result.proposals) {
+          const plan = autoPlan(p, works, autoApplyEnabled(browserDeps()));
+          if (!plan) continue;
+          const ok = await recordProposal(p.key, plan.work, plan.publisher, plan.edition, {
+            state: p.state, page: p.currentPage, rating: p.rating, liked: p.liked, date: p.date,
+          }).catch((err: unknown) => { console.error('Life Hub 자동 반영 실패:', err); return false; });
+          if (ok) recorded.push(`${plan.work.title}${volumeLabel(plan.edition)}`);
+        }
+        if (recorded.length) {
+          toast(`Claude에서 승인한 책을 기록했습니다: ${recorded.map((t) => `「${t}」`).join(', ')}`);
+          result = await sync(browserDeps(), works);
+        }
+      }
       setProposals(result.proposals);
       setMessage(result.conflicts ? `${result.conflicts}개 제안은 Life Hub와 상태가 다릅니다. 책장 기록은 그대로입니다.` : null);
     } catch (e) {
@@ -224,7 +240,12 @@ export function LifeHubPanel() {
       }
       setMessage(e instanceof Error ? e.message : '동기화하지 못했습니다.');
     } finally {
+      running.current = false;
       setSyncing(false);
+    }
+    if (again.current) {
+      again.current = false;
+      await runSync();
     }
   }, []);
 
@@ -242,6 +263,11 @@ export function LifeHubPanel() {
       .catch((e: unknown) => { if (active) setMessage(e instanceof Error ? e.message : 'Life Hub에 연결하지 못했습니다.'); });
     return () => { active = false; };
   }, [runSync]);
+
+  // The catalogue loads on its own; once it is there, share it and record clear card approvals.
+  useEffect(() => {
+    if (catalogReady && connected) void runSync();
+  }, [catalogReady, connected, runSync]);
 
   const canConnect = connectAvailable(window.location);
   if (!connected && !message && proposals.length === 0) {
@@ -276,11 +302,20 @@ export function LifeHubPanel() {
       </div>
       {message && <p className="mt-2 text-[13px] text-ink-muted" role="status">{message}</p>}
       {connected && proposals.length === 0 && !syncing && <p className="mt-2 text-[13px] text-ink-muted">검토할 제안이 없습니다.</p>}
+      {connected && (
+        <label className="mt-2 flex items-center gap-2 text-[13px] text-ink-muted">
+          <input type="checkbox" checked={autoApply} onChange={(e) => { setAutoApply(e.target.checked, browserDeps()); setAutoApplyState(e.target.checked); }} />
+          Claude에서 승인된 항목 자동 반영 <span className="text-[12px]">(책·판본·권이 하나로 정해질 때만, 이 기기)</span>
+        </label>
+      )}
       {proposals.length > 0 && (
         <ul className="mt-3 divide-y divide-line-soft">
           {proposals.map((p) => (
             <li key={p.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
-              <span className="min-w-0 flex-1 text-[14.5px]">{describe(p)}</span>
+              <span className="min-w-0 flex-1 text-[14.5px]">
+                {p.status === 'approved' && <span className="mr-2 rounded bg-paper-sunken px-1.5 py-0.5 text-[12px] text-ink-muted">Claude에서 승인함{p.needsAppReview ? ' · 확인 필요' : ''}</span>}
+                {describe(p)}
+              </span>
               <span className="flex gap-1">
                 <button type="button" className="btn btn-primary btn-sm" onClick={() => setReviewing(p)}>검토</button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => {

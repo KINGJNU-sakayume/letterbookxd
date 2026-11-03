@@ -87,7 +87,7 @@ letterbookxd/
     │   ├── logs/cascade.ts       # Pure set/series completion decisions
     │   ├── backup/backup.ts      # Backup format, import plan (conflicts)
     │   └── stats/computeStats.ts # Pure statistics calculation (tested)
-    ├── lifehub/                  # Life Hub proposals (remote.ts, resolve.ts, LifeHubPanel.tsx)
+    ├── lifehub/                  # Life Hub proposals (remote.ts, resolve.ts, apply.ts, LifeHubPanel.tsx)
     ├── utils/                    # bookMappers, editionUtils, format, readingState, translationDiff
     │
     ├── pages/
@@ -214,6 +214,8 @@ User action → `logStore` method → Dexie write → store state updated in mem
 ### Life Hub proposals (optional)
 
 Claude can propose reading records through [Life Hub](https://github.com/KINGJNU-sakayume/life-hub) ("데미안 다 읽었어, 별 다섯 개"). On **내 책장** the owner connects once (`Life Hub 연결`; OAuth public client `public/lifehub-client.json` with PKCE, `letterbookxd:inbox` only; Life Hub returns to `public/lifehub/`). Each proposal is matched against the catalogue (`src/lifehub/resolve.ts`): only a single exact title (and author) match, a single publisher and a single volume are preselected; anything else is a choice for the owner, and books missing from the catalogue wait until they are added. Approving writes through `logStore.upsertVolumeLog` (same completion cascade as the UI) and, for a stated completion date, `updateLogMetadata`. Receipts (proposal → log ID) and rejections are kept in localStorage and retried; rejecting changes nothing.
+
+**Claude card approvals.** Claude can show the proposal as a card and the owner can edit and approve it there. 책장 syncs `status=open` (pending + card-approved) and uses the owner's edited version (`final_candidate`) when there is one. It shares its catalogue with Life Hub for the card (`PUT …/refs/works` = work id, title, author; `PUT …/refs/editions` = edition id, publisher, `"<work id>/<volume>"`; public catalogue data only, sent when it changes). A card-approved proposal is recorded on opening (`src/lifehub/apply.ts`, the same path as the review dialog) only when Life Hub saw no need to ask, the setting 「Claude에서 승인된 항목 자동 반영」 (default on, this device, `letterbookxd.lifehub.auto-apply.v1`) is on, and `autoPlan` finds one work, one edition set and one volume; anything else stays in the list as 「Claude에서 승인함 · 확인 필요」. A stated completion date also dates the edition-set completion it creates.
 
 ## 7. Configuration & Backups
 

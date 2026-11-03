@@ -64,3 +64,20 @@ export function volumesOf<E extends MatchEdition>(work: { editions: E[] }, publi
 
 /** Noon in Korea on the stated day keeps the calendar day right in the owner's time zone. */
 export const dayToIso = (day: string) => new Date(`${day}T12:00:00+09:00`).toISOString();
+
+/** What a proposal needs from resolve: its query, plus whether the owner approved it in a Claude card. */
+export interface AutoQuery extends BookQuery { status: 'pending' | 'approved'; needsAppReview: boolean }
+
+/**
+ * A Claude-card approval 책장 may record without asking: auto-apply is on, Life Hub saw no need to ask, and the
+ * book, its edition set and its volume are each the one clear answer here too. Anything else waits for the owner.
+ */
+export function autoPlan<W extends MatchWork>(p: AutoQuery, works: W[], autoApply: boolean): { work: W; publisher: string; edition: W['editions'][number] } | null {
+  if (!autoApply || p.status !== 'approved' || p.needsAppReview) return null;
+  const { exact } = findWorks(p, works);
+  if (!exact) return null;
+  const publisher = publishersOf(exact, p).preselected;
+  if (publisher === null) return null;
+  const edition = volumesOf(exact, publisher, p.volume).preselected;
+  return edition ? { work: exact, publisher, edition } : null;
+}

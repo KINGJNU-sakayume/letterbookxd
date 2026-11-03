@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {
   beginConnect, CALLBACK_KEY, CALLBACK_URL, CLIENT_ID, completeStoredCallback, isConnected, LIFEHUB_ORIGIN,
   parseProposal, receipts, rejectLocally, rememberReceipt, RESOURCE, sync,
+  autoApplyEnabled, setAutoApply, catalogRefs, uploadCatalogRefs,
 } from '../.test-dist/remote.js';
-import { dayToIso, findWorks, normalizeTitle, publishersOf, volumesOf } from '../.test-dist/resolve.js';
+import { autoPlan, dayToIso, findWorks, normalizeTitle, publishersOf, volumesOf } from '../.test-dist/resolve.js';
 
 // Synthetic data only.
 const KEY = 'claude:mcp-' + 'c'.repeat(40);
@@ -31,7 +32,7 @@ const tokens = () => json({ access_token: 'access-synthetic', refresh_token: 're
 
 test('제안 형식: 완독은 별점·인생책, 읽는 중은 쪽수', () => {
   assert.deepEqual(parseProposal(candidate({ title: '가상의 책', author: '가상 작가', state: 'completed', rating: 4, liked: true, date: '2026-11-01' })), {
-    key: KEY, createdAt: '2026-11-02T01:00:00Z', title: '가상의 책', author: '가상 작가', publisher: null, volume: null,
+    key: KEY, createdAt: '2026-11-02T01:00:00Z', status: 'pending', needsAppReview: false, title: '가상의 책', author: '가상 작가', publisher: null, volume: null,
     state: 'completed', currentPage: null, rating: 4, liked: true, date: '2026-11-01', note: null,
   });
   assert.equal(parseProposal(candidate({ title: '가상의 책', state: 'reading', current_page: 30, volume: 2 })).currentPage, 30);
@@ -107,4 +108,59 @@ test('연결과 동기화: PKCE, 콜백 검증, 영수증·거절은 한 번만'
   await beginConnect(forged);
   forged.session.setItem(CALLBACK_KEY, '?code=c&state=forged');
   await assert.rejects(completeStoredCallback(forged), (e) => e.kind === 'state');
+});
+
+/* ---------- Claude 카드 승인 (Life Hub P4 6단계) ---------- */
+
+test('카드에서 승인한 제안: 고친 내용(final_candidate)이 우선이고 같은 검사를 거친다', () => {
+  const item = { ...candidate({ title: '가상의 책', state: 'reading' }), status: 'approved', needs_app_review: false, revision: 1 };
+  item.final_candidate = { ...item.candidate, payload: { title: '가상의 대하소설', publisher: '가', volume: 2, state: 'completed', rating: 5 } };
+  const p = parseProposal(item);
+  assert.equal(p.status, 'approved');
+  assert.equal(p.title, '가상의 대하소설');
+  assert.equal(p.rating, 5);
+  assert.equal(parseProposal({ ...item, final_candidate: { ...item.final_candidate, payload: { title: 'x', state: 'reading', rating: 3 } } }), null);
+  assert.equal(parseProposal({ ...item, status: 'confirmed' }), null);
+  assert.equal(parseProposal({ ...item, needs_app_review: true }).needsAppReview, true);
+  const codex = 'codex:mcp-' + 'f'.repeat(40);
+  assert.equal(parseProposal(candidate({ title: '가상의 책', state: 'reading' }, codex)).key, codex, 'Codex 제안도 받는다');
+});
+
+test('자동 반영: 승인됨·확인 불필요·설정 켜짐이고 책·판본·권이 하나일 때만', () => {
+  const p = (patch) => ({ ...q(patch), status: 'approved', needsAppReview: false });
+  assert.equal(autoPlan(p({ author: '가상 작가' }), works, true).edition.id, 'e1');
+  assert.equal(autoPlan(p({}), works, true), null, '같은 제목 두 작품');
+  assert.equal(autoPlan(p({ title: '가상의 대하소설', publisher: '가', volume: 2 }), works, true).edition.id, 'e3');
+  assert.equal(autoPlan(p({ title: '가상의 대하소설', publisher: '가' }), works, true), null, '권이 여러 개');
+  assert.equal(autoPlan(p({ title: '가상의 대하소설' }), works, true), null, '판본이 여러 개');
+  assert.equal(autoPlan(p({ title: '가상의 대하소설', publisher: '나 출판' }), works, true).edition.id, 'e5');
+  assert.equal(autoPlan({ ...p({ author: '가상 작가' }), status: 'pending' }, works, true), null);
+  assert.equal(autoPlan({ ...p({ author: '가상 작가' }), needsAppReview: true }, works, true), null);
+  assert.equal(autoPlan(p({ author: '가상 작가' }), works, false), null);
+  const deps = makeDeps(() => json({}));
+  assert.equal(autoApplyEnabled(deps), true);
+  setAutoApply(false, deps);
+  assert.equal(autoApplyEnabled(deps), false);
+});
+
+test('카탈로그 공유: 작품·판본 목록, 바뀔 때만 보내고 409는 보낸 것으로 치지 않는다', async () => {
+  const W1 = '00000000-0000-4000-8000-000000000001';
+  const cat = [{ id: W1, title: '가상의 대하소설', author: '가상 작가', editions: [{ id: 'e1', volume_number: '2', publisher: '가상출판' }, { id: 'e2', volume_number: null, publisher: null }] }];
+  assert.deepEqual(catalogRefs(cat), {
+    works: [{ id: W1, label: '가상의 대하소설', group: '가상 작가' }],
+    editions: [{ id: 'e1', label: '가상출판', group: W1 + '/2' }, { id: 'e2', label: '출판사 없음', group: W1 + '/1' }],
+  });
+  let status = 409;
+  const deps = makeDeps((url) => (url.endsWith('/oauth/token') ? tokens() : url.includes('/refs/') ? json({}, status) : json({ candidates: [] })));
+  deps.storage.setItem('letterbookxd.lifehub.tokens.v1', JSON.stringify({ access_token: 'a', refresh_token: 'r', access_expires_at: 9e15 }));
+  assert.equal(await uploadCatalogRefs(cat, deps), false);
+  status = 200;
+  deps.calls.length = 0;
+  await sync(deps, cat);
+  const puts = deps.calls.filter((c) => c.init?.method === 'PUT');
+  assert.deepEqual(puts.map((c) => c.url.split('/v1')[1]), ['/refs/works', '/refs/editions'], '409 뒤에는 다시 보낸다');
+  assert.ok(deps.calls.some((c) => c.url.includes('/candidates?status=open')));
+  deps.calls.length = 0;
+  await sync(deps, cat);
+  assert.equal(deps.calls.filter((c) => c.init?.method === 'PUT').length, 0, '바뀌지 않으면 보내지 않는다');
 });

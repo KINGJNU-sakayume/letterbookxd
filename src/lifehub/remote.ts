@@ -4,8 +4,10 @@
  * - Connect: OAuth 2.1 authorization code + PKCE (S256); 책장 is a public client identified by
  *   public/lifehub-client.json and receives only a `letterbookxd:inbox` token. Life Hub returns to
  *   /lifehub/ (public/lifehub/index.html), which hands the result to the app.
- * - Proposals (`reading_record`) are fetched live and validated again here; nothing is recorded until
- *   the owner approves one on the bookshelf page.
+ * - Proposals (`reading_record`) are fetched live (`status=open`: pending, plus those the owner approved in a
+ *   Claude card) and validated again here. Nothing is recorded until the owner approves one, on the bookshelf
+ *   page or in a Claude card; a card-approved proposal is recorded on opening only when the book is clear (autoPlan).
+ * - The catalogue (works, editions) is shared with Life Hub for the card's title list and its "is the book clear" check.
  * - Receipts (proposal → reading log ID) and rejections are kept in localStorage and retried until answered.
  *
  * No imports, so the tests can compile this file on its own.
@@ -54,6 +56,9 @@ export class LifeHubError extends Error {
 export interface ReadingProposal {
   key: string;
   createdAt: string;
+  /** 'approved' = the owner approved it in a Claude card (not recorded yet). */
+  status: 'pending' | 'approved';
+  needsAppReview: boolean;
   title: string;
   author: string | null;
   publisher: string | null;
@@ -71,7 +76,7 @@ const only = (v: Record<string, unknown>, keys: string[]) => Object.keys(v).ever
 const text = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 const optText = (v: unknown, max: number) => v === undefined || text(v, max);
 const intIn = (v: unknown, lo: number, hi: number) => v === undefined || (typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi);
-const KEY = /^(claude|chatgpt|manual):[A-Za-z0-9_.:-]{8,128}$/;
+const KEY = /^(claude|chatgpt|codex|manual):[A-Za-z0-9_.:-]{8,128}$/;
 export const validDate = (v: unknown): v is string => {
   if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
   const d = new Date(v);
@@ -80,8 +85,11 @@ export const validDate = (v: unknown): v is string => {
 
 /** Validates one item from the hub; null for anything that does not match the contract. */
 export function parseProposal(item: unknown): ReadingProposal | null {
-  if (!obj(item) || typeof item.key !== 'string' || !KEY.test(item.key) || !obj(item.candidate)) return null;
-  const c = item.candidate;
+  if (!obj(item) || typeof item.key !== 'string' || !KEY.test(item.key)) return null;
+  if (item.status !== undefined && item.status !== 'pending' && item.status !== 'approved') return null;
+  // The owner's edited version from a Claude card wins; it passes the same checks.
+  const c = item.final_candidate ?? item.candidate;
+  if (!obj(c)) return null;
   if (c.schema_version !== 1 || c.candidate_type !== 'reading_record' || typeof c.source !== 'string' ||
     `${c.source}:${String(c.idempotency_key)}` !== item.key || typeof c.created_at !== 'string' || !obj(c.payload)) return null;
   const p = c.payload;
@@ -92,7 +100,9 @@ export function parseProposal(item: unknown): ReadingProposal | null {
   if (p.state === 'completed' && p.current_page !== undefined) return null;
   if (p.state === 'reading' && (p.rating !== undefined || p.liked !== undefined)) return null;
   return {
-    key: item.key, createdAt: c.created_at, title: p.title.trim(),
+    key: item.key, createdAt: c.created_at,
+    status: item.status === 'approved' ? 'approved' : 'pending', needsAppReview: item.needs_app_review === true,
+    title: p.title.trim(),
     author: typeof p.author === 'string' ? p.author.trim() : null,
     publisher: typeof p.publisher === 'string' ? p.publisher.trim() : null,
     volume: typeof p.volume === 'number' ? p.volume : null,
@@ -206,7 +216,7 @@ async function accessToken(deps: Deps, force = false): Promise<string> {
   return (await tokenRequest(deps, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).access_token;
 }
 
-async function api(deps: Deps, method: 'GET' | 'POST', path: string, body?: unknown): Promise<Response> {
+async function api(deps: Deps, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<Response> {
   const send = async (token: string) => {
     try {
       return await deps.fetch(API + path, {
@@ -262,9 +272,69 @@ export function receipts(deps: Pick<Deps, 'storage'>): Array<{ key: string; logI
   return Object.entries(map).filter(([key, id]) => KEY.test(key) && typeof id === 'string' && ENTITY_ID.test(id)).map(([key, logId]) => ({ key, logId }));
 }
 
+/* ---------- Claude card approvals and the shared catalogue ---------- */
+
+const AUTO_APPLY_KEY = 'letterbookxd.lifehub.auto-apply.v1';
+/** 「Claude에서 승인된 항목 자동 반영」, per device, on unless turned off. */
+export const autoApplyEnabled = (deps: Pick<Deps, 'storage'>) => deps.storage.getItem(AUTO_APPLY_KEY) !== 'off';
+export function setAutoApply(on: boolean, deps: Pick<Deps, 'storage'>): void {
+  if (on) deps.storage.removeItem(AUTO_APPLY_KEY);
+  else deps.storage.setItem(AUTO_APPLY_KEY, 'off');
+}
+
+export interface RefItem { id: string; label: string; group?: string }
+/** Structural (no imports): CatalogWork satisfies it. */
+export interface RefWork { id: string; title: string; author: string; editions: Array<{ id: string; volume_number: string | null; publisher: string | null }> }
+const REF_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
+const clip = (s: string, max: number) => (s.length > max ? s.slice(0, max) : s);
+const volumeNumber = (v: string | null) => parseInt(v || '1', 10) || 1;
+
+/**
+ * The catalogue as Life Hub reference lists: works {id, title, author} and editions {id, publisher,
+ * "<work id>/<volume>"}. Public catalogue data only, never reading logs.
+ */
+export function catalogRefs(works: RefWork[]): { works: RefItem[]; editions: RefItem[] } {
+  const out = { works: [] as RefItem[], editions: [] as RefItem[] };
+  for (const w of works) {
+    if (!REF_ID.test(w.id) || !w.title.trim() || out.works.length >= 500) continue;
+    const author = clip(w.author.trim(), 40);
+    out.works.push(author ? { id: w.id, label: clip(w.title.trim(), 80), group: author } : { id: w.id, label: clip(w.title.trim(), 80) });
+    for (const e of w.editions) {
+      const group = `${w.id}/${volumeNumber(e.volume_number)}`;
+      if (!REF_ID.test(e.id) || group.length > 40 || out.editions.length >= 500) continue;
+      out.editions.push({ id: e.id, label: clip((e.publisher ?? '').trim() || '출판사 없음', 80), group });
+    }
+  }
+  return out;
+}
+
+const REFS_KEY = 'letterbookxd.lifehub.refs.v1';
+/**
+ * Shares one reference list when it changed. A newer revision wins on Life Hub; a 409 (another device, or a
+ * clock behind the stored revision) is not "sent", so the list goes again next time with a later revision.
+ */
+async function uploadRef(kind: 'works' | 'editions', items: RefItem[], deps: Deps): Promise<boolean> {
+  const sent = readJson<Record<string, { revision: number; body: string }>>(deps.storage, REFS_KEY) ?? {};
+  const body = JSON.stringify(items);
+  if (sent[kind]?.body === body) return true;
+  const revision = Math.max(deps.now(), (sent[kind]?.revision ?? 0) + 1);
+  const response = await api(deps, 'PUT', '/refs/' + kind, { revision, items });
+  if (!response.ok) return false;
+  sent[kind] = { revision, body };
+  deps.storage.setItem(REFS_KEY, JSON.stringify(sent));
+  return true;
+}
+export async function uploadCatalogRefs(works: RefWork[], deps: Deps): Promise<boolean> {
+  const refs = catalogRefs(works);
+  const a = await uploadRef('works', refs.works, deps);
+  const b = await uploadRef('editions', refs.editions, deps);
+  return a && b;
+}
+
 export interface SyncResult { proposals: ReadingProposal[]; receiptsSent: number; rejectionsSent: number; conflicts: number; waiting: number }
 
-export async function sync(deps: Deps): Promise<SyncResult> {
+/** `works`: the catalogue to share first (omit when it is not loaded yet). */
+export async function sync(deps: Deps, works?: RefWork[]): Promise<SyncResult> {
   const done = outcomes(deps);
   const result: SyncResult = { proposals: [], receiptsSent: 0, rejectionsSent: 0, conflicts: 0, waiting: 0 };
   const record = (key: string, response: Response, ok: Outcome) => {
@@ -290,7 +360,8 @@ export async function sync(deps: Deps): Promise<SyncResult> {
     if (done[key]) continue;
     if (record(key, await api(deps, 'POST', '/rejections', { key }), 'rejected')) result.rejectionsSent++;
   }
-  const response = await api(deps, 'GET', '/candidates?status=pending&limit=100');
+  if (works?.length) await uploadCatalogRefs(works, deps).catch(() => false);
+  const response = await api(deps, 'GET', '/candidates?status=open&limit=100');
   if (!response.ok) throw new LifeHubError('server', `Life Hub 제안을 가져오지 못했어요 (${response.status})`);
   const body = (await response.json().catch(() => null)) as { candidates?: unknown } | null;
   if (!body || !Array.isArray(body.candidates)) throw new LifeHubError('server', 'Life Hub 응답 형식이 올바르지 않아요.');
