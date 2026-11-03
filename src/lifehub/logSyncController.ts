@@ -11,6 +11,7 @@ import {
   type LogSyncStatus, type PassResult,
 } from './logSync';
 import { onLogsChanged } from '../domain/sync/changeSignal';
+import { applyReview, type ReviewPlan } from './logSyncReview';
 
 export const DEBOUNCE_MS = 5000;
 
@@ -140,12 +141,17 @@ export function createLogSyncController(options: ControllerOptions) {
       writeConfig(options.deps(), { deviceLabel: label });
       emit();
     },
-    /** 오래 쉰 기기: 서버 문서를 검토했다 */
-    finishReview(): void {
+    /**
+     * 오래 쉰 기기의 검토를 확인된 계획대로 적용하고, 검토 상태를 풀고, 바로 한 번 동기화한다.
+     * 검토 상태를 푸는 길은 이것뿐이다. 적용이 실패하면 상태를 그대로 두고 오류를 던진다.
+     */
+    async completeReview(plan: ReviewPlan): Promise<void> {
+      clearPending();
+      await withLock(() => applyReview(plan));
       acknowledgeReview(options.deps());
       last = null;
       emit();
-      void trigger(true);
+      await trigger(true);
     },
     stop(): void {
       clearPending();

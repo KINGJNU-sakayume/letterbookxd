@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
   useLogStore, useBookStore, getDb, selectDbForTests, resetDbForTests, setBundledCatalogLoader, setNowForTests,
-  runLogSyncPass, readConfig, writeConfig, setSyncEnabled, acknowledgeReview, fetchRemoteAsImportSource, createLogSyncController,
+  runLogSyncPass, readConfig, writeConfig, setSyncEnabled, createLogSyncController, prepareReview,
   readLocalState, mergeStates, canonicalJson, STALE_AFTER_MS, MAX_ATTEMPTS, SYNC_MAX_BYTES,
 } from '../.test-dist/app.js';
 import { createFakeSyncServer } from './fakeSyncServer.mjs';
@@ -331,10 +331,11 @@ test('180일 규칙: 오래 쉰 기기는 자동 병합하지 않고 검토를 �
   assert.equal(r.status, 'review');
   assert.equal(a.calls.length, calls, '병합도 요청도 없음');
   assert.equal((await sync(a, { manual: true })).status, 'review', '지금 동기화로도 풀리지 않는다');
-  // 서버 문서를 기존 가져오기 미리보기용으로 읽을 수 있다
-  const source = await fetchRemoteAsImportSource(a.deps);
-  assert.equal(source.logs.length, 1);
-  acknowledgeReview(a.deps);
+  // 검토를 거쳐야만 풀린다 (자세한 흐름은 staleReview.test.mjs)
+  const plan = await prepareReview(a.deps);
+  assert.equal(plan.skipped, null);
+  await createLogSyncController({ deps: () => a.deps }).completeReview(plan);
+  assert.equal(readConfig(a.deps).blocked, null);
   assert.equal((await sync(a)).status, 'on');
 });
 

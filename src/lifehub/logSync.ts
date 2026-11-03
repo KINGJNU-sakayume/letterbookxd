@@ -11,7 +11,6 @@ import { noteServerTime } from '../storage/clock';
 import { applyRemoteState, pruneLocalTombstones, readLocalState, reconcileCompletions, reloadLogStore } from '../store/logSyncApply';
 import { mergeStates, sameState, TOMBSTONE_KEEP_MS } from '../domain/sync/merge';
 import { pickLogRecord } from '../domain/logs/records';
-import { parseImportFile, type ImportSource } from '../domain/backup/backup';
 import { isConnected, LifeHubError, mayHaveSyncScope, syncRequest, type Deps } from './remote';
 
 export const SYNC_APP = 'letterbookxd';
@@ -93,14 +92,14 @@ export function setSyncEnabled(deps: Pick<Deps, 'storage'>, enabled: boolean): L
   return writeConfig(deps, { enabled, blocked: enabled ? null : readConfig(deps).blocked });
 }
 
-/** 검토를 마쳤다: 자동 병합 중지를 풀고 지금부터 다시 센다. */
+/** 검토 절차(logSyncReview.completeReview)가 끝났을 때만 부른다: 자동 병합 중지를 풀고 지금부터 다시 센다. */
 export function acknowledgeReview(deps: Pick<Deps, 'storage' | 'now'>): LogSyncConfig {
   return writeConfig(deps, { blocked: null, lastSuccessAt: new Date(deps.now()).toISOString() });
 }
 
 const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 
-interface RemoteDoc {
+export interface RemoteDoc {
   version: number;
   sha256: string;
   writtenAt: string;
@@ -291,16 +290,14 @@ function done(deps: Deps, version: number, dropped: number, pushed: boolean): Pa
 }
 
 /**
- * 180일 규칙: 서버 문서를 기존 가져오기 미리보기로 검토할 수 있게 ImportSource로 바꾼다.
- * 묘비는 가져오기 미리보기가 다루지 않으므로 기록만 담는다.
+ * 검토용으로 서버 문서를 읽는다 (GET). 404면 null. 서버 시각(F)은 올리지 않는다.
+ * 실패는 LifeHubError로 바꿔 던진다.
  */
-export async function fetchRemoteAsImportSource(deps: Deps): Promise<ImportSource | null> {
-  const remote = await fetchRemote(deps).catch((error: unknown) => {
+export async function fetchRemoteDoc(deps: Deps): Promise<RemoteDoc | null> {
+  try {
+    return await fetchRemote(deps);
+  } catch (error) {
     if (error instanceof Stop) throw new LifeHubError('server', error.result.detail ?? '서버 문서를 가져오지 못했어요.');
     throw error;
-  });
-  if (!remote) return null;
-  const parsed = parseImportFile(JSON.stringify({ app: SYNC_APP, version: 1, exportedAt: remote.writtenAt, logs: remote.doc.logs }));
-  if (!parsed.ok) throw new LifeHubError('server', parsed.error);
-  return parsed.source;
+  }
 }
