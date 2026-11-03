@@ -98,7 +98,7 @@ test('검색: 저장된 키를 쓰고, 키가 없으면 LookupKeyMissingError', 
   assert.equal(await getLookupKey(), null);
 });
 
-test('IndexedDB v1 → v2 업그레이드: 기존 기록과 편집본은 그대로', async () => {
+test('IndexedDB v1 → 최신 업그레이드: 기존 기록과 편집본은 그대로', async () => {
   closeDbForTests();
   await Dexie.delete(DB_NAME);
   const v1 = new Dexie(DB_NAME);
@@ -112,5 +112,6 @@ test('IndexedDB v1 → v2 업그레이드: 기존 기록과 편집본은 그대�
   assert.equal((await db.catalogOverride.get('current')).baseHash, 'h');
   await setLookupKey(KEY);
   assert.equal(await getLookupKey(), KEY);
-  assert.equal(db.verno, 2);
+  assert.equal(db.verno, 3);
+  assert.equal(await db.tombstones.count(), 0);
 });

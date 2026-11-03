@@ -1,7 +1,8 @@
 // node:test용 묶음. esbuild로 .test-dist/app.js 한 파일로 번들한다 (모듈 상태를 한 벌만 두기 위해).
 export { useLogStore } from '../../src/store/logStore';
 export { useBookStore } from '../../src/store/bookStore';
-export { getDb, resetDbForTests } from '../../src/storage/db';
+export { getDb, resetDbForTests, selectDbForTests } from '../../src/storage/db';
+export { setNowForTests, computeStamp, nextStamp, noteServerTime as noteServerTimeForTests } from '../../src/storage/clock';
 export {
   discardCatalogEdits, getCatalog, getCatalogOverride, getCatalogStatus, mutateCatalog,
   replaceCatalogOverride, seriesInfoForWork, setBundledCatalogLoader,
@@ -20,3 +21,13 @@ export {
   asIsbn, buildNlkUrl, getLookupKey, LookupError, LookupKeyMissingError, nlkErrorMessage, parseNlkResponse,
   parsePageCount, searchBooks, setLookupKey,
 } from '../../src/services/bookLookup';
+export {
+  canonicalJson, mergeLogState, mergeStates, pruneTombstones, safeTargetKey, sameState, validateTombstone, TOMBSTONE_KEEP_MS,
+} from '../../src/domain/sync/merge';
+export { applyRemoteState, readLocalState, reconcileCompletions } from '../../src/store/logSyncApply';
+export {
+  acknowledgeReview, fetchRemoteAsImportSource, normalizeDeviceLabel, readConfig, runLogSyncPass, setSyncEnabled, writeConfig,
+  MAX_ATTEMPTS, STALE_AFTER_MS, SYNC_MAX_BYTES,
+} from '../../src/lifehub/logSync';
+export { createLogSyncController } from '../../src/lifehub/logSyncController';
+export { isConnected, mayHaveSyncScope, SYNC_SCOPE, INBOX_SCOPE, SCOPE, syncRequest } from '../../src/lifehub/remote';
