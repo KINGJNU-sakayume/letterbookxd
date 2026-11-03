@@ -21,8 +21,6 @@ jobs:
       - run: npm test
       - name: Build
         run: npm run build
-        env:
-          VITE_ALADIN_PROXY_URL: ${{ vars.VITE_ALADIN_PROXY_URL }}
       - name: Commit and push docs
         run: |
           git config user.name "github-actions"

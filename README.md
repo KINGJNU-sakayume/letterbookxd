@@ -41,7 +41,7 @@ Charts on the stats page are plain HTML/SVG components (`src/components/stats/`)
 - **No backend for app data.** This device is the owner: there is no sign-in. Reading logs are stored in the browser with IndexedDB (Dexie). The public catalogue (works, editions, series, authors, reading-order flowcharts, translation excerpts) is committed as `src/data/catalog.json` and bundled into the site.
 - **Catalogue editing** happens in `/admin` and is saved on this device as an *override* (a full edited copy in IndexedDB). "카탈로그 JSON 내보내기" downloads `catalog.json`; commit it over `src/data/catalog.json` to publish.
 - **Backups**: `/settings` exports and imports `{ app: 'letterbookxd', version: 1, exportedAt, logs, catalogOverrides? }`. An import is previewed first (new / unchanged / conflicts) and only applied after approval.
-- **The only server** is the Aladin proxy (`supabase/functions/aladin-proxy`), needed for CORS and the TTB key. It is used only by the admin form's auto-fill. All calls go through `src/services/aladin.ts`. In development, the Vite proxy (`/aladin-api`) is used instead.
+- **No server at all.** The admin form's auto-fill calls the National Library of Korea ISBN API (국립중앙도서관 ISBN 서지정보, `seoji`) straight from the browser; it allows CORS. The certification key is typed into `/admin` once and stored only in this browser (IndexedDB). It never goes into the repository, the build or backups. All calls go through `src/services/bookLookup.ts`.
 
 ---
 
@@ -49,15 +49,12 @@ Charts on the stats page are plain HTML/SVG components (`src/components/stats/`)
 
 ```
 letterbookxd/
-├── .github/workflows/            # ci.yml (PR checks), deploy.yml (Pages), deploy-edge-functions.yml (Aladin proxy)
+├── .github/workflows/            # ci.yml (PR checks), deploy.yml (Pages)
 ├── docs/                         # ⚠️ Generated build output (GitHub Pages source) — do not edit
 ├── index.html                    # Vite entry; loads Pretendard + Gowun Batang
 ├── tailwind.config.js            # Design tokens: paper/ink/line/seal/reading/completed/star, fonts, 3xl breakpoint
-├── vite.config.ts                # base path, React plugin, Aladin dev proxy, docs output
-├── scripts/
-│   └── export-catalog.mjs        # One-off: Supabase catalogue tables → src/data/catalog.json
-├── supabase/functions/           # aladin-proxy edge function (the only server piece)
-├── tests/                        # node:test suites (stats, Hangul, translation diff, Life Hub, logStore, backup, catalogue)
+├── vite.config.ts                # base path, React plugin, docs output
+├── tests/                        # node:test suites (stats, Hangul, translation diff, Life Hub, logStore, backup, catalogue, book lookup)
 │   ├── harness/app.ts            # esbuild entry bundling the store/storage/backup modules for tests
 │   └── setup.mjs                 # fake-indexeddb + window shim
 │
@@ -69,7 +66,7 @@ letterbookxd/
     ├── types/index.ts            # Shared client + flowchart types
     ├── data/catalog.json         # The public catalogue (commit exports here)
     ├── catalog/model.ts          # Catalogue row types, normalize/serialize (stable sort by id), content hash
-    ├── storage/db.ts             # Dexie database `letterbookxd`: `logs`, `catalogOverride`
+    ├── storage/db.ts             # Dexie database `letterbookxd`: `logs`, `catalogOverride`, `settings` (this device only)
     ├── lib/
     │   ├── hangul.ts             # 초성 search, match ranking, highlight ranges, 조사(을/를…) helper
     │   └── download.ts           # Save a string as a file
@@ -80,18 +77,18 @@ letterbookxd/
     │   └── toastStore.ts         # Small toast queue (`toast(message, tone)`)
     ├── services/
     │   ├── catalogSource.ts      # Bundled catalogue + on-device override; mutateCatalog, status, discard
-    │   ├── db.ts                 # Catalogue reads/writes with the old Supabase-era function names
-    │   ├── aladin.ts             # Every Aladin call (search, ISBN detail, proxy URL)
+    │   ├── db.ts                 # Catalogue reads and writes
+    │   ├── bookLookup.ts         # Book lookup (국립중앙도서관 seoji API) + key stored in this browser
     │   └── bookCache.ts          # `ensureWorkLoaded` — loads a work's volumes before changing state outside its page
     ├── hooks/                    # useDocumentTitle, useMediaQuery, useOutsideClick, useLibrary, useCatalogStatus
     ├── domain/
     │   ├── books/identity.ts     # Edition-set / volume id helpers
     │   ├── logs/records.ts       # Stored log record shape, validation, mapping to client logs
     │   ├── logs/cascade.ts       # Pure set/series completion decisions
-    │   ├── backup/backup.ts      # Backup format, import plan (conflicts), Supabase logs CSV converter
+    │   ├── backup/backup.ts      # Backup format, import plan (conflicts)
     │   └── stats/computeStats.ts # Pure statistics calculation (tested)
     ├── lifehub/                  # Life Hub proposals (remote.ts, resolve.ts, LifeHubPanel.tsx)
-    ├── utils/                    # bookMappers, bookGrouping, editionUtils, format, readingState, translationDiff
+    ├── utils/                    # bookMappers, editionUtils, format, readingState, translationDiff
     │
     ├── pages/
     │   ├── SearchPage.tsx        # /            둘러보기 — filters (view/state/tag/list) in the URL, cover grid
@@ -130,7 +127,7 @@ Every page shares the same shell: a sticky full-width header (seal logo, section
 | `/reading-log` | `ReadingLogPage` | Diary table grouped by month (sticky month labels), filters for year/rating/kind/author/text, edit dialog (date, rating, 인생책) and delete with confirmation. Unread resets are not listed; series completions show the series. |
 | `/stats` | `StatsPage` | Year switch, six key figures, monthly completions (hover/focus tooltips + table view), rating/author/tag/publisher bars, a choropleth map with a country list, and progress on the 노벨 연구소 100선 list. |
 | `/admin` | `AdminPage` | Catalogue edit bar (override status, 카탈로그 JSON 내보내기, 편집본 버리기), section nav, a searchable works table with an edit dialog, add forms with live previews, and the flowchart editor. Deleting a work also deletes this device's logs for it. |
-| `/settings` | `SettingsPage` | 백업 JSON 내보내기, import (backup JSON or Supabase `logs` CSV) with a preview of new / unchanged / conflicting records, and catalogue status. |
+| `/settings` | `SettingsPage` | 백업 JSON 내보내기, import (backup JSON) with a preview of new / unchanged / conflicting records, and catalogue status. |
 | `/login` | — | Redirects to `/` (old links). |
 | `*` | `NotFoundPage` | Unknown routes. |
 
@@ -170,7 +167,7 @@ There is no sign-in: personal pages (`/bookshelf`, `/reading-log`, `/stats`) sho
 
 ### Catalogue (`src/services/db.ts` over `catalogSource.ts`)
 
-The catalogue is `src/data/catalog.json` (`{ version: 1, works, editions, series, authors, flowcharts }`, rows keep the old Supabase column names). If this device has an override in IndexedDB, it is used instead. Every admin write goes through `mutateCatalog()`, which edits a copy and saves it as the override. If the result equals the bundled file, the override is removed. The override remembers the hash of the bundled catalogue it started from. When a newer `catalog.json` is deployed, `/admin` warns that the override is stale.
+The catalogue is `src/data/catalog.json` (`{ version: 1, works, editions, series, authors, flowcharts }`, rows use snake_case column names). If this device has an override in IndexedDB, it is used instead. Every admin write goes through `mutateCatalog()`, which edits a copy and saves it as the override. If the result equals the bundled file, the override is removed. The override remembers the hash of the bundled catalogue it started from. When a newer `catalog.json` is deployed, `/admin` warns that the override is stale.
 
 | Function | Purpose |
 |----------|---------|
@@ -187,15 +184,15 @@ Logs are stored in the Dexie table `logs` (indexes: `id, logType, volumeId, edit
 
 `id` (`crypto.randomUUID()`, matches `/^[A-Za-z0-9_-]{1,128}$/`), `logType` (`volume` / `set_completion` / `series_completion`), `volumeId`, `editionSetId`, `workId`, `seriesId`, `readingState`, `currentPage`, `liked`, `rating`, `autoGenerated`, `createdAt` (first created; for completion logs this is the completion date), `updatedAt`.
 
-The public API is unchanged from the Supabase version: `loadLogs`, `upsertVolumeLog`, `updateReadingProgress`, `upsertSetCompletionLog`, `upsertSeriesCompletionLog`, `updateLogMetadata`, `deleteLogById`, `get*Log`. Added: `deleteLogsByWorkId`, `applyImport`, `exportRecords`.
+The public API: `loadLogs`, `upsertVolumeLog`, `updateReadingProgress`, `upsertSetCompletionLog`, `upsertSeriesCompletionLog`, `updateLogMetadata`, `deleteLogById`, `get*Log`. plus `deleteLogsByWorkId`, `applyImport`, `exportRecords`.
 
 ### External Third-Party Services
 
 | Service | Purpose | Integration point |
 |---------|---------|-------------------|
-| **Aladin API** | Korean book metadata (search, ISBN lookup, page counts, cover images) | `src/services/aladin.ts` → `VITE_ALADIN_PROXY_URL`, defaulting to the Supabase Edge Function `aladin-proxy`; Vite proxy `/aladin-api` in dev → `AdminPage.tsx` |
+| **국립중앙도서관 ISBN 서지정보 API** (`https://www.nl.go.kr/seoji/SearchApi.do`) | Book search for the admin edition form: ISBN, publisher, cover (`TITLE_URL`), page count (`PAGE`), volume (`VOL`) | `src/services/bookLookup.ts` → `AdminPage.tsx` (`EditionForm`) |
 
-To move the proxy (e.g. to a Cloudflare Worker), set `VITE_ALADIN_PROXY_URL`. Nothing else needs to change.
+Search by title, or by ISBN when the query is 10/13 digits. The key (`cert_key`) is requested at [nl.go.kr → Open API → 인증키 신청/관리](https://www.nl.go.kr/NL/contents/N31101020000.do), entered in `/admin` → 판본 추가, and stored in this browser's `settings` table. It is not part of backups.
 
 ### Overall Data Flow
 
@@ -218,13 +215,9 @@ User action → `logStore` method → Dexie write → store state updated in mem
 
 Claude can propose reading records through [Life Hub](https://github.com/KINGJNU-sakayume/life-hub) ("데미안 다 읽었어, 별 다섯 개"). On **내 책장** the owner connects once (`Life Hub 연결`; OAuth public client `public/lifehub-client.json` with PKCE, `letterbookxd:inbox` only; Life Hub returns to `public/lifehub/`). Each proposal is matched against the catalogue (`src/lifehub/resolve.ts`): only a single exact title (and author) match, a single publisher and a single volume are preselected; anything else is a choice for the owner, and books missing from the catalogue wait until they are added. Approving writes through `logStore.upsertVolumeLog` (same completion cascade as the UI) and, for a stated completion date, `updateLogMetadata`. Receipts (proposal → log ID) and rejections are kept in localStorage and retried; rejecting changes nothing.
 
-## 7. Configuration, Backups & Migration
+## 7. Configuration & Backups
 
-| Variable | Purpose | Required |
-|----------|---------|----------|
-| `VITE_ALADIN_PROXY_URL` | Aladin proxy base URL (production builds). Empty → the existing Supabase Edge Function. Set as a repository *variable* for `deploy.yml`. | No |
-
-No secrets are needed to build or run the app. **Never commit** backups, CSV exports, tokens or keys. `.gitignore` already excludes `backups/`, `supabase-export/`, `letterbookxd-backup*.json` and `*.csv`.
+There are no environment variables and no secrets in the repository or the build. The only key the app uses (the 국립중앙도서관 `cert_key`) is entered in the browser. **Never commit** backups, tokens or keys. `.gitignore` already excludes `backups/` and `letterbookxd-backup*.json`.
 
 ### Publishing catalogue edits
 
@@ -234,22 +227,7 @@ No secrets are needed to build or run the app. **Never commit** backups, CSV exp
 
 ### Backups
 
-`/settings` → **백업 JSON 내보내기** downloads `letterbookxd-backup-YYYY-MM-DD.json` with every log (and the catalogue override, if any). **파일 고르기** accepts a backup or a Supabase `logs` CSV. It then shows new / unchanged / conflicting records. A conflict is either the same id with different content, or a different id pointing at the same volume, edition or series. You choose to skip or overwrite conflicts before anything is written.
-
-### One-time migration from Supabase
-
-Do these steps in order, ideally before merging the local-storage version:
-
-1. **Catalogue → repo.** The catalogue tables are public-read under RLS, so the anon key is enough. Pass the keys only in your shell:
-   ```bash
-   SUPABASE_URL=https://<project>.supabase.co SUPABASE_ANON_KEY=<anon key> node scripts/export-catalog.mjs
-   ```
-   Check `src/data/catalog.json` and commit it on the same branch. Until this file is filled in, the deployed site has an empty catalogue.
-2. **Reading logs → CSV.** In the Supabase Dashboard, go to **Table Editor → `logs`**, then **Export → Export table as CSV**. Alternatively, run `select * from logs` in the **SQL Editor** and download the result as CSV. Keep the file outside the repository.
-3. **CSV → this browser.** Open the deployed (or local) app, go to **설정 · 백업 → 파일 고르기**, and pick the CSV. Check the preview, then click **불러오기**. Ids are kept, so Life Hub receipts that point to old log ids still match. `user_id` is dropped; if the CSV contains more than one user, the preview warns you.
-4. **Back up.** Click **백업 JSON 내보내기** right away and keep the file somewhere private.
-5. Repeat step 3 on every browser or device you use, or import the JSON backup there.
-6. Once everything is verified, you can shut down the Supabase database. Keep the `aladin-proxy` edge function, or move it and set `VITE_ALADIN_PROXY_URL`.
+`/settings` → **백업 JSON 내보내기** downloads `letterbookxd-backup-YYYY-MM-DD.json` with every log (and the catalogue override, if any). **파일 고르기** accepts a backup JSON and shows new / unchanged / conflicting records. A conflict is either the same id with different content, or a different id pointing at the same volume, edition or series. You choose to skip or overwrite conflicts before anything is written.
 
 ---
 
@@ -267,23 +245,21 @@ cd letterbookxd
 # 2. Install dependencies
 npm install
 
-# 3. (Optional) .env — only VITE_ALADIN_PROXY_URL, see §7
-
-# 4. Start dev server (includes Aladin API proxy)
+# 3. Start dev server
 npm run dev
 # → http://localhost:5173/letterbookxd/
 
-# 5. Type-check
+# 4. Type-check
 npm run typecheck
 
-# 6. Lint and test (node:test; IndexedDB via fake-indexeddb)
+# 5. Lint and test (node:test; IndexedDB via fake-indexeddb)
 npm run lint
 npm test
 
-# 7. Build for production (outputs to /docs)
+# 6. Build for production (outputs to /docs)
 npm run build
 
-# 8. Preview the production build locally
+# 7. Preview the production build locally
 npm run preview
 ```
 
@@ -296,7 +272,7 @@ npm run preview
 
 ### ID Encoding
 
-- **Work IDs:** UUIDs (`work.id`), from Supabase originally, `crypto.randomUUID()` for new rows.
+- **Work IDs:** UUIDs (`work.id`); new rows use `crypto.randomUUID()`.
 - **Log IDs:** `crypto.randomUUID()`. Life Hub receipts use them as `entity_id`.
 - **EditionSet IDs:** Composite string `{workId}::{publisher}` — parse with `parseEditionSetId()` by splitting on `::`.
 - **Volume IDs:** `vol-{edition.id}` — prefix used to distinguish from other ID types.
@@ -339,11 +315,7 @@ The `autoGenerated: true` flag distinguishes system-created logs from user-creat
 
 ### Korean Volume Parsing
 
-`extractVolumeNumber()` in `src/utils/bookGrouping.ts` handles: `1권`, `상`, `중`, `하`, and numeric-only titles. Modify this function when changing volume grouping logic.
-
-### Unused Code
-
-`searchBooks()` in `src/services/aladin.ts` is not called by the UI (browse uses the catalogue).
+`extractVolumeFromTitle()` in `src/services/db.ts` handles `1권`, `상`, `중`, `하` and trailing numbers. The edition form uses it when the library record has no `VOL`.
 
 ### Naming Conventions
 

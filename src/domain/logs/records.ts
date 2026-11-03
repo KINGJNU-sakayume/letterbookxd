@@ -1,6 +1,6 @@
 import type { SetCompletionLog, VolumeLog } from '../../types';
 
-/** 이 기기에 저장되는 기록 한 건. Supabase logs 행을 camelCase로 옮긴 모양이다. */
+/** 이 기기에 저장되는 기록 한 건 (IndexedDB logs 테이블, 백업 파일) */
 export interface LogRecord {
   /** crypto.randomUUID(). Life Hub 영수증 entity_id로도 쓰인다. */
   id: string;

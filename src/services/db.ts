@@ -4,8 +4,7 @@ import type { CatalogData, DbAuthor, DbEdition, DbFlowchart, DbSeries, DbWork } 
 
 export type { DbAuthor, DbEdition, DbFlowchart, DbSeries, DbWork } from '../catalog/model';
 
-// 카탈로그 읽기·쓰기. 예전에는 Supabase 테이블이었고, 지금은 번들 JSON + 이 기기의 편집본이다.
-// (catalogSource.ts 참고) 함수 이름과 반환 모양은 Supabase 시절과 같게 유지한다.
+// 카탈로그 읽기·쓰기: 번들 JSON + 이 기기의 편집본 (catalogSource.ts 참고).
 
 export interface EditionGroup {
   publisher: string;
