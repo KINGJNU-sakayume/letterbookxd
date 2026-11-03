@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
+import { Download, RefreshCw, Upload } from 'lucide-react';
 import { Page, PageHeader, SectionHeading } from '../components/layout/Page';
 import { CatalogEditBar } from '../components/admin/CatalogEditBar';
 import { formatDateTime } from '../components/admin/catalogFormat';
@@ -16,6 +16,9 @@ import {
   type ImportPlan, type ImportSource,
 } from '../domain/backup/backup';
 import type { LogRecord } from '../domain/logs/records';
+import { getLogSyncController } from '../lifehub/logSyncController';
+import { fetchRemoteAsImportSource, normalizeDeviceLabel } from '../lifehub/logSync';
+import { beginConnect, browserDeps, connectAvailable, isConnected, mayHaveSyncScope } from '../lifehub/remote';
 import { parseEditionSetId } from '../utils/editionUtils';
 
 const STATE_LABEL: Record<string, string> = { unread: '안 읽음', reading: '읽는 중', completed: '완독' };
@@ -26,6 +29,8 @@ export function SettingsPage() {
   const { volumeLogs, setCompletionLogs, seriesCompletionLogs } = useLogStore();
   const total = volumeLogs.length + setCompletionLogs.length + seriesCompletionLogs.length;
   const [exporting, setExporting] = useState(false);
+  /** 180일 넘게 쉰 기기: 서버 문서를 가져오기 미리보기로 검토한다 */
+  const [reviewSource, setReviewSource] = useState<ImportSource | null>(null);
 
   async function handleExport() {
     setExporting(true);
@@ -62,8 +67,10 @@ export function SettingsPage() {
           </button>
         </section>
 
-        <ImportSection />
+        <ImportSection externalSource={reviewSource} onExternalConsumed={() => setReviewSource(null)} />
       </div>
+
+      <LogSyncSection onReview={setReviewSource} />
 
       <section aria-labelledby="catalog-status" className="mt-12">
         <SectionHeading id="catalog-status" title="카탈로그" />
@@ -73,7 +80,7 @@ export function SettingsPage() {
   );
 }
 
-function ImportSection() {
+function ImportSection({ externalSource, onExternalConsumed }: { externalSource: ImportSource | null; onExternalConsumed: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
   const [fileName, setFileName] = useState('');
@@ -93,6 +100,22 @@ function ImportSection() {
     setWithCatalog(false);
     if (inputRef.current) inputRef.current.value = '';
   }
+
+  // 서버 문서 검토: 파일을 고른 것과 같은 미리보기로 보여 준다
+  useEffect(() => {
+    if (!externalSource) return;
+    let active = true;
+    void useLogStore.getState().exportRecords().then((existing) => {
+      if (!active) return;
+      setError('');
+      setFileName('Life Hub 서버 문서');
+      setSource(externalSource);
+      setPlan(planImport(existing, externalSource.logs));
+      setWithCatalog(false);
+      onExternalConsumed();
+    });
+    return () => { active = false; };
+  }, [externalSource, onExternalConsumed]);
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -126,7 +149,9 @@ function ImportSection() {
       if (!ok) return;
     }
     setBusy(true);
-    const ok = await useLogStore.getState().applyImport(put, deleteIds);
+    // 덮어쓰는 충돌은 지금 시각으로 다시 찍힌다: 「파일 내용을 쓰겠다」는 선택이 다음 동기화에서 서버의 더 새 버전에 밀리지 않는다
+    const restampIds = mode === 'overwrite' ? plan.conflicts.map((c) => c.incoming.id) : [];
+    const ok = await useLogStore.getState().applyImport(put, deleteIds, restampIds);
     if (ok && withCatalog && source.catalogOverride) {
       await replaceCatalogOverride(source.catalogOverride);
       void useCatalogStore.getState().reload();
@@ -301,5 +326,126 @@ function ImportPreview({ source, plan, mode, onMode, withCatalog, onWithCatalog,
         </button>
       </div>
     </div>
+  );
+}
+
+
+const controller = () => getLogSyncController();
+
+/** 독서 기록 기기 동기화 (Life Hub). 수동 JSON 백업은 그대로 비상용이다. */
+function LogSyncSection({ onReview }: { onReview: (source: ImportSource) => void }) {
+  const snap = useSyncExternalStore(
+    (fn) => controller().subscribe(fn),
+    () => controller().snapshot(),
+  );
+  const deps = browserDeps();
+  const connected = isConnected(deps);
+  const [label, setLabel] = useState(snap.deviceLabel);
+  const [labelError, setLabelError] = useState('');
+  const [message, setMessage] = useState('');
+  const busy = snap.status === 'syncing';
+
+  function saveLabel() {
+    const trimmed = label.trim();
+    if (trimmed && !normalizeDeviceLabel(trimmed)) {
+      setLabelError('기기 이름은 영문·숫자·기호 1~40자만 쓸 수 있어요.');
+      return;
+    }
+    setLabelError('');
+    controller().setDeviceLabel(trimmed);
+    toast('기기 이름을 저장했습니다.');
+  }
+
+  async function reviewServerDocument() {
+    setMessage('');
+    try {
+      const source = await fetchRemoteAsImportSource(browserDeps());
+      if (!source) setMessage('서버에 동기화 문서가 아직 없어요.');
+      else onReview(source);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '서버 문서를 가져오지 못했어요.');
+    }
+  }
+
+  async function connect() {
+    try {
+      window.location.assign(await beginConnect(browserDeps()));
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : '연결을 시작하지 못했습니다.');
+    }
+  }
+
+  return (
+    <section aria-labelledby="log-sync" className="mt-12">
+      <SectionHeading id="log-sync" title="기기 동기화" />
+      <p className="text-[14px] leading-relaxed text-ink-soft">
+        독서 기록을 Life Hub를 거쳐 여러 기기에서 같게 맞춥니다. 이 기기의 IndexedDB가 원본이고, 인터넷이 없어도 평소처럼 쓸 수 있어요.
+        카탈로그 편집본은 동기화하지 않습니다. 위의 JSON 내보내기·불러오기는 그대로 비상용으로 쓸 수 있습니다.
+      </p>
+
+      {!connected ? (
+        <p className="mt-4 text-[13.5px] text-ink-muted">
+          먼저 Life Hub에 연결해야 해요. 연결 화면에서 <strong>동기화</strong> 항목에 체크해 주세요.{' '}
+          <button type="button" className="underline underline-offset-2 disabled:opacity-50" disabled={!connectAvailable(window.location)} onClick={() => void connect()}>
+            Life Hub 연결
+          </button>
+        </p>
+      ) : (
+        <div className="panel mt-5 space-y-4 p-5">
+          <label className="flex items-center gap-2 text-[14px] text-ink">
+            <input type="checkbox" checked={snap.enabled} onChange={(e) => controller().setEnabled(e.target.checked)} />
+            이 기기에서 독서 기록 동기화 켜기
+          </label>
+
+          <dl className="grid gap-x-6 gap-y-1 text-[13.5px] sm:grid-cols-[auto_1fr]">
+            <dt className="text-ink-muted">상태</dt>
+            <dd role="status" className={snap.status === 'error' || snap.status === 'no_scope' || snap.status === 'review' ? 'text-seal' : 'text-ink'}>
+              {snap.statusLabel}
+              {snap.detail && <span className="ml-2 text-[12.5px] text-ink-muted">{snap.detail}</span>}
+            </dd>
+            <dt className="text-ink-muted">마지막 동기화</dt>
+            <dd className="text-ink">{snap.lastSuccessAt ? formatDateTime(snap.lastSuccessAt) : '아직 없음'}</dd>
+          </dl>
+
+          {snap.status === 'no_scope' || (snap.enabled && !mayHaveSyncScope(deps)) ? (
+            <p className="text-[13px] text-ink-soft">
+              이 연결에는 동기화 권한이 없어요(제안 받기는 그대로 됩니다).{' '}
+              <button type="button" className="underline underline-offset-2" onClick={() => void connect()}>Life Hub 다시 연결</button>
+              하고 연결 화면의 동기화 항목에 체크해 주세요.
+            </p>
+          ) : null}
+
+          {snap.status === 'review' && (
+            <div className="rounded-control bg-paper-sunken p-3 text-[13px] text-ink-soft">
+              <p>이 기기는 180일 넘게 동기화하지 않아 자동으로 합치지 않았어요. 서버 문서를 불러오기 미리보기로 확인한 뒤 계속하세요.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void reviewServerDocument()}>서버 문서 검토</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => controller().finishReview()}>검토를 마쳤어요, 동기화 계속</button>
+              </div>
+            </div>
+          )}
+          {message && <p role="alert" className="text-[13px] text-seal">{message}</p>}
+
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-[13px] text-ink-muted">
+              기기 이름 (선택, 영문·숫자 40자까지)
+              <input
+                className="field mt-1 block w-56"
+                value={label}
+                maxLength={40}
+                onChange={(e) => setLabel(e.target.value)}
+                onBlur={saveLabel}
+                placeholder="예: phone"
+              />
+            </label>
+            <button type="button" className="btn btn-secondary" disabled={!snap.enabled || busy} onClick={() => void controller().syncNow()}>
+              {busy ? <Spinner /> : <RefreshCw size={15} aria-hidden />}
+              지금 동기화
+            </button>
+          </div>
+          {labelError && <p role="alert" className="text-[13px] text-seal">{labelError}</p>}
+        </div>
+      )}
+    </section>
   );
 }
