@@ -2,10 +2,16 @@ import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useOutsideClick } from '../../hooks/useOutsideClick';
+import { useLifeHubAttention } from '../../lifehub/hubStore';
+
+/** 상태 C(확인 필요)일 때 설정 진입점 오른쪽 위에 그리는 지름 8px 점 */
+const AttentionDot = () => <span aria-hidden data-attention-dot className="absolute right-0 top-0 h-2 w-2 rounded-full bg-seal" />;
+const ATTENTION_SUFFIX = ' (확인 필요)';
 
 /** 예전 계정 메뉴 자리. 로그인이 없으므로 내 서재 바로가기와 설정·백업을 둔다. */
-export function AccountMenu() {
-  const [open, setOpen] = useState(false);
+export function AccountMenu({ initialOpen = false }: { initialOpen?: boolean }) {
+  const [open, setOpen] = useState(initialOpen);
+  const attention = useLifeHubAttention();
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useOutsideClick(ref, open, close);
@@ -19,13 +25,14 @@ export function AccountMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="내 서재 메뉴"
-        className="flex h-9 items-center gap-1 rounded-full pl-0.5 pr-1.5 text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink coarse:h-11 coarse:pl-1.5"
+        aria-label={`내 서재 메뉴${attention ? ATTENTION_SUFFIX : ''}`}
+        className="relative flex h-9 items-center gap-1 rounded-full pl-0.5 pr-1.5 text-ink-muted transition-colors hover:bg-paper-sunken hover:text-ink coarse:h-11 coarse:pl-1.5"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-paper-raised">
           나
         </span>
         <ChevronDown size={14} aria-hidden />
+        {attention && <AttentionDot />}
       </button>
       {open && (
         <div role="menu" className="animate-drop panel absolute right-0 top-[calc(100%+8px)] z-50 w-64 py-1.5 shadow-pop">
@@ -44,8 +51,9 @@ export function AccountMenu() {
             서가 관리
           </Link>
           <div className="my-1 h-px bg-line-soft" />
-          <Link role="menuitem" to="/settings" onClick={close} className={item}>
+          <Link role="menuitem" to="/settings" onClick={close} className={`relative ${item}`} aria-label={attention ? `설정 · 백업${ATTENTION_SUFFIX}` : undefined}>
             설정 · 백업
+            {attention && <span aria-hidden data-attention-dot className="ml-1.5 inline-block h-2 w-2 -translate-y-1.5 rounded-full bg-seal" />}
           </Link>
         </div>
       )}

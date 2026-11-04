@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { HashRouter, Navigate, Routes, Route, useParams } from 'react-router-dom';
+import { HashRouter, Navigate, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { ScrollManager } from './components/layout/ScrollManager';
 import { ConfirmProvider } from './components/ui/ConfirmProvider';
 import { Toaster } from './components/ui/Toaster';
 import { PageLoader } from './components/ui/States';
 import { useLogStore } from './store/logStore';
+import { startLifeHub } from './lifehub/hubStore';
 
 const SearchPage = lazy(() => import('./pages/SearchPage').then(m => ({ default: m.SearchPage })));
 const BookDetailPage = lazy(() => import('./pages/BookDetailPage').then(m => ({ default: m.BookDetailPage })));
@@ -34,6 +35,13 @@ function AuthorRoute() {
 
 function AppContent() {
   const loadLogs = useLogStore((s) => s.loadLogs);
+  const navigate = useNavigate();
+
+  // Life Hub: 연결 콜백 마무리와 Claude 제안 가져오기는 어느 화면에서든 앱 시작 시 돈다.
+  // 연결이 끝나면 설정의 Life Hub 섹션으로 간다.
+  useEffect(() => {
+    startLifeHub(() => navigate('/settings?section=life-hub', { replace: true }));
+  }, [navigate]);
 
   // 기록은 이 브라우저에 저장되어 있다. 처음 한 번 불러온다.
   useEffect(() => {

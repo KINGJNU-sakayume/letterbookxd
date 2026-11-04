@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dialog } from '../components/ui/Dialog';
 import { StarRating } from '../components/ui/StarRating';
@@ -6,16 +6,10 @@ import { toast } from '../store/toastStore';
 import { useLogStore } from '../store/logStore';
 import { useCatalogStore, type CatalogEdition, type CatalogWork } from '../store/catalogStore';
 import { createVolumeRef } from '../domain/books/identity';
-import { autoPlan, findWorks, publishersOf, volumesOf } from './resolve';
+import { findWorks, publishersOf, volumesOf } from './resolve';
 import { recordProposal } from './apply';
-import {
-  autoApplyEnabled, beginConnect, browserDeps, completeStoredCallback, connectAvailable, disconnect, isConnected, LifeHubError,
-  rejectLocally, setAutoApply, sync, type ReadingProposal,
-} from './remote';
-
-/** One token exchange per page load, even when effects run twice (StrictMode). */
-let callbackOnce: Promise<boolean> | null = null;
-const finishCallback = () => (callbackOnce ??= completeStoredCallback(browserDeps()));
+import type { ReadingProposal } from './remote';
+import { markReviewed, rejectProposal, useHubStore } from './hubStore';
 
 const STATE_LABEL = { reading: '읽는 중', completed: '완독' } as const;
 const volumeLabel = (e: CatalogEdition) => (e.volume_number && e.volume_number !== '1' ? ` ${e.volume_number}권` : '');
@@ -190,126 +184,31 @@ function ReviewDialog({ proposal, onClose, onSaved }: { proposal: ReadingProposa
   );
 }
 
-/** On the bookshelf (signed in): connect Life Hub and review Claude's reading proposals. */
-export function LifeHubPanel() {
-  const [connected, setConnected] = useState(() => isConnected(browserDeps()));
-  const [proposals, setProposals] = useState<ReadingProposal[]>([]);
+/**
+ * 책장 위: Claude 제안이 1건 이상일 때만 한 줄 띠. 0건이면 아무것도 그리지 않는다.
+ * 「검토」를 누르면 띠 아래로 제안 목록이 펼쳐지고, 목록의 「검토」가 검토 대화상자를 연다.
+ */
+export function ProposalStrip({ proposals, onReject, onSaved, defaultOpen = false }: {
+  proposals: ReadingProposal[];
+  onReject: (p: ReadingProposal) => void;
+  onSaved: (key: string) => void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   const [reviewing, setReviewing] = useState<ReadingProposal | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [autoApply, setAutoApplyState] = useState(() => autoApplyEnabled(browserDeps()));
-  const catalogReady = useCatalogStore((s) => s.status === 'ready');
-
-  // One sync at a time (a card approval must never be recorded twice); a request meanwhile runs once after it.
-  const running = useRef(false);
-  const again = useRef(false);
-  const runSync = useCallback(async (): Promise<void> => {
-    if (!isConnected(browserDeps())) return;
-    if (running.current) {
-      again.current = true;
-      return;
-    }
-    running.current = true;
-    setSyncing(true);
-    try {
-      const catalog = useCatalogStore.getState();
-      const works = catalog.status === 'ready' ? catalog.works : undefined;
-      let result = await sync(browserDeps(), works);
-      // Claude-card approvals whose book is clear are recorded now, then their receipts go out.
-      const recorded: string[] = [];
-      if (works) {
-        for (const p of result.proposals) {
-          const plan = autoPlan(p, works, autoApplyEnabled(browserDeps()));
-          if (!plan) continue;
-          const ok = await recordProposal(p.key, plan.work, plan.publisher, plan.edition, {
-            state: p.state, page: p.currentPage, rating: p.rating, liked: p.liked, date: p.date,
-          }).catch((err: unknown) => { console.error('Life Hub 자동 반영 실패:', err); return false; });
-          if (ok) recorded.push(`${plan.work.title}${volumeLabel(plan.edition)}`);
-        }
-        if (recorded.length) {
-          toast(`Claude에서 승인한 책을 기록했습니다: ${recorded.map((t) => `「${t}」`).join(', ')}`);
-          result = await sync(browserDeps(), works);
-        }
-      }
-      setProposals(result.proposals);
-      setMessage(result.conflicts ? `${result.conflicts}개 제안은 Life Hub와 상태가 다릅니다. 책장 기록은 그대로입니다.` : null);
-    } catch (e) {
-      if (e instanceof LifeHubError && e.kind === 'not_connected') {
-        setConnected(false);
-        setProposals([]);
-      }
-      setMessage(e instanceof Error ? e.message : '동기화하지 못했습니다.');
-    } finally {
-      running.current = false;
-      setSyncing(false);
-    }
-    if (again.current) {
-      again.current = false;
-      await runSync();
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    finishCallback()
-      .then((done) => {
-        if (!active) return;
-        if (done) {
-          setConnected(true);
-          toast('Life Hub에 연결했습니다.');
-        }
-        void runSync();
-      })
-      .catch((e: unknown) => { if (active) setMessage(e instanceof Error ? e.message : 'Life Hub에 연결하지 못했습니다.'); });
-    return () => { active = false; };
-  }, [runSync]);
-
-  // The catalogue loads on its own; once it is there, share it and record clear card approvals.
-  useEffect(() => {
-    if (catalogReady && connected) void runSync();
-  }, [catalogReady, connected, runSync]);
-
-  const canConnect = connectAvailable(window.location);
-  if (!connected && !message && proposals.length === 0) {
-    return (
-      <p className="mb-6 text-[13px] text-ink-muted">
-        Claude에게 말한 독서 기록을 제안으로 받을 수 있습니다.{' '}
-        <button type="button" className="underline underline-offset-2 disabled:opacity-50" disabled={!canConnect}
-          onClick={() => void beginConnect(browserDeps()).then((url) => window.location.assign(url)).catch((e: unknown) => setMessage(e instanceof Error ? e.message : '연결을 시작하지 못했습니다.'))}>
-          Life Hub 연결
-        </button>
-      </p>
-    );
-  }
+  const listId = useId();
+  if (proposals.length === 0) return null;
 
   return (
-    <section className="panel mb-8 px-5 py-4" aria-label="Life Hub 제안">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h2 className="font-serif text-[18px] font-bold">Claude가 제안한 기록 {proposals.length > 0 && <span className="tnum text-[14px] text-ink-muted">{proposals.length}</span>}</h2>
-        <div className="ml-auto flex gap-1">
-          {connected ? (
-            <>
-              <button type="button" className="btn btn-ghost btn-sm" disabled={syncing} onClick={() => void runSync()}>{syncing ? '동기화 중' : '동기화'}</button>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { disconnect(browserDeps()); setConnected(false); setProposals([]); setMessage('Life Hub 연결을 해제했습니다.'); }}>연결 해제</button>
-            </>
-          ) : (
-            <button type="button" className="btn btn-secondary btn-sm" disabled={!canConnect}
-              onClick={() => void beginConnect(browserDeps()).then((url) => window.location.assign(url)).catch((e: unknown) => setMessage(e instanceof Error ? e.message : '연결을 시작하지 못했습니다.'))}>
-              Life Hub 연결
-            </button>
-          )}
-        </div>
+    <section className="mb-6" aria-label="Life Hub 제안">
+      <div className="flex items-center gap-3 rounded-control bg-paper-sunken px-4 py-2 text-[13.5px] text-ink-soft">
+        <span className="min-w-0 flex-1">Claude가 제안한 기록 <span className="tnum">{proposals.length}</span>건</span>
+        <button type="button" className="underline underline-offset-2" aria-expanded={open} aria-controls={listId} onClick={() => setOpen((v) => !v)}>
+          검토
+        </button>
       </div>
-      {message && <p className="mt-2 text-[13px] text-ink-muted" role="status">{message}</p>}
-      {connected && proposals.length === 0 && !syncing && <p className="mt-2 text-[13px] text-ink-muted">검토할 제안이 없습니다.</p>}
-      {connected && (
-        <label className="mt-2 flex items-center gap-2 text-[13px] text-ink-muted">
-          <input type="checkbox" checked={autoApply} onChange={(e) => { setAutoApply(e.target.checked, browserDeps()); setAutoApplyState(e.target.checked); }} />
-          Claude에서 승인된 항목 자동 반영 <span className="text-[12px]">(책·판본·권이 하나로 정해질 때만, 이 기기)</span>
-        </label>
-      )}
-      {proposals.length > 0 && (
-        <ul className="mt-3 divide-y divide-line-soft">
+      {open && (
+        <ul id={listId} className="mt-3 divide-y divide-line-soft">
           {proposals.map((p) => (
             <li key={p.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
               <span className="min-w-0 flex-1 text-[14.5px]">
@@ -318,12 +217,7 @@ export function LifeHubPanel() {
               </span>
               <span className="flex gap-1">
                 <button type="button" className="btn btn-primary btn-sm" onClick={() => setReviewing(p)}>검토</button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
-                  rejectLocally(p.key, browserDeps());
-                  setProposals((old) => old.filter((x) => x.key !== p.key));
-                  toast('제안을 거절했습니다. 기록은 바뀌지 않았습니다.');
-                  void runSync();
-                }}>거절</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onReject(p)}>거절</button>
               </span>
             </li>
           ))}
@@ -335,12 +229,17 @@ export function LifeHubPanel() {
           proposal={reviewing}
           onClose={() => setReviewing(null)}
           onSaved={() => {
-            setProposals((old) => old.filter((x) => x.key !== reviewing.key));
+            onSaved(reviewing.key);
             setReviewing(null);
-            void runSync();
           }}
         />
       )}
     </section>
   );
+}
+
+/** 책장 위 자리: 제안 스토어를 읽어 띠를 그린다 (제안 가져오기는 App 수준에서 돈다) */
+export function LifeHubPanel() {
+  const proposals = useHubStore((s) => s.proposals);
+  return <ProposalStrip proposals={proposals} onReject={rejectProposal} onSaved={markReviewed} />;
 }

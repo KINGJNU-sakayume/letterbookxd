@@ -5,7 +5,7 @@
  * - 패스는 한 번에 하나만 돈다. 도는 중에 요청이 오면 끝난 뒤 한 번 더 돈다. 병합 중에는 push하지 않는다(한 패스 안에서 순서대로).
  * - 같은 브라우저의 여러 탭은 (가능하면) Web Locks로 차례를 서고, 아니어도 서버의 412 처리로 안전하다.
  */
-import { browserDeps, type Deps } from './remote';
+import { browserDeps, isConnected, mayHaveSyncScope, type Deps } from './remote';
 import {
   readConfig, runLogSyncPass, setSyncEnabled, writeConfig, acknowledgeReview, STATUS_LABEL,
   type LogSyncStatus, type PassResult,
@@ -175,11 +175,22 @@ export function getLogSyncController(): LogSyncController {
   return singleton;
 }
 
+/**
+ * 연결되어 있고 토큰에 동기화 권한이 있으면(또는 있을 수 있으면) 기기 동기화는 항상 켜져 있다.
+ * 예전 저장값에 「꺼짐」이 남아 있으면 켬으로 바꾼다. 켰으면 true.
+ */
+export function ensureSyncOn(deps: Pick<Deps, 'storage'>): boolean {
+  if (!isConnected(deps) || !mayHaveSyncScope(deps) || readConfig(deps).enabled) return false;
+  setSyncEnabled(deps, true);
+  return true;
+}
+
 let started = false;
 /** 앱 시작 시 한 번: 시작 pull, 탭 보임/숨김, 기록 변경 신호를 연결한다 */
 export function startLogSync(): void {
   if (started || typeof document === 'undefined') return;
   started = true;
+  ensureSyncOn(browserDeps());
   const controller = getLogSyncController();
   onLogsChanged(() => controller.markDirty());
   document.addEventListener('visibilitychange', () => {
