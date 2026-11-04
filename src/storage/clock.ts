@@ -47,3 +47,13 @@ export async function noteServerTime(db: LetterbookDb, writtenAt: string): Promi
   if (clock.server && Date.parse(clock.server) >= Date.parse(writtenAt)) return;
   await db.settings.put({ key: CLOCK_KEY, value: { ...clock, server: writtenAt } });
 }
+
+/**
+ * F: 이 기기가 본 가장 최근 서버 written_at (ms). 아직 서버 시각을 본 적이 없으면 null.
+ * 180일 검토 규칙이 "마지막 동기화 이후 바뀌지 않은 항목"을 가리는 기준이다.
+ */
+export async function readServerFloor(db: LetterbookDb): Promise<number | null> {
+  const { server } = await readClock(db);
+  const ms = parse(server);
+  return Number.isFinite(ms) ? ms : null;
+}

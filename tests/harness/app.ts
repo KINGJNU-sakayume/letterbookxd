@@ -26,8 +26,11 @@ export {
 } from '../../src/domain/sync/merge';
 export { applyRemoteState, readLocalState, reconcileCompletions } from '../../src/store/logSyncApply';
 export {
-  acknowledgeReview, fetchRemoteAsImportSource, normalizeDeviceLabel, readConfig, runLogSyncPass, setSyncEnabled, writeConfig,
+  normalizeDeviceLabel, readConfig, runLogSyncPass, setSyncEnabled, writeConfig,
   MAX_ATTEMPTS, STALE_AFTER_MS, SYNC_MAX_BYTES,
 } from '../../src/lifehub/logSync';
+export { findStaleRemovals, summarizeMerge } from '../../src/domain/sync/staleReview';
+export { prepareReview, applyReview } from '../../src/lifehub/logSyncReview';
+export { readServerFloor } from '../../src/storage/clock';
 export { createLogSyncController } from '../../src/lifehub/logSyncController';
 export { isConnected, mayHaveSyncScope, SYNC_SCOPE, INBOX_SCOPE, SCOPE, syncRequest } from '../../src/lifehub/remote';

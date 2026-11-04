@@ -17,28 +17,32 @@ import {
 } from '../domain/backup/backup';
 import type { LogRecord } from '../domain/logs/records';
 import { getLogSyncController } from '../lifehub/logSyncController';
-import { fetchRemoteAsImportSource, normalizeDeviceLabel } from '../lifehub/logSync';
+import { normalizeDeviceLabel } from '../lifehub/logSync';
+import { prepareReview, type ReviewPlan } from '../lifehub/logSyncReview';
+import { parseVolumeRef } from '../domain/books/identity';
 import { beginConnect, browserDeps, connectAvailable, isConnected, mayHaveSyncScope } from '../lifehub/remote';
 import { parseEditionSetId } from '../utils/editionUtils';
 
 const STATE_LABEL: Record<string, string> = { unread: '안 읽음', reading: '읽는 중', completed: '완독' };
 const TYPE_LABEL: Record<LogRecord['logType'], string> = { volume: '권', set_completion: '판본 완독', series_completion: '시리즈 완독' };
 
+/** 지금의 기록(과 카탈로그 편집본)을 수동 JSON 백업으로 내려받는다. 내려받은 기록 수를 돌려준다. */
+async function exportBackupNow(): Promise<number> {
+  const [records, override] = await Promise.all([useLogStore.getState().exportRecords(), getCatalogOverride()]);
+  downloadText(backupFileName(), JSON.stringify(buildBackup(records, override), null, 2) + '\n');
+  return records.length;
+}
+
 export function SettingsPage() {
   useDocumentTitle('설정 · 백업');
   const { volumeLogs, setCompletionLogs, seriesCompletionLogs } = useLogStore();
   const total = volumeLogs.length + setCompletionLogs.length + seriesCompletionLogs.length;
   const [exporting, setExporting] = useState(false);
-  /** 180일 넘게 쉰 기기: 서버 문서를 가져오기 미리보기로 검토한다 */
-  const [reviewSource, setReviewSource] = useState<ImportSource | null>(null);
 
   async function handleExport() {
     setExporting(true);
     try {
-      const [records, override] = await Promise.all([useLogStore.getState().exportRecords(), getCatalogOverride()]);
-      const backup = buildBackup(records, override);
-      downloadText(backupFileName(), JSON.stringify(backup, null, 2) + '\n');
-      toast(`기록 ${records.length}건을 내보냈습니다. 저장소(repo)에는 올리지 마세요.`);
+      toast(`기록 ${await exportBackupNow()}건을 내보냈습니다. 저장소(repo)에는 올리지 마세요.`);
     } catch (err) {
       console.error(err);
       toast('백업을 만들지 못했습니다.', 'error');
@@ -67,10 +71,10 @@ export function SettingsPage() {
           </button>
         </section>
 
-        <ImportSection externalSource={reviewSource} onExternalConsumed={() => setReviewSource(null)} />
+        <ImportSection />
       </div>
 
-      <LogSyncSection onReview={setReviewSource} />
+      <LogSyncSection />
 
       <section aria-labelledby="catalog-status" className="mt-12">
         <SectionHeading id="catalog-status" title="카탈로그" />
@@ -80,7 +84,7 @@ export function SettingsPage() {
   );
 }
 
-function ImportSection({ externalSource, onExternalConsumed }: { externalSource: ImportSource | null; onExternalConsumed: () => void }) {
+function ImportSection() {
   const inputRef = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
   const [fileName, setFileName] = useState('');
@@ -100,22 +104,6 @@ function ImportSection({ externalSource, onExternalConsumed }: { externalSource:
     setWithCatalog(false);
     if (inputRef.current) inputRef.current.value = '';
   }
-
-  // 서버 문서 검토: 파일을 고른 것과 같은 미리보기로 보여 준다
-  useEffect(() => {
-    if (!externalSource) return;
-    let active = true;
-    void useLogStore.getState().exportRecords().then((existing) => {
-      if (!active) return;
-      setError('');
-      setFileName('Life Hub 서버 문서');
-      setSource(externalSource);
-      setPlan(planImport(existing, externalSource.logs));
-      setWithCatalog(false);
-      onExternalConsumed();
-    });
-    return () => { active = false; };
-  }, [externalSource, onExternalConsumed]);
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -333,7 +321,7 @@ function ImportPreview({ source, plan, mode, onMode, withCatalog, onWithCatalog,
 const controller = () => getLogSyncController();
 
 /** 독서 기록 기기 동기화 (Life Hub). 수동 JSON 백업은 그대로 비상용이다. */
-function LogSyncSection({ onReview }: { onReview: (source: ImportSource) => void }) {
+function LogSyncSection() {
   const snap = useSyncExternalStore(
     (fn) => controller().subscribe(fn),
     () => controller().snapshot(),
@@ -354,17 +342,6 @@ function LogSyncSection({ onReview }: { onReview: (source: ImportSource) => void
     setLabelError('');
     controller().setDeviceLabel(trimmed);
     toast('기기 이름을 저장했습니다.');
-  }
-
-  async function reviewServerDocument() {
-    setMessage('');
-    try {
-      const source = await fetchRemoteAsImportSource(browserDeps());
-      if (!source) setMessage('서버에 동기화 문서가 아직 없어요.');
-      else onReview(source);
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : '서버 문서를 가져오지 못했어요.');
-    }
   }
 
   async function connect() {
@@ -415,15 +392,7 @@ function LogSyncSection({ onReview }: { onReview: (source: ImportSource) => void
             </p>
           ) : null}
 
-          {snap.status === 'review' && (
-            <div className="rounded-control bg-paper-sunken p-3 text-[13px] text-ink-soft">
-              <p>이 기기는 180일 넘게 동기화하지 않아 자동으로 합치지 않았어요. 서버 문서를 불러오기 미리보기로 확인한 뒤 계속하세요.</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void reviewServerDocument()}>서버 문서 검토</button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => controller().finishReview()}>검토를 마쳤어요, 동기화 계속</button>
-              </div>
-            </div>
-          )}
+          {snap.status === 'review' && <StaleReviewPanel />}
           {message && <p role="alert" className="text-[13px] text-seal">{message}</p>}
 
           <div className="flex flex-wrap items-end gap-3">
@@ -447,5 +416,133 @@ function LogSyncSection({ onReview }: { onReview: (source: ImportSource) => void
         </div>
       )}
     </section>
+  );
+}
+
+
+const REVIEW_TYPE_LABEL: Record<LogRecord['logType'], string> = { volume: '권 기록', set_completion: '판본 완독', series_completion: '시리즈 완독' };
+
+/**
+ * 180일 넘게 쉰 기기의 검토. 서버 문서를 읽어 「다른 기기에서 지워진 것으로 보이는 기록」과 나머지 병합 결과를 보여 주고,
+ * 확인한 뒤에만 적용한다. 취소하면 아무것도 바꾸지 않는다. 검토 상태를 푸는 길은 「적용하고 동기화」뿐이다.
+ */
+function StaleReviewPanel() {
+  const confirm = useConfirm();
+  const works = useCatalogStore((s) => s.works);
+  const series = useCatalogStore((s) => s.series);
+  const load = useCatalogStore((s) => s.load);
+  useEffect(() => { void load(); }, [load]);
+  const [plan, setPlan] = useState<ReviewPlan | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const label = useMemo(() => {
+    const workTitle = new Map(works.map((w) => [w.id, w.title]));
+    const volumeNumber = new Map(works.flatMap((w) => w.editions.map((e) => [e.id, e.volume_number] as const)));
+    const seriesTitle = new Map(series.map((x) => [x.id, x.title]));
+    return (r: LogRecord): string => {
+      const kind = REVIEW_TYPE_LABEL[r.logType];
+      if (r.logType === 'series_completion') return `${seriesTitle.get(r.seriesId ?? '') ?? `시리즈 ${r.seriesId}`} · ${kind}`;
+      const title = workTitle.get(r.workId ?? '') ?? `작품 ${r.workId}`;
+      const no = r.logType === 'volume' && r.volumeId ? volumeNumber.get(parseVolumeRef(r.volumeId)) : null;
+      return [title, no ? `${no}권` : null, kind].filter(Boolean).join(' · ');
+    };
+  }, [works, series]);
+
+  async function start() {
+    setBusy(true);
+    setError('');
+    try {
+      setPlan(await prepareReview(browserDeps()));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '서버 문서를 가져오지 못했어요.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function apply() {
+    if (!plan) return;
+    const ok = await confirm({
+      title: '검토 내용을 적용할까요?',
+      description: plan.removals.logs.length
+        ? `다른 기기에서 지워진 것으로 보이는 기록 ${plan.removals.logs.length}개를 이 기기에서 지우고, 나머지를 서버와 합친 뒤 동기화합니다. 지운 기록은 되돌릴 수 없으니 백업을 먼저 내려받았는지 확인하세요.`
+        : '서버와 합친 뒤 동기화를 다시 시작합니다.',
+      confirmLabel: '적용하고 동기화',
+    });
+    if (!ok) return;
+    setBusy(true);
+    setError('');
+    try {
+      await getLogSyncController().completeReview(plan);
+      setPlan(null);
+      toast('검토를 적용하고 동기화했습니다.');
+    } catch (e) {
+      console.error(e);
+      setError('검토를 적용하지 못했어요. 검토 필요 상태는 그대로예요.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!plan) {
+    return (
+      <div className="rounded-control bg-paper-sunken p-3 text-[13px] text-ink-soft">
+        <p>이 기기는 180일 넘게 동기화하지 않아 자동으로 합치지 않았어요. 서버 문서를 검토한 뒤에만 동기화를 다시 시작할 수 있어요.</p>
+        <button type="button" disabled={busy} onClick={() => void start()} className="btn btn-secondary btn-sm mt-2">
+          {busy && <Spinner />}서버 문서 검토
+        </button>
+        {error && <p role="alert" className="mt-2 text-seal">{error}</p>}
+      </div>
+    );
+  }
+
+  const { removals, summary, skipped } = plan;
+  return (
+    <div className="rounded-control bg-paper-sunken p-4 text-[13px] text-ink-soft">
+      <h3 className="font-serif text-[16px] font-bold text-ink">서버 문서 검토</h3>
+      <p className="mt-3 font-semibold text-ink">다른 기기에서 지워진 것으로 보이는 기록 {removals.logs.length}개</p>
+      {skipped && (
+        <p className="mt-1 text-ink-muted">
+          {skipped === 'no-server-doc'
+            ? '서버에 동기화 문서가 아직 없어서 아무것도 지우지 않아요.'
+            : '이 기기가 마지막으로 본 서버 시각을 알 수 없어서 아무것도 지우지 않아요.'}
+        </p>
+      )}
+      {removals.logs.length > 0 && (
+        <>
+          <p className="mt-1 text-ink-muted">마지막 동기화 이후 바뀌지 않았고 서버에 흔적이 없는 기록이에요. 적용하면 이 기기에서만 지워지고, 묘비는 남기지 않아요.</p>
+          <ul className="mt-2 max-h-56 divide-y divide-line overflow-auto rounded-control border border-line">
+            {removals.logs.map((r) => (
+              <li key={r.id} className="px-3 py-1.5">
+                <span className="text-ink">{label(r)}</span>
+                <span className="ml-2 text-[12px] text-ink-faint">{formatDateTime(r.updatedAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {removals.tombstones.length > 0 && (
+        <p className="mt-1 text-ink-muted">오래된 삭제 흔적 {removals.tombstones.length}개도 함께 정리돼요.</p>
+      )}
+      <p className="mt-4 font-semibold text-ink">나머지 병합 결과</p>
+      <p className="mt-1">서버에서 새로 들어오는 기록 {summary.added}개 · 내용이 바뀌는 기록 {summary.updated}개 · 서버에 밀려 사라지는 기록 {summary.removed}개</p>
+
+      {error && <p role="alert" className="mt-3 text-seal">{error}</p>}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          className="btn btn-secondary btn-sm"
+          onClick={() => void exportBackupNow().then((n) => toast(`기록 ${n}건을 내보냈습니다. 저장소(repo)에는 올리지 마세요.`)).catch(() => toast('백업을 만들지 못했습니다.', 'error'))}
+        >
+          <Download size={14} aria-hidden />현재 기록 JSON 백업 내려받기
+        </button>
+        <button type="button" disabled={busy} className="btn btn-primary btn-sm" onClick={() => void apply()}>
+          {busy && <Spinner />}적용하고 동기화
+        </button>
+        <button type="button" disabled={busy} className="btn btn-ghost btn-sm" onClick={() => { setPlan(null); setError(''); }}>취소</button>
+      </div>
+    </div>
   );
 }
