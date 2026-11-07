@@ -9,6 +9,7 @@ import { normalizeDeviceLabel, readConfig } from './logSync';
 import { autoApplyEnabled, browserDeps, connectAvailable, setAutoApply } from './remote';
 import { connectLifeHub, disconnectLifeHub, syncNowAll, useHubStore, useHubView } from './hubStore';
 import type { HubCause } from './hubStatus';
+import { boardNeedsReconnect } from '../board/upload';
 
 export const LIFE_HUB_SECTION_ID = 'life-hub';
 
@@ -36,6 +37,8 @@ export function LifeHubSection({ reviewPanel }: { reviewPanel?: ReactNode }) {
   const view = useHubView();
   const message = useHubStore((s) => s.message);
   const proposalSyncing = useHubStore((s) => s.syncing);
+  useHubStore((s) => s.rev);
+  const boardReconnect = view.kind === 'B' && boardNeedsReconnect(browserDeps());
   const [params] = useSearchParams();
   const focus = params.get('section') === LIFE_HUB_SECTION_ID;
 
@@ -67,6 +70,12 @@ export function LifeHubSection({ reviewPanel }: { reviewPanel?: ReactNode }) {
       {view.kind === 'B' && (
         <div className="space-y-4">
           <StatusLine>{view.line}</StatusLine>
+          {boardReconnect && (
+            <div className="rounded-control bg-seal-soft p-4 text-[13.5px] text-ink">
+              <p>보드(Life Board)에 올리려면 Life Hub에 한 번 다시 연결해 주세요. 제안과 동기화는 지금처럼 계속됩니다.</p>
+              <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={() => void connectLifeHub()}>다시 연결</button>
+            </div>
+          )}
           {note}
           <div className="flex flex-wrap gap-2">
             {syncButton}

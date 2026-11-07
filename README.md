@@ -54,6 +54,7 @@ letterbookxd/
 ├── index.html                    # Vite entry; loads Pretendard + Gowun Batang
 ├── tailwind.config.js            # Design tokens: paper/ink/line/seal/reading/completed/star, fonts, 3xl breakpoint
 ├── vite.config.ts                # base path, React plugin, docs output
+├── board/sample.json             # Example board manifest built from made-up state (tests/board/fixture.mjs)
 ├── tests/                        # node:test suites (stats, Hangul, translation diff, Life Hub, logStore, backup, catalogue, book lookup)
 │   ├── harness/app.ts            # esbuild entry bundling the store/storage/backup modules for tests
 │   └── setup.mjs                 # fake-indexeddb + window shim
@@ -88,6 +89,7 @@ letterbookxd/
     │   ├── backup/backup.ts      # Backup format, import plan (conflicts)
     │   └── stats/computeStats.ts # Pure statistics calculation (tested)
     ├── lifehub/                  # Life Hub proposals (remote.ts, resolve.ts, apply.ts, LifeHubPanel.tsx)
+    ├── board/                    # Life Board tiles: tiles.ts (pure manifest builder), upload.ts (PUT …/v1/board), start.ts (wiring)
     ├── utils/                    # bookMappers, editionUtils, format, readingState, translationDiff
     │
     ├── pages/
@@ -192,7 +194,16 @@ The public API: `loadLogs`, `upsertVolumeLog`, `updateReadingProgress`, `upsertS
 |---------|---------|-------------------|
 | **국립중앙도서관 ISBN 서지정보 API** (`https://www.nl.go.kr/seoji/SearchApi.do`) | Book search for the admin edition form: ISBN, publisher, cover (`TITLE_URL`), page count (`PAGE`), volume (`VOL`) | `src/services/bookLookup.ts` → `AdminPage.tsx` (`EditionForm`) |
 
+| **카카오(다음) 책 검색** (`https://dapi.kakao.com/v3/search/book?target=isbn`) | Covers: when 국립중앙도서관 has no cover for the chosen ISBN, and the bulk 「표지 바꾸기」 tool | `src/services/kakaoCover.ts`, `src/services/coverMigration.ts` → `AdminPage.tsx` (`EditionForm`, `KakaoCoverPanel`) |
+
 Search by title, or by ISBN when the query is 10/13 digits. The key (`cert_key`) is requested at [nl.go.kr → Open API → 인증키 신청/관리](https://www.nl.go.kr/NL/contents/N31101020000.do), entered in `/admin` → 판본 추가, and stored in this browser's `settings` table. It is not part of backups.
+
+**Covers.** The 알라딘 Open API ended on 2026-10-30; the `image.aladin.co.kr` addresses already in the catalogue still work for now but may stop. New covers come from 카카오 책 검색 (it allows CORS, so the browser calls it directly; header `Authorization: KakaoAK <REST API key>`). Its `thumbnail` is a 120×174 `search1.kakaocdn.net` address whose `fname` holds the original `t1.daumcdn.net/lbook/image/…` (about 400×690). That path is **not documented** and may change; `parseKakaoThumbnail` decodes `fname` (twice when it was double-encoded), switches to https and accepts only `https://t1.daumcdn.net`, otherwise keeps the thumbnail. Only addresses are stored, never images. The REST API key is entered in `/admin` and stored like the 국립중앙도서관 key (this browser's `settings` table; never in the repository, backups or Life Hub).
+- **판본 추가**: after picking a 국립중앙도서관 result with no cover, the same ISBN is looked up on Kakao; a failure never blocks adding the edition.
+- **표지 바꾸기** (`/admin?tab=covers`): for editions with an ISBN, 「알라딘 표지 → 카카오 원본」 shows the old and new cover side by side and changes only the ones you tick (originals are pre-ticked, thumbnails are not); a work's representative cover that pointed to the old address follows. 「카카오 표지 다시 확인」 looks the Kakao covers up again and updates addresses that changed. Changes land in the on-device catalogue override; export `catalog.json` and commit it. 「결과 내려받기」 saves a Markdown report (changed / not found).
+- A cover that fails to load shows the cloth-bound fallback (`BookCover`).
+- **Monthly refresh** (`.github/workflows/refresh-covers.yml`, `scripts/refreshCovers.ts`, `npm run refresh-covers`): on the 1st of every month (12:23 KST, or 「Run workflow」 by hand) GitHub Actions looks every Kakao cover in `src/data/catalog.json` up again and commits only addresses that changed (with the built `docs/`). Not-found and failed lookups keep the old address; a wrong key fails the run. Aladin covers are left alone: convert them first in 「표지 바꾸기」 and commit, then the monthly run keeps them fresh. The key is an Actions secret: repository **Settings → Secrets and variables → Actions → New repository secret**, name `KAKAO_REST_API_KEY`. Without it the run does nothing.
+- Policy: Kakao's 운영정책 forbids caching data for purposes other than improving the user experience or keeping a cache without refreshing it. Kakao staff answers on DevTalk allow keeping book search results as a cache as long as they are kept up to date (no recommended interval); the monthly refresh is that update. A direct answer for this app is pending. If Kakao says no, covers must be fetched live instead.
 
 ### Overall Data Flow
 
@@ -216,6 +227,35 @@ User action → `logStore` method → Dexie write → store state updated in mem
 Claude can propose reading records through [Life Hub](https://github.com/KINGJNU-sakayume/life-hub) ("데미안 다 읽었어, 별 다섯 개"). On **내 책장** the owner connects once (`Life Hub 연결`; OAuth public client `public/lifehub-client.json` with PKCE, `letterbookxd:inbox` only; Life Hub returns to `public/lifehub/`). Each proposal is matched against the catalogue (`src/lifehub/resolve.ts`): only a single exact title (and author) match, a single publisher and a single volume are preselected; anything else is a choice for the owner, and books missing from the catalogue wait until they are added. Approving writes through `logStore.upsertVolumeLog` (same completion cascade as the UI) and, for a stated completion date, `updateLogMetadata`. Receipts (proposal → log ID) and rejections are kept in localStorage and retried; rejecting changes nothing.
 
 **Claude card approvals.** Claude can show the proposal as a card and the owner can edit and approve it there. 책장 syncs `status=open` (pending + card-approved) and uses the owner's edited version (`final_candidate`) when there is one. It shares its catalogue with Life Hub for the card (`PUT …/refs/works` = work id, title, author; `PUT …/refs/editions` = edition id, publisher, `"<work id>/<volume>"`; public catalogue data only, sent when it changes). A card-approved proposal is recorded on opening (`src/lifehub/apply.ts`, the same path as the review dialog) only when Life Hub saw no need to ask, the setting 「Claude에서 승인된 항목 자동 반영」 (default on, this device, `letterbookxd.lifehub.auto-apply.v1`) is on, and `autoPlan` finds one work, one edition set and one volume; anything else stays in the list as 「Claude에서 승인함 · 확인 필요」. A stated completion date also dates the edition-set completion it creates.
+
+### 보드 타일 (Life Board)
+
+책장은 [Life Board](https://github.com/KINGJNU-sakayume/board)에 보일 **타일 목록(manifest v1)**만 Life Hub에 올립니다. 독서 기록 자체는 올리지 않습니다(기기 간 기록은 별도의 `letterbookxd:sync` 문서). 모양은 보드가 정하고, 이 저장소는 데이터만 만듭니다.
+
+| id | 이름 | 톤·형태 | 크기 (처음) | 기본 | 데이터 출처 |
+|---|---|---|---|---|---|
+| `reading` | 책장 · 읽는 중 | sleeve | 1x1 2x1 **2x2** | ✓ | 가장 최근에 손댄 `readingState: 'reading'` 권: 작품명, 출판사·N권, `currentPage / page_count` 진행, `11/5 읽음` 배지, 뒷면에 읽는 중 목록. 읽는 책이 없으면 가장 최근 완독(`11/5 완독`) |
+| `series` | 책장 · 시리즈 진행 | type·cells | **2x1** 4x1 | ✓ | 가장 최근에 손댄 진행 중 대상 하나: 여러 권 판본(권 칸, 완독한 권) 또는 카탈로그 시리즈(편 칸, 판본 세트 완독한 작품) |
+| `recent` | 책장 · 최근 완독 | strip | 2x1 **4x1** |  | 판본 세트 완독(`set_completion`)을 완독일 순으로, 같은 작품은 한 번, 표지 최대 8개 |
+| `next` | 책장 · 이어 읽을 차례 | type·list | 2x1 **2x2** |  | 진행 중인 여러 권 판본의 다음 권, 진행 중인 시리즈의 다음 편 (이미 읽는 중이면 뺌) |
+
+**왜 이 타일인가.** 보드의 원칙은 "이번 주 몇 권" 같은 통계보다 최근 흐름(지금 읽는 것 · 최근 끝낸 것 · 다음 차례)입니다. 처음부터 보이는 것은 지금 읽는 책과 진행 칸 두 개이고, 나머지는 보드의 '위젯 추가'에서 고릅니다. 밑줄·인용 기능이 없어 `quote` 후보는 만들지 않았습니다. 타일 `id`는 바꾸지 않습니다(보드의 배치가 id로 저장됩니다).
+
+**규칙** (`src/board/tiles.ts`, 순수 함수 `buildBoardTiles(source, now)`):
+- 표지는 **주소만** 보냅니다. board `js/config.js`의 `imageOrigins`(알라딘·위키미디어·카카오 등) 안의 `https` 주소면 그대로, 아니면 `{mono: '첫 글자'}` 글자 칸. 지금 카탈로그의 판본 표지 68개는 모두 `image.aladin.co.kr`(허용 출처)입니다. 포인트색(`accent`)은 표지에서 뽑을 수단이 없어 보내지 않습니다.
+- 글자는 board `js/schema.js`의 최대 길이로 자르고(…), 빈 글자는 필드째 뺍니다. 날짜는 "오늘·어제" 대신 한국 시간 `M/D`(해가 다르면 `YYYY/M/D`).
+- 같은 입력이면 같은 출력입니다(무작위·기기 시간대를 쓰지 않음, 기록 순서와 무관).
+- 기록이 없으면 타일 0개. `recent`·`series`는 데이터가 없으면 빼고, `next`는 `이어 읽을 책이 없어요`(muted) 한 줄.
+- 예시 출력: [`board/sample.json`](board/sample.json) (지어낸 상태 `tests/board/fixture.mjs`로 만든 것). `tests/board.test.mjs`가 board `js/schema.js` 복사본(`tests/board/schema.js`)의 `validateManifest(manifest, policy)`로 `errors`가 비었는지와 타일 수를 확인합니다.
+
+**언제 올리나** (`src/board/upload.ts`, `src/board/start.ts`): `PUT https://life-hub-api.213303.workers.dev/letterbookxd/v1/board`.
+- 앱을 열 때, 기록이 바뀔 때, 기기 동기화가 끝날 때, 카탈로그를 편집할 때 목록을 다시 만들고, 마지막으로 성공한 본문과 sha256(`generated_at` 제외)이 다를 때만 보냅니다. **10분에 한 번 이하**(10분 안이면 10분이 차는 때 한 번). 마지막 성공이 하루보다 오래됐으면 내용이 같아도 한 번 보냅니다.
+- 못 보낸 채 앱을 닫으면 '보낼 것 있음'이 localStorage(`letterbookxd.board.v1`: sha·시각·표시만)에 남아 다음 실행에서 나갑니다.
+- `400`·`413`은 앱 쪽 버그라 같은 내용을 다시 보내지 않고 개발자 콘솔에만 남깁니다. 네트워크 오류·`5xx`는 다음 기회에. 실패해도 다른 기능은 그대로입니다.
+
+**어느 기기에서 올리나.** Life Hub에 연결된 모든 기기가 올리고, Hub는 앱마다 최신 목록 하나만 보관합니다. 옛 상태가 덮어쓰지 않도록, 기기 동기화가 켜진 기기는 **시작 동기화가 성공해 기록을 합친 뒤에만** 올립니다(동기화가 오류·검토 필요 상태면 올리지 않음). 기록이 하나도 없는 기기(새 PC 등)와 미리보기·로컬 주소에서는 올리지 않습니다.
+
+**다시 연결이 필요한 경우.** 업로드에는 스코프 `letterbookxd:board`가 필요합니다. 이 스코프를 추가하기 전에 만든 연결은 첫 업로드가 `403 insufficient_scope`로 거절되며, 이때 **토큰을 지우지 않고**(제안·동기화는 계속) 설정의 Life Hub 섹션에 「보드에 올리려면 Life Hub에 한 번 다시 연결」 안내만 띄웁니다. 다른 `403`이나 토큰 갱신 뒤에도 계속되는 `401`은 기존 규칙대로 연결을 끊습니다.
 
 ## 7. Configuration & Backups
 

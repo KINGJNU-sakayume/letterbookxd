@@ -85,7 +85,7 @@ test('연결과 동기화: PKCE, 콜백 검증, 영수증·거절은 한 번만'
   const url = new URL(await beginConnect(deps));
   assert.deepEqual(
     [url.searchParams.get('client_id'), url.searchParams.get('redirect_uri'), url.searchParams.get('scope'), url.searchParams.get('resource')],
-    [CLIENT_ID, CALLBACK_URL, 'letterbookxd:inbox letterbookxd:sync', RESOURCE]);
+    [CLIENT_ID, CALLBACK_URL, 'letterbookxd:inbox letterbookxd:sync letterbookxd:board', RESOURCE]);
   deps.session.setItem(CALLBACK_KEY, `?code=c&state=${url.searchParams.get('state')}&iss=${encodeURIComponent(LIFEHUB_ORIGIN)}`);
   assert.equal(await completeStoredCallback(deps), true);
   assert.ok(isConnected(deps));

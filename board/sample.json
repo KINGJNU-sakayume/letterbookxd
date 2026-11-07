@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "app": "letterbookxd",
+  "generated_at": "2026-11-07T03:00:00.000Z",
+  "tiles": [
+    {
+      "id": "reading",
+      "name": "책장 · 읽는 중",
+      "tone": "sleeve",
+      "sizes": [
+        "1x1",
+        "2x1",
+        "2x2"
+      ],
+      "size": "2x2",
+      "default": true,
+      "href": "https://kingjnu-sakayume.github.io/letterbookxd/#/book/w-coast",
+      "detail": {
+        "title": "책장 · 읽는 중",
+        "rows": [
+          {
+            "title": "해안선의 기억",
+            "value": "3권",
+            "sub": "예시 출판사 · 11/5 읽음",
+            "cover": {
+              "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-3.jpg",
+              "alt": ""
+            },
+            "progress": {
+              "value": 214,
+              "max": 312,
+              "text": "214 / 312쪽"
+            },
+            "now": true
+          },
+          {
+            "title": "밤의 숲",
+            "sub": "숲길 · 11/4 읽음",
+            "cover": {
+              "mono": "밤"
+            },
+            "progress": {
+              "value": 61,
+              "max": 240,
+              "text": "61 / 240쪽"
+            }
+          }
+        ]
+      },
+      "data": {
+        "label": "책장",
+        "title": "해안선의 기억",
+        "sub": "예시 출판사 · 3권\n가상 작가",
+        "pill": "11/5 읽음",
+        "cover": {
+          "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-3.jpg",
+          "alt": ""
+        },
+        "progress": {
+          "value": 214,
+          "max": 312,
+          "text": "214 / 312쪽"
+        },
+        "list": [
+          {
+            "title": "해안선의 기억",
+            "value": "3권",
+            "sub": "예시 출판사 · 11/5 읽음",
+            "cover": {
+              "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-3.jpg",
+              "alt": ""
+            },
+            "progress": {
+              "value": 214,
+              "max": 312,
+              "text": "214 / 312쪽"
+            },
+            "now": true
+          },
+          {
+            "title": "밤의 숲",
+            "sub": "숲길 · 11/4 읽음",
+            "cover": {
+              "mono": "밤"
+            },
+            "progress": {
+              "value": 61,
+              "max": 240,
+              "text": "61 / 240쪽"
+            }
+          }
+        ],
+        "listLabel": "읽는 중"
+      }
+    },
+    {
+      "id": "series",
+      "name": "책장 · 시리즈 진행",
+      "tone": "type",
+      "form": "cells",
+      "sizes": [
+        "2x1",
+        "4x1"
+      ],
+      "size": "2x1",
+      "default": true,
+      "href": "https://kingjnu-sakayume.github.io/letterbookxd/#/book/w-coast",
+      "detail": {
+        "title": "해안선의 기억 · 예시 출판사",
+        "rows": [
+          {
+            "title": "1권",
+            "value": "완독 11/1"
+          },
+          {
+            "title": "2권",
+            "value": "완독 11/3"
+          },
+          {
+            "title": "3권",
+            "value": "읽는 중",
+            "progress": {
+              "value": 214,
+              "max": 312,
+              "text": "214 / 312쪽"
+            },
+            "now": true
+          },
+          {
+            "title": "4권",
+            "muted": true
+          }
+        ]
+      },
+      "data": {
+        "label": "책장 · 해안선의 기억 · 2 / 4권",
+        "total": 4,
+        "filled": 2
+      }
+    },
+    {
+      "id": "recent",
+      "name": "책장 · 최근 완독",
+      "tone": "strip",
+      "sizes": [
+        "2x1",
+        "4x1"
+      ],
+      "size": "4x1",
+      "default": false,
+      "href": "https://kingjnu-sakayume.github.io/letterbookxd/#/bookshelf?tab=completed",
+      "detail": {
+        "title": "책장 · 최근 완독",
+        "rows": [
+          {
+            "title": "길 위의 편지",
+            "value": "11/3 · ★4",
+            "sub": "편지사 · 가상 작가",
+            "cover": {
+              "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-5.jpg",
+              "alt": ""
+            }
+          },
+          {
+            "title": "바람의 문장",
+            "value": "10/28 · ★5",
+            "sub": "바람 · 세 번째 작가",
+            "cover": {
+              "mono": "바"
+            }
+          },
+          {
+            "title": "등대의 연대기 1부: 첫 불빛",
+            "value": "10/20 · ★3",
+            "sub": "등대 · 연대기 작가",
+            "cover": {
+              "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-7.jpg",
+              "alt": ""
+            }
+          }
+        ]
+      },
+      "data": {
+        "label": "책장 · 최근 완독",
+        "items": [
+          {
+            "title": "길 위의 편지",
+            "cover": {
+              "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-5.jpg",
+              "alt": ""
+            }
+          },
+          {
+            "title": "바람의 문장",
+            "cover": {
+              "mono": "바"
+            }
+          },
+          {
+            "title": "등대의 연대기 1부: 첫 불빛",
+            "cover": {
+              "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-7.jpg",
+              "alt": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "next",
+      "name": "책장 · 이어 읽을 차례",
+      "tone": "type",
+      "form": "list",
+      "sizes": [
+        "2x1",
+        "2x2"
+      ],
+      "size": "2x2",
+      "default": false,
+      "href": "https://kingjnu-sakayume.github.io/letterbookxd/#/bookshelf?tab=incomplete_series",
+      "data": {
+        "label": "책장 · 이어 읽을 차례",
+        "rows": [
+          {
+            "title": "등대의 연대기 2부: 폭풍",
+            "value": "2 / 3편",
+            "sub": "등대의 연대기 · 10/20 앞 편 완독",
+            "cover": {
+              "src": "https://image.aladin.co.kr/product/0/0/cover500/sample-8.jpg",
+              "alt": ""
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
