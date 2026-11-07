@@ -1,1 +1,0 @@
-import{j as t,d as s,L as e}from"./index-a3-HEf_e.js";import{u as a,P as i}from"./useDocumentTitle-C6bQrUdu.js";function r(){return a("페이지 없음"),t.jsx(i,{children:t.jsx(s,{className:"mt-6",title:"찾는 페이지가 없습니다",description:"주소가 바뀌었거나 지워진 페이지입니다.",action:t.jsx(e,{to:"/",className:"btn btn-primary",children:"둘러보기로 가기"})})})}export{r as NotFoundPage};
