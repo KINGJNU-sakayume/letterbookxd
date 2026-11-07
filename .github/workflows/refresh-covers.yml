@@ -1,0 +1,52 @@
+name: Refresh Kakao covers
+
+# 카탈로그의 카카오 표지 주소를 한 달에 한 번 다시 확인한다 (카카오 운영정책: 캐시한 데이터는 최신으로 유지).
+# 키는 저장소에 넣지 않고 Actions secret KAKAO_REST_API_KEY로만 받는다. 없으면 아무것도 하지 않는다.
+on:
+  schedule:
+    - cron: '23 3 1 * *'   # 매달 1일 03:23 UTC (12:23 KST)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-covers
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Refresh covers
+        env:
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+        run: npm run refresh-covers
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet -- src/data/catalog.json; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+      # GITHUB_TOKEN으로 push하면 deploy.yml이 다시 돌지 않으므로, 바뀌었을 때 여기서 검사·빌드까지 한다.
+      - if: steps.diff.outputs.changed == 'true'
+        run: npm run typecheck
+      - if: steps.diff.outputs.changed == 'true'
+        run: npm run lint
+      - if: steps.diff.outputs.changed == 'true'
+        run: npm test
+      - if: steps.diff.outputs.changed == 'true'
+        run: npm run build
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add src/data/catalog.json docs/
+          git commit -m "chore(covers): monthly Kakao cover refresh"
+          git push

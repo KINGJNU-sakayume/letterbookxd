@@ -100,3 +100,43 @@ export function coverReport(
   if (errors.length) lines.push('', '## 오류', ...errors.map((r) => `- ${label(r)}: ${r.outcome.kind === 'error' ? r.outcome.message : ''}`));
   return lines.join('\n') + '\n';
 }
+
+/** 키가 틀렸거나 권한이 없음: 더 돌지 않고 실패시킨다 */
+export const isKeyError = (err: unknown) =>
+  !!err && typeof err === 'object' && 'code' in err && ((err as { code?: unknown }).code === '401' || (err as { code?: unknown }).code === '403');
+
+export interface RefreshResult {
+  checked: number;
+  changed: CoverChange[];
+  notFound: CoverTarget[];
+  errors: Array<CoverTarget & { message: string }>;
+}
+
+/**
+ * 한 달 갱신(GitHub Actions)에서 쓰는 「카카오 표지 다시 확인」. 카카오 표지만 대상이고 알라딘 전환은 하지 않는다.
+ * 주소가 바뀐 것만 draft에 반영한다. 못 찾음·오류는 기존 주소를 그대로 둔다. 키 오류는 던진다.
+ */
+export async function refreshCovers(
+  draft: Pick<CatalogData, 'works' | 'editions'>,
+  lookup: (isbn: string) => Promise<KakaoCover | null>,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<RefreshResult> {
+  const targets = coverTargets(draft, 'recheck');
+  const result: RefreshResult = { checked: 0, changed: [], notFound: [], errors: [] };
+  for (const t of targets) {
+    let outcome: CoverOutcome;
+    try {
+      outcome = judgeCover(t.oldUrl, await lookup(t.isbn));
+    } catch (err) {
+      if (isKeyError(err)) throw err;
+      outcome = { kind: 'error', message: err instanceof Error ? err.message : String(err) };
+    }
+    result.checked++;
+    if (outcome.kind === 'found') result.changed.push({ editionId: t.editionId, oldUrl: t.oldUrl, newUrl: outcome.newUrl });
+    else if (outcome.kind === 'not_found') result.notFound.push(t);
+    else if (outcome.kind === 'error') result.errors.push({ ...t, message: outcome.message });
+    await sleep(200);
+  }
+  applyCoverChanges(draft, result.changed);
+  return result;
+}

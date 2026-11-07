@@ -191,7 +191,7 @@ export function KakaoCoverPanel() {
       )}
       <StatusDisplay status={status} />
       <p className="text-[12.5px] leading-relaxed text-ink-muted">
-        이미지는 내려받지 않고 주소만 바꿉니다. 카카오 원본(t1.daumcdn.net)은 공식 문서에 없는 경로라 바뀔 수 있어, 가끔 「다시 확인」으로 최신 주소를 받아 두세요.
+        이미지는 내려받지 않고 주소만 바꿉니다. 카카오 원본(t1.daumcdn.net)은 공식 문서에 없는 경로라 바뀔 수 있어, 「다시 확인」은 매달 1일 GitHub Actions(secret `KAKAO_REST_API_KEY`)가 배포된 카탈로그에 자동으로도 돌립니다.
         표지가 열리지 않으면 화면에는 기본 표지가 나옵니다.
       </p>
 

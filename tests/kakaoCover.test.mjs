@@ -5,7 +5,7 @@ import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   parseKakaoThumbnail, pickKakaoCover, buildKakaoUrl, lookupKakaoCover, getKakaoKey, setKakaoKey, KakaoKeyMissingError,
-  coverTargets, judgeCover, applyCoverChanges, coverReport, BookCover, resetDbForTests, LookupError,
+  coverTargets, judgeCover, applyCoverChanges, coverReport, refreshCovers, BookCover, resetDbForTests, LookupError,
 } from '../.test-dist/app.js';
 
 // 지어낸 값만 쓴다. 카카오에는 실제로 요청하지 않는다.
@@ -117,4 +117,37 @@ test('표지가 없으면 기본(천 장정) 표지, 있으면 이미지 + 로�
   assert.match(none, /cover-fallback/);
   const img = renderToStaticMarkup(h(BookCover, { src: 'https://t1.daumcdn.net/lbook/image/1', alt: '', title: '가상의 책' }));
   assert.match(img, /<img[^>]+src="https:\/\/t1\.daumcdn\.net\/lbook\/image\/1"/);
+});
+
+test('한 달 갱신: 카카오 표지만 다시 찾아 바뀐 주소만 고치고, 못 찾음·오류는 그대로, 키 오류는 실패', async () => {
+  const cat = structuredClone(catalog);
+  cat.editions.push({ id: 'e5', work_id: 'w1', publisher: '라', volume_number: '1', isbn: '9788900000005', cover_url: 'https://t1.daumcdn.net/lbook/image/5' });
+  cat.editions.push({ id: 'e6', work_id: 'w1', publisher: '마', volume_number: '1', isbn: '9788900000006', cover_url: 'https://t1.daumcdn.net/lbook/image/6' });
+  cat.editions.push({ id: 'e7', work_id: 'w1', publisher: '바', volume_number: '1', isbn: '9788900000007', cover_url: 'https://search1.kakaocdn.net/thumb/7' });
+  const asked = [];
+  const answers = {
+    '9788900000002': { cover: 'https://t1.daumcdn.net/lbook/image/1-new' },
+    '9788900000005': { cover: 'https://t1.daumcdn.net/lbook/image/5' },
+    '9788900000006': null,
+  };
+  const lookup = async (isbn) => {
+    asked.push(isbn);
+    if (isbn === '9788900000007') throw new LookupError('카카오에 연결하지 못했습니다.');
+    return answers[isbn];
+  };
+  const r = await refreshCovers(cat, lookup, async () => {});
+  assert.deepEqual(asked.sort(), ['9788900000002', '9788900000005', '9788900000006', '9788900000007'], '알라딘·다른 출처는 묻지 않는다');
+  assert.equal(r.checked, 4);
+  assert.deepEqual(r.changed.map((c) => c.editionId), ['e3']);
+  assert.deepEqual(r.notFound.map((t) => t.editionId), ['e6']);
+  assert.deepEqual(r.errors.map((t) => t.editionId), ['e7']);
+  const url = (id) => cat.editions.find((e) => e.id === id).cover_url;
+  assert.equal(url('e3'), 'https://t1.daumcdn.net/lbook/image/1-new');
+  assert.equal(url('e6'), 'https://t1.daumcdn.net/lbook/image/6');
+  assert.equal(url('e7'), 'https://search1.kakaocdn.net/thumb/7');
+  assert.equal(url('e1'), catalog.editions[0].cover_url);
+
+  const before = JSON.stringify(cat);
+  await assert.rejects(refreshCovers(cat, async () => { throw new LookupError('키 오류', '401'); }, async () => {}), (e) => e.code === '401');
+  assert.equal(JSON.stringify(cat), before, '키 오류면 아무것도 고치지 않는다');
 });
