@@ -47,3 +47,8 @@ export {
   createBoardUploader, readBoardState, boardNeedsReconnect, MIN_INTERVAL_MS, RESEND_AFTER_MS,
 } from '../../src/board/upload';
 export { BOARD_SCOPE, BOARD_URL, boardRequest } from '../../src/lifehub/remote';
+export {
+  parseKakaoThumbnail, pickKakaoCover, buildKakaoUrl, lookupKakaoCover, getKakaoKey, setKakaoKey, KakaoKeyMissingError,
+} from '../../src/services/kakaoCover';
+export { coverTargets, judgeCover, applyCoverChanges, coverReport } from '../../src/services/coverMigration';
+export { BookCover } from '../../src/components/ui/BookCover';

@@ -194,7 +194,15 @@ The public API: `loadLogs`, `upsertVolumeLog`, `updateReadingProgress`, `upsertS
 |---------|---------|-------------------|
 | **국립중앙도서관 ISBN 서지정보 API** (`https://www.nl.go.kr/seoji/SearchApi.do`) | Book search for the admin edition form: ISBN, publisher, cover (`TITLE_URL`), page count (`PAGE`), volume (`VOL`) | `src/services/bookLookup.ts` → `AdminPage.tsx` (`EditionForm`) |
 
+| **카카오(다음) 책 검색** (`https://dapi.kakao.com/v3/search/book?target=isbn`) | Covers: when 국립중앙도서관 has no cover for the chosen ISBN, and the bulk 「표지 바꾸기」 tool | `src/services/kakaoCover.ts`, `src/services/coverMigration.ts` → `AdminPage.tsx` (`EditionForm`, `KakaoCoverPanel`) |
+
 Search by title, or by ISBN when the query is 10/13 digits. The key (`cert_key`) is requested at [nl.go.kr → Open API → 인증키 신청/관리](https://www.nl.go.kr/NL/contents/N31101020000.do), entered in `/admin` → 판본 추가, and stored in this browser's `settings` table. It is not part of backups.
+
+**Covers.** The 알라딘 Open API ended on 2026-10-30; the `image.aladin.co.kr` addresses already in the catalogue still work for now but may stop. New covers come from 카카오 책 검색 (it allows CORS, so the browser calls it directly; header `Authorization: KakaoAK <REST API key>`). Its `thumbnail` is a 120×174 `search1.kakaocdn.net` address whose `fname` holds the original `t1.daumcdn.net/lbook/image/…` (about 400×690). That path is **not documented** and may change; `parseKakaoThumbnail` decodes `fname` (twice when it was double-encoded), switches to https and accepts only `https://t1.daumcdn.net`, otherwise keeps the thumbnail. Only addresses are stored, never images. The REST API key is entered in `/admin` and stored like the 국립중앙도서관 key (this browser's `settings` table; never in the repository, backups or Life Hub).
+- **판본 추가**: after picking a 국립중앙도서관 result with no cover, the same ISBN is looked up on Kakao; a failure never blocks adding the edition.
+- **표지 바꾸기** (`/admin?tab=covers`): for editions with an ISBN, 「알라딘 표지 → 카카오 원본」 shows the old and new cover side by side and changes only the ones you tick (originals are pre-ticked, thumbnails are not); a work's representative cover that pointed to the old address follows. 「카카오 표지 다시 확인」 looks the Kakao covers up again and updates addresses that changed. Changes land in the on-device catalogue override; export `catalog.json` and commit it. 「결과 내려받기」 saves a Markdown report (changed / not found).
+- A cover that fails to load shows the cloth-bound fallback (`BookCover`).
+- Policy: Kakao's 운영정책 forbids caching data for purposes other than improving the user experience or keeping a cache without refreshing it. Whether keeping a cover address in a personal catalogue is allowed has not been confirmed by Kakao yet; the 「다시 확인」 tool is the refresh path. If Kakao says no, covers must be fetched live instead.
 
 ### Overall Data Flow
 

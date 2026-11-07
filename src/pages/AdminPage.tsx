@@ -9,6 +9,8 @@ import {
   getLookupKey, LookupKeyMissingError, NLK_KEY_GUIDE_URL, searchBooks, setLookupKey, type BookCandidate,
 } from '../services/bookLookup';
 import { CatalogEditBar } from '../components/admin/CatalogEditBar';
+import { KakaoCoverPanel, KakaoKeyBox } from '../components/admin/KakaoCoverPanel';
+import { bestKakaoCover, lookupKakaoCover } from '../services/kakaoCover';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowchartEditor } from '../components/flowchart';
 import type { DbWork } from '../services/db';
@@ -25,14 +27,15 @@ import { useCatalogStore } from '../store/catalogStore';
 import { josa, matchesQuery } from '../lib/hangul';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
-type Tab = 'manage' | 'work' | 'edition' | 'author' | 'series' | 'flowchart';
+type Tab = 'manage' | 'work' | 'edition' | 'author' | 'series' | 'covers' | 'flowchart';
 
 const TABS: { value: Tab; label: string; description: string }[] = [
   { value: 'manage', label: '작품 목록', description: '등록된 작품을 찾아 고치거나 지웁니다.' },
   { value: 'work', label: '작품 추가', description: '새 작품을 서가에 올립니다. 판본은 다음 단계에서 붙입니다.' },
-  { value: 'edition', label: '판본 추가', description: '국립중앙도서관에서 책을 찾아 출판사별 판본과 권을 붙입니다.' },
+  { value: 'edition', label: '판본 추가', description: '국립중앙도서관에서 책을 찾아 출판사별 판본과 권을 붙입니다. 표지가 없으면 카카오 책 검색에서 찾습니다.' },
   { value: 'author', label: '작가 추가', description: '같은 이름이 있으면 덮어씁니다.' },
   { value: 'series', label: '시리즈 추가', description: '여러 작품을 묶는 시리즈를 만듭니다.' },
+  { value: 'covers', label: '표지 바꾸기', description: '알라딘 표지를 카카오 책 검색의 원본 표지로 바꾸고, 카카오 표지는 가끔 다시 확인합니다.' },
   { value: 'flowchart', label: '읽기 순서', description: '작가별 추천 읽기 순서를 그립니다.' },
 ];
 
@@ -113,6 +116,7 @@ export function AdminPage() {
                 : tab === 'work' ? <WorkForm />
                 : tab === 'edition' ? <EditionForm />
                 : tab === 'author' ? <AuthorForm />
+                : tab === 'covers' ? <KakaoCoverPanel />
                 : <SeriesForm />}
             </>
           )}
@@ -554,7 +558,7 @@ function EditionForm() {
     }
   }
 
-  function handleSelectBook(book: BookCandidate) {
+  async function handleSelectBook(book: BookCandidate) {
     const volume = book.volume || extractVolumeFromTitle(book.title);
     setForm((f) => ({
       ...f,
@@ -566,10 +570,25 @@ function EditionForm() {
     }));
     setSearchResults([]);
     setIsbnQuery(book.title);
-    const missing = [!book.pageCount && '쪽수', !book.cover && '표지'].filter(Boolean).join('와 ');
+    // 국립중앙도서관에 표지가 없으면 같은 ISBN으로 카카오 책 검색. 실패해도 등록은 막지 않는다.
+    let cover = book.cover;
+    let coverNote = '';
+    if (!cover && book.isbn) {
+      try {
+        cover = bestKakaoCover(await lookupKakaoCover(book.isbn)) ?? '';
+        if (cover) {
+          setForm((f) => (f.isbn === book.isbn && !f.cover_url ? { ...f, cover_url: cover } : f));
+          coverNote = ' 표지는 카카오 책 검색에서 가져왔습니다.';
+        }
+      } catch (err) {
+        console.error('카카오 표지 조회 실패:', err);
+        coverNote = ` 카카오 표지 조회는 실패했습니다 (${err instanceof Error ? err.message : '오류'}).`;
+      }
+    }
+    const missing = [!book.pageCount && '쪽수', !cover && '표지'].filter(Boolean).join('와 ');
     setStatus(missing
-      ? { type: 'error', text: `“${book.title}” 정보를 채웠습니다. ${missing}는 없어서 직접 적어 주세요.` }
-      : { type: 'success', text: `“${book.title}” 정보를 채웠습니다. (${book.pageCount}쪽)` });
+      ? { type: 'error', text: `“${book.title}” 정보를 채웠습니다. ${missing}는 없어서 직접 적어 주세요.${coverNote}` }
+      : { type: 'success', text: `“${book.title}” 정보를 채웠습니다. (${book.pageCount}쪽)${coverNote}` });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -635,6 +654,8 @@ function EditionForm() {
               </div>
             )}
 
+            <KakaoKeyBox />
+
             <div>
               <div className="flex items-baseline justify-between gap-3">
                 <label htmlFor="book-query" className="field-label">국립중앙도서관에서 찾기</label>
@@ -664,7 +685,7 @@ function EditionForm() {
                 <ul className="panel mt-2 max-h-80 divide-y divide-line-soft overflow-y-auto" aria-label="도서 검색 결과">
                   {searchResults.map((book) => (
                     <li key={book.isbn || book.title}>
-                      <button type="button" onClick={() => handleSelectBook(book)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-paper">
+                      <button type="button" onClick={() => void handleSelectBook(book)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-paper">
                         <BookCover src={book.cover || null} alt="" title={book.title} className="w-9 shrink-0" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[14px] font-semibold text-ink">{book.title}</span>
