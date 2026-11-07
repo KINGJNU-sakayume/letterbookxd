@@ -2,7 +2,7 @@
  * 책장 ↔ Life Hub connection.
  *
  * - Connect: OAuth 2.1 authorization code + PKCE (S256); 책장 is a public client identified by
- *   public/lifehub-client.json. It asks for `letterbookxd:inbox letterbookxd:sync`; Life Hub grants the sync scope only
+ *   public/lifehub-client.json. It asks for `letterbookxd:inbox letterbookxd:sync letterbookxd:board`; Life Hub grants the sync scope only
  *   when the owner ticks the sync checkbox on the consent page, so the granted scope is kept from the token response. Life Hub returns to
  *   /lifehub/ (public/lifehub/index.html), which hands the result to the app.
  * - Proposals (`reading_record`) are fetched live (`status=open`: pending, plus those the owner approved in a
@@ -20,9 +20,12 @@ export const CLIENT_ID = APP_URL + 'lifehub-client.json';
 export const RESOURCE = LIFEHUB_ORIGIN + '/letterbookxd';
 export const INBOX_SCOPE = 'letterbookxd:inbox';
 export const SYNC_SCOPE = 'letterbookxd:sync';
-export const SCOPE = `${INBOX_SCOPE} ${SYNC_SCOPE}`;
+/** Life Board tile list upload (PUT /letterbookxd/v1/board). Connections made before it was added lack it. */
+export const BOARD_SCOPE = 'letterbookxd:board';
+export const SCOPE = `${INBOX_SCOPE} ${SYNC_SCOPE} ${BOARD_SCOPE}`;
 const API = LIFEHUB_ORIGIN + '/letterbookxd/v1';
 const SYNC_API = API + '/sync';
+export const BOARD_URL = API + '/board';
 /** Written by public/lifehub/index.html. */
 export const CALLBACK_KEY = 'letterbookxd.lifehub.callback.v1';
 
@@ -287,6 +290,45 @@ export async function syncRequest(
     const challenge = response.headers.get('WWW-Authenticate') ?? '';
     if (/error="?insufficient_scope"?/i.test(challenge) || (challenge === '' && !hasSyncScope(deps)))
       throw new LifeHubError('no_scope', '동기화 권한이 없어요. Life Hub를 다시 연결하며 동기화에 체크해 주세요.');
+  }
+  if (response.status === 401 || response.status === 403) {
+    deps.storage.removeItem(TOKENS_KEY);
+    throw new LifeHubError('not_connected', 'Life Hub 연결이 더 이상 유효하지 않아요. 다시 연결해 주세요.');
+  }
+  return response;
+}
+
+/** true only when Life Hub said the board scope was granted. */
+export function hasBoardScope(deps: Pick<Deps, 'storage'>): boolean {
+  const scope = readJson<Tokens>(deps.storage, TOKENS_KEY)?.scope;
+  return scope !== undefined && scope.split(/\s+/).includes(BOARD_SCOPE);
+}
+
+/**
+ * The board tile list upload (`PUT /letterbookxd/v1/board`), kept apart from api() so that a missing board scope
+ * never ends the connection used by the inbox and sync.
+ * 403 with `insufficient_scope` (checked first), or a 403 whose header the browser cannot read while the board scope is
+ * not confirmed in the token, throws 'no_scope' and keeps the token. Any other 403, and a 401 that survives a refresh,
+ * end the connection exactly like api().
+ */
+export async function boardRequest(deps: Deps, body: string): Promise<Response> {
+  const send = async (token: string) => {
+    try {
+      return await deps.fetch(BOARD_URL, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body,
+      });
+    } catch {
+      throw new LifeHubError('network', 'Life Hub에 연결할 수 없어요. 네트워크를 확인해 주세요.');
+    }
+  };
+  let response = await send(await accessToken(deps));
+  if (response.status === 401) response = await send(await accessToken(deps, true));
+  if (response.status === 403) {
+    const challenge = response.headers.get('WWW-Authenticate') ?? '';
+    if (/error="?insufficient_scope"?/i.test(challenge) || (challenge === '' && !hasBoardScope(deps)))
+      throw new LifeHubError('no_scope', '보드에 올리려면 Life Hub에 다시 연결해 주세요.');
   }
   if (response.status === 401 || response.status === 403) {
     deps.storage.removeItem(TOKENS_KEY);
